@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { GitBranch, ArrowRight, Filter } from "lucide-react";
+import { GitBranch, ArrowRight, Filter, Network } from "lucide-react";
 import { cn, getRelationTypeColor } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card } from "@/components/ui/card";
+import { RelationGraph } from "@/components/relation-graph";
 
 interface Relation {
   from: string;
@@ -38,7 +39,7 @@ const RELATION_DOT = {
 export function RelationsContent() {
   const [data, setData] = useState<{ relations: Relation[] } | null>(null);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<"all" | Relation["type"]>("all");
+  const [filter, setFilter] = useState<"graph" | "all" | Relation["type"]>("graph");
   const [search, setSearch] = useState("");
   const [hoveredModel, setHoveredModel] = useState<string | null>(null);
 
@@ -52,7 +53,7 @@ export function RelationsContent() {
   const allRelations = data?.relations || [];
   const getFiltered = (f: typeof filter) =>
     allRelations.filter((r) => {
-      if (f !== "all" && r.type !== f) return false;
+      if (f !== "all" && f !== "graph" && r.type !== f) return false;
       if (search) {
         const q = search.toLowerCase();
         return r.from.toLowerCase().includes(q) || r.to.toLowerCase().includes(q);
@@ -111,6 +112,10 @@ export function RelationsContent() {
 
       <Tabs value={filter} onValueChange={(v) => setFilter(v as typeof filter)} className="w-full">
         <TabsList className="flex flex-wrap h-auto gap-2 p-1 bg-transparent border-0">
+          <TabsTrigger value="graph" className="rounded-full text-xs font-mono data-[state=active]:bg-secondary data-[state=active]:border-border">
+            <Network className="w-3 h-3 mr-1.5" />
+            Graph
+          </TabsTrigger>
           <TabsTrigger value="all" className="rounded-full text-xs font-mono data-[state=active]:bg-secondary data-[state=active]:border-border">
             All
             <span className="bg-secondary/80 px-1.5 py-0.5 rounded ml-1">{allRelations.length}</span>
@@ -135,8 +140,9 @@ export function RelationsContent() {
           ))}
         </TabsList>
 
-      {(["all", "one-to-many", "one-to-one", "many-to-one", "many-to-many"] as const).map((tabValue) => {
+      {(["graph", "all", "one-to-many", "one-to-one", "many-to-one", "many-to-many"] as const).map((tabValue) => {
         const groupedForTab = groupByModel(getFiltered(tabValue));
+        const isGraph = tabValue === "graph";
         return (
           <TabsContent key={tabValue} value={tabValue} className="mt-4">
             {loading ? (
@@ -145,6 +151,8 @@ export function RelationsContent() {
                   <Card key={i} className="h-28 animate-pulse bg-card/40" />
                 ))}
               </div>
+            ) : isGraph ? (
+              <RelationGraph relations={filtered} />
             ) : Object.keys(groupedForTab).length === 0 ? (
               <div className="flex flex-col items-center justify-center py-20 text-center">
                 <GitBranch className="w-10 h-10 text-muted-foreground/20 mb-4" />
