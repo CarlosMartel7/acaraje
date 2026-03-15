@@ -18,7 +18,7 @@ export function CrudNewContent() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch("/api/schemas").then((r) => r.json()).then(setSchemaData);
+    fetch("/api/acaraje/schemas").then((r) => r.json()).then(setSchemaData);
   }, []);
 
   const modelDef = schemaData?.models?.find(
@@ -29,7 +29,7 @@ export function CrudNewContent() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/crud/${model}`, {
+      const res = await fetch(`/api/acaraje/crud/${model}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),

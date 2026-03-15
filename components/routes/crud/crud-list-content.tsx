@@ -123,7 +123,7 @@ export function CrudListContent() {
         pageSize: "20",
         search: debouncedSearch,
       });
-      const res = await fetch(`/api/crud/${model}?${params}`);
+      const res = await fetch(`/api/acaraje/crud/${model}?${params}`);
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "Failed to load");
       setData(json);
@@ -147,9 +147,9 @@ export function CrudListContent() {
     setDeleteLoading(true);
     try {
       if (deleteIds.length === 1) {
-        await fetch(`/api/crud/${model}/${deleteIds[0]}`, { method: "DELETE" });
+        await fetch(`/api/acaraje/crud/${model}/${deleteIds[0]}`, { method: "DELETE" });
       } else {
-        await fetch(`/api/crud/${model}`, {
+        await fetch(`/api/acaraje/crud/${model}`, {
           method: "DELETE",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ ids: deleteIds }),

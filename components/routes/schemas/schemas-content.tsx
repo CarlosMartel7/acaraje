@@ -135,7 +135,7 @@ export function SchemasContent() {
   const tabParam = searchParams.get("tab");
 
   useEffect(() => {
-    fetch("/api/schemas")
+    fetch("/api/acaraje/schemas")
       .then((r) => r.json())
       .then(setData)
       .finally(() => setLoading(false));

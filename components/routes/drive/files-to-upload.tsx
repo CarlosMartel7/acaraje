@@ -115,7 +115,7 @@ export function FilesToUpload({ files, onFilesChange, selectedFolder }: FilesToU
         formData.append("folderId", selectedFolder.folderId);
         formData.append("displayName", item.displayName);
 
-        const res = await fetch("/api/drive/upload", {
+        const res = await fetch("/api/acaraje/drive/upload", {
           method: "POST",
           body: formData,
         });
@@ -129,8 +129,8 @@ export function FilesToUpload({ files, onFilesChange, selectedFolder }: FilesToU
       } catch (err) {
         onFilesChange((prev) =>
           prev.map((f, idx) =>
-            idx === i ? { ...f, status: "error" as const, error: err instanceof Error ? err.message : "Upload failed" } : f
-          )
+            idx === i ? { ...f, status: "error" as const, error: err instanceof Error ? err.message : "Upload failed" } : f,
+          ),
         );
       }
     }
@@ -159,8 +159,8 @@ export function FilesToUpload({ files, onFilesChange, selectedFolder }: FilesToU
             <div className="min-w-0 flex-1">
               <p className="text-sm font-medium text-primary-foreground">Upload destination</p>
               <p className="text-xs font-mono text-primary-foreground/70 truncate mt-0.5">
-                {selectedFolder.name || selectedFolder.folderId}
-                {selectedFolder.name && <span className="text-muted-foreground/60 ml-1">· {selectedFolder.folderId}</span>}
+                {selectedFolder.name || selectedFolder.folderId.slice(0, 10)}
+                {selectedFolder.name && <span className="text-muted-foreground/60 ml-1">· {selectedFolder.folderId.slice(0, 10)}</span>}
               </p>
             </div>
           </div>

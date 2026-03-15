@@ -1,16 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import {
-  ChevronRight,
-  ChevronDown,
-  Folder,
-  FolderOpen,
-  MoreHorizontal,
-  Pencil,
-  FolderPlus,
-  Trash2,
-} from "lucide-react";
+import { ChevronRight, ChevronDown, Folder, FolderOpen, MoreHorizontal, Pencil, FolderPlus, Trash2, Check, ExternalLink } from "lucide-react";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -20,6 +11,7 @@ export interface FolderNode {
   id: string;
   name: string;
   children?: FolderNode[];
+  webViewLink?: string;
 }
 
 interface FolderTreeProps {
@@ -28,8 +20,7 @@ interface FolderTreeProps {
   onSelect?: (folder: FolderNode) => void;
   onDelete?: (folder: FolderNode) => void;
   onRename?: (folder: FolderNode, newName: string) => void;
-  onCreateSubfolder?: (parent: FolderNode) => void;
-  onCreateRootFolder?: () => void;
+  onCreateFolder?: (parent?: FolderNode, name?: string) => void;
   defaultExpanded?: Set<string>;
 }
 
@@ -40,7 +31,7 @@ function FolderTreeItem({
   onSelect,
   onDelete,
   onRename,
-  onCreateSubfolder,
+  onCreateFolder,
   expandedIds,
   toggleExpand,
 }: {
@@ -50,7 +41,7 @@ function FolderTreeItem({
   onSelect?: (folder: FolderNode) => void;
   onDelete?: (folder: FolderNode) => void;
   onRename?: (folder: FolderNode, newName: string) => void;
-  onCreateSubfolder?: (parent: FolderNode) => void;
+  onCreateFolder?: (parent?: FolderNode, name?: string) => void;
   expandedIds: Set<string>;
   toggleExpand: (id: string) => void;
 }) {
@@ -75,7 +66,7 @@ function FolderTreeItem({
         className={cn(
           "flex items-center gap-2 py-1.5 px-2 rounded-md cursor-pointer group",
           "hover:bg-accent/50 transition-colors",
-          isSelected && "bg-primary/20 border border-primary-foreground/30"
+          isSelected && "bg-primary/20 border border-primary-foreground/30",
         )}
         style={{ paddingLeft: `${depth * 12 + 8}px` }}
         onClick={() => !isRenaming && onSelect?.(folder)}
@@ -88,15 +79,7 @@ function FolderTreeItem({
             if (hasChildren) toggleExpand(folder.id);
           }}
         >
-          {hasChildren ? (
-            isExpanded ? (
-              <ChevronDown className="w-4 h-4" />
-            ) : (
-              <ChevronRight className="w-4 h-4" />
-            )
-          ) : (
-            <span className="w-4" />
-          )}
+          {hasChildren ? isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" /> : <span className="w-4" />}
         </button>
         {isExpanded && hasChildren ? (
           <FolderOpen className="w-4 h-4 text-primary-foreground/80 flex-shrink-0" />
@@ -120,16 +103,11 @@ function FolderTreeItem({
             onClick={(e) => e.stopPropagation()}
           />
         ) : (
-          <span
-            className={cn(
-              "text-sm font-mono truncate flex-1 min-w-0",
-              isSelected ? "text-primary-foreground" : "text-foreground"
-            )}
-          >
+          <span className={cn("text-sm font-mono truncate flex-1 min-w-0", isSelected ? "text-primary-foreground" : "text-foreground")}>
             {folder.name}
           </span>
         )}
-        {!isRenaming && (onDelete || onRename || onCreateSubfolder) && (
+        {!isRenaming && (folder.webViewLink || onDelete || onRename || onCreateFolder) && (
           <DropdownMenu.Root>
             <DropdownMenu.Trigger asChild>
               <Button
@@ -148,6 +126,15 @@ function FolderTreeItem({
                 sideOffset={4}
                 onClick={(e) => e.stopPropagation()}
               >
+                {folder.webViewLink && (
+                  <DropdownMenu.Item
+                    className="flex items-center gap-2 px-2 py-1.5 text-sm rounded cursor-pointer outline-none hover:bg-accent"
+                    onSelect={() => window.open(folder.webViewLink, "_blank", "noopener,noreferrer")}
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" />
+                    Open in Drive
+                  </DropdownMenu.Item>
+                )}
                 {onRename && (
                   <DropdownMenu.Item
                     className="flex items-center gap-2 px-2 py-1.5 text-sm rounded cursor-pointer outline-none hover:bg-accent"
@@ -160,13 +147,13 @@ function FolderTreeItem({
                     Rename
                   </DropdownMenu.Item>
                 )}
-                {onCreateSubfolder && (
+                {onCreateFolder && (
                   <DropdownMenu.Item
                     className="flex items-center gap-2 px-2 py-1.5 text-sm rounded cursor-pointer outline-none hover:bg-accent"
-                    onSelect={() => onCreateSubfolder(folder)}
+                    onSelect={() => onCreateFolder(folder)}
                   >
                     <FolderPlus className="w-3.5 h-3.5" />
-                    New subfolder
+                    New folder
                   </DropdownMenu.Item>
                 )}
                 {onDelete && (
@@ -194,7 +181,7 @@ function FolderTreeItem({
               onSelect={onSelect}
               onDelete={onDelete}
               onRename={onRename}
-              onCreateSubfolder={onCreateSubfolder}
+              onCreateFolder={onCreateFolder}
               expandedIds={expandedIds}
               toggleExpand={toggleExpand}
             />
@@ -211,11 +198,12 @@ export function FolderTree({
   onSelect,
   onDelete,
   onRename,
-  onCreateSubfolder,
-  onCreateRootFolder,
+  onCreateFolder,
   defaultExpanded = new Set(),
 }: FolderTreeProps) {
   const [expandedIds, setExpandedIds] = useState<Set<string>>(defaultExpanded);
+  const [isCreatingRoot, setIsCreatingRoot] = useState(false);
+  const [newFolderName, setNewFolderName] = useState("");
 
   const toggleExpand = (id: string) => {
     setExpandedIds((prev) => {
@@ -226,18 +214,61 @@ export function FolderTree({
     });
   };
 
+  const handleCreateRoot = () => {
+    const name = newFolderName.trim() || "New folder";
+    onCreateFolder?.(undefined, name);
+    setIsCreatingRoot(false);
+    setNewFolderName("");
+  };
+
+  const handleCancelCreate = () => {
+    setIsCreatingRoot(false);
+    setNewFolderName("");
+  };
+
   return (
     <div className="space-y-0.5">
-      {onCreateRootFolder && (
-        <Button
-          variant="ghost"
-          size="sm"
-          className="w-full justify-start gap-2 mb-2 text-muted-foreground hover:text-foreground"
-          onClick={onCreateRootFolder}
-        >
-          <FolderPlus className="w-4 h-4" />
-          New folder
-        </Button>
+      {onCreateFolder && (
+        <div className="mb-2">
+          {isCreatingRoot ? (
+            <div className="flex items-center gap-1">
+              <Input
+                value={newFolderName}
+                onChange={(e) => setNewFolderName(e.target.value)}
+                onBlur={handleCancelCreate}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleCreateRoot();
+                  if (e.key === "Escape") handleCancelCreate();
+                }}
+                placeholder="New folder"
+                className="h-8 text-xs font-mono flex-1 min-w-0"
+                autoFocus
+              />
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                className="h-8 w-8 text-emerald-400 hover:text-emerald-300 flex-shrink-0"
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  handleCreateRoot();
+                }}
+                title="Create folder"
+              >
+                <Check className="w-4 h-4" />
+              </Button>
+            </div>
+          ) : (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="w-full justify-start gap-2 text-muted-foreground hover:text-foreground"
+              onClick={() => setIsCreatingRoot(true)}
+            >
+              <FolderPlus className="w-4 h-4" />
+              New folder
+            </Button>
+          )}
+        </div>
       )}
       {folders.map((folder) => (
         <FolderTreeItem
@@ -248,7 +279,7 @@ export function FolderTree({
           onSelect={onSelect}
           onDelete={onDelete}
           onRename={onRename}
-          onCreateSubfolder={onCreateSubfolder}
+          onCreateFolder={onCreateFolder}
           expandedIds={expandedIds}
           toggleExpand={toggleExpand}
         />

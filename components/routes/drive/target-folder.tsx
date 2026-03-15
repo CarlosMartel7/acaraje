@@ -1,14 +1,11 @@
 "use client";
 
-import { useState, useCallback, Dispatch, SetStateAction } from "react";
+import { Dispatch, SetStateAction } from "react";
 import { FolderOpen } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { FolderTree, type FolderNode } from "./folder-tree";
 import type { SelectedFolder } from "./types";
-
-function generateId() {
-  return Math.random().toString(36).slice(2, 10);
-}
+import AcarajeCalls_drive from "./[[api-calls]]";
 
 function removeFolderFromTree(nodes: FolderNode[], id: string): FolderNode[] {
   return nodes
@@ -52,41 +49,14 @@ interface TargetFolderProps {
 }
 
 export function TargetFolder({ value, onChange, folders, setFolders }: TargetFolderProps) {
-  const handleDelete = useCallback(
-    async (folder: FolderNode) => {
-      const response = await fetch(`/api/drive/folders?folderId=${encodeURIComponent(folder.id)}`, {
-        method: "DELETE",
-      });
-      const data = await response.json();
-      if (data.error) throw new Error(data.error);
-
-      setFolders((prev) => removeFolderFromTree(prev, folder.id));
-      if (value?.folderId === folder.id) onChange(null);
-    },
-    [onChange, value],
+  const { handleDelete, handleRename, handleCreatefolder } = AcarajeCalls_drive(
+    setFolders,
+    removeFolderFromTree,
+    renameFolderInTree,
+    addSubfolderToTree,
+    onChange,
+    value,
   );
-
-  const handleRename = useCallback((folder: FolderNode, newName: string) => {
-    setFolders((prev) => renameFolderInTree(prev, folder.id, newName));
-  }, []);
-
-  const handleCreateSubfolder = useCallback((parent: FolderNode) => {
-    const newFolder: FolderNode = {
-      id: generateId(),
-      name: "New folder",
-      children: [],
-    };
-    setFolders((prev) => addSubfolderToTree(prev, parent.id, newFolder));
-  }, []);
-
-  const handleCreateRootFolder = useCallback(() => {
-    const newFolder: FolderNode = {
-      id: generateId(),
-      name: "New folder",
-      children: [],
-    };
-    setFolders((prev) => [...prev, newFolder]);
-  }, []);
 
   return (
     <Card>
@@ -105,8 +75,7 @@ export function TargetFolder({ value, onChange, folders, setFolders }: TargetFol
             onSelect={(folder) => onChange({ folderId: folder.id, name: folder.name })}
             onDelete={handleDelete}
             onRename={handleRename}
-            onCreateSubfolder={handleCreateSubfolder}
-            onCreateRootFolder={handleCreateRootFolder}
+            onCreateFolder={handleCreatefolder}
             defaultExpanded={new Set(["root", "1abc", "2def", "3ghi"])}
           />
         </div>

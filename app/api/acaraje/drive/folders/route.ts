@@ -3,22 +3,21 @@ import { getGoogleDriveClient } from "@/lib/google-drive";
 
 const FOLDER_MIME_TYPE = "application/vnd.google-apps.folder";
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
-    const parentId = request.nextUrl.searchParams.get("parentId") ?? "root";
-
     const drive = getGoogleDriveClient();
 
     const response = await drive.files.list({
-      q: `'${parentId}' in parents and mimeType = '${FOLDER_MIME_TYPE}' and trashed = false`,
+      q: `mimeType = '${FOLDER_MIME_TYPE}' and trashed = false`,
       orderBy: "name",
-      fields: "files(id, name)",
+      fields: "files(id, name, parents, webViewLink)",
     });
 
     const folders = (response.data.files ?? []).map((f) => ({
-      id: f.id,
+      id: f.id!,
       name: f.name ?? "Untitled",
-      children: [] as { id: string; name: string }[],
+      parents: f.parents ?? [],
+      webViewLink: f.webViewLink ?? undefined,
     }));
 
     return NextResponse.json({ folders });

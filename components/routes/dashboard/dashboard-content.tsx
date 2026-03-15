@@ -78,7 +78,7 @@ export function DashboardContent() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("/api/stats")
+    fetch("/api/acaraje/stats")
       .then((r) => r.json())
       .then((d) => setStats(d))
       .finally(() => setLoading(false));

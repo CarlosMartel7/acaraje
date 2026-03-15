@@ -8,7 +8,30 @@ import { FilesToUpload } from "@/components/routes/drive/files-to-upload";
 import type { DriveType, SelectedFile, SelectedFolder } from "@/components/routes/drive/types";
 import { FolderNode } from "@/components/routes/drive/folder-tree";
 
-function structureFolders(folders: FolderNode[]) {}
+type RawFolder = { id: string; name: string; parents?: string[]; webViewLink?: string };
+
+function structureFolders(folders: RawFolder[]): FolderNode[] {
+  const byId = new Map<string, FolderNode>();
+  for (const f of folders) {
+    byId.set(f.id, { id: f.id, name: f.name, children: [], webViewLink: f.webViewLink });
+  }
+  const roots: FolderNode[] = [];
+  for (const f of folders) {
+    const node = byId.get(f.id)!;
+    const parentId = f.parents?.[0];
+    if (!parentId || parentId === "root" || !byId.has(parentId)) {
+      roots.push(node);
+    } else {
+      const parent = byId.get(parentId)!;
+      (parent.children ??= []).push(node);
+    }
+  }
+  roots.sort((a, b) => a.name.localeCompare(b.name));
+  for (const node of byId.values()) {
+    if (node.children?.length) node.children.sort((a, b) => a.name.localeCompare(b.name));
+  }
+  return roots;
+}
 
 export default function DrivePage() {
   const searchParams = useSearchParams();
@@ -23,9 +46,9 @@ export default function DrivePage() {
   }, [searchParams]);
 
   useEffect(() => {
-    fetch("/api/drive/folders")
+    fetch("/api/acaraje/drive/folders")
       .then((r) => r.json())
-      .then((data) => setFetchedFolders(data.folders ?? []))
+      .then((data) => setFetchedFolders(structureFolders(data.folders ?? [])))
       .catch(() => setFetchedFolders([]));
   }, []);
 

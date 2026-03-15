@@ -55,7 +55,7 @@ export function SeederContent() {
   const [seedingAll, setSeedingAll] = useState(false);
 
   useEffect(() => {
-    Promise.all([fetch("/api/schemas").then((r) => r.json()), fetch("/api/seed").then((r) => r.json())]).then(([schema, seedData]) => {
+    Promise.all([fetch("/api/acaraje/schemas").then((r) => r.json()), fetch("/api/acaraje/seed").then((r) => r.json())]).then(([schema, seedData]) => {
       const ms: ModelInfo[] = (schema.models || []).map((m: any) => ({
         name: m.name,
         fieldCount: m.fields.length,
@@ -85,7 +85,7 @@ export function SeederContent() {
     const count = states[modelName]?.count || 5;
     updateState(modelName, { loading: true, result: null, error: null });
     try {
-      const res = await fetch("/api/seed", {
+      const res = await fetch("/api/acaraje/seed", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ modelName, count }),

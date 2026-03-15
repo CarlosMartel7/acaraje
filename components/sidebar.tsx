@@ -35,7 +35,7 @@ export function Sidebar() {
   const [crudOpen, setCrudOpen] = useState(false);
 
   useEffect(() => {
-    fetch("/api/schemas")
+    fetch("/api/acaraje/schemas")
       .then((r) => r.json())
       .then((d) => setModels(d.models?.map((m: any) => m.name) || []));
   }, []);

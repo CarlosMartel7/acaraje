@@ -44,7 +44,7 @@ export function RelationsContent() {
   const [hoveredModel, setHoveredModel] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch("/api/relations")
+    fetch("/api/acaraje/relations")
       .then((r) => r.json())
       .then(setData)
       .finally(() => setLoading(false));

@@ -96,7 +96,7 @@ export function DynamicForm({
   useEffect(() => {
     const relFields = editableFields.filter((f) => f.isRelation && f.type);
     for (const f of relFields) {
-      fetch(`/api/crud/${f.type}/options`)
+      fetch(`/api/acaraje/crud/${f.type}/options`)
         .then((r) => r.json())
         .then((d) => {
           setRelationOptions((prev) => ({ ...prev, [f.type]: d.options || [] }));

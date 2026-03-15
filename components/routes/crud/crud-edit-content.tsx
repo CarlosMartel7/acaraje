@@ -22,8 +22,8 @@ export function CrudEditContent() {
 
   useEffect(() => {
     Promise.all([
-      fetch("/api/schemas").then((r) => r.json()),
-      fetch(`/api/crud/${model}/${id}`).then((r) => r.json()),
+      fetch("/api/acaraje/schemas").then((r) => r.json()),
+      fetch(`/api/acaraje/crud/${model}/${id}`).then((r) => r.json()),
     ]).then(([schema, rec]) => {
       setSchemaData(schema);
       setRecord(rec);
@@ -38,7 +38,7 @@ export function CrudEditContent() {
     setSaving(true);
     setError(null);
     try {
-      const res = await fetch(`/api/crud/${model}/${id}`, {
+      const res = await fetch(`/api/acaraje/crud/${model}/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
