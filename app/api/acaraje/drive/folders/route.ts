@@ -6,6 +6,7 @@ const FOLDER_MIME_TYPE = "application/vnd.google-apps.folder";
 export async function GET() {
   try {
     const drive = getGoogleDriveClient();
+    const rootFolderId = process.env.GOOGLE_DRIVE_FOLDER_ID;
 
     const response = await drive.files.list({
       q: `mimeType = '${FOLDER_MIME_TYPE}' and trashed = false`,
@@ -16,7 +17,7 @@ export async function GET() {
     const folders = (response.data.files ?? []).map((f) => ({
       id: f.id!,
       name: f.name ?? "Untitled",
-      parents: f.parents ?? [],
+      parents: [rootFolderId],
       webViewLink: f.webViewLink ?? undefined,
     }));
 
@@ -31,14 +32,23 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json().catch(() => ({}));
     const name = (body.name as string) || "Test Folder";
-    const parentId = (body.parentId as string) || "root";
+    const parentId = (body.parentId as string) || process.env.GOOGLE_DRIVE_FOLDER_ID?.toString() || "";
     const drive = getGoogleDriveClient();
+
+    console.log({
+      requestBody: {
+        name,
+        mimeType: FOLDER_MIME_TYPE,
+        parents: [parentId],
+      },
+      fields: "id, name, webViewLink",
+    });
 
     const response = await drive.files.create({
       requestBody: {
         name,
         mimeType: FOLDER_MIME_TYPE,
-        ...(parentId !== "root" && { parents: [parentId] }),
+        parents: [parentId],
       },
       fields: "id, name, webViewLink",
     });

@@ -11,15 +11,16 @@ import { FolderNode } from "@/components/routes/drive/folder-tree";
 type RawFolder = { id: string; name: string; parents?: string[]; webViewLink?: string };
 
 function structureFolders(folders: RawFolder[]): FolderNode[] {
+  const filtered = folders.filter((f) => f.parents?.[0] !== f.id);
   const byId = new Map<string, FolderNode>();
-  for (const f of folders) {
+  for (const f of filtered) {
     byId.set(f.id, { id: f.id, name: f.name, children: [], webViewLink: f.webViewLink });
   }
   const roots: FolderNode[] = [];
-  for (const f of folders) {
+  for (const f of filtered) {
     const node = byId.get(f.id)!;
     const parentId = f.parents?.[0];
-    if (!parentId || parentId === "root" || !byId.has(parentId)) {
+    if (!parentId || !byId.has(parentId)) {
       roots.push(node);
     } else {
       const parent = byId.get(parentId)!;

@@ -26,7 +26,7 @@ export default function AcarajeCalls_drive(
         {
           loading: "Deleting folder...",
           success: "Folder deleted",
-          error: (err) => err instanceof Error ? err.message : "Failed to delete folder",
+          error: (err) => (err instanceof Error ? err.message : "Failed to delete folder"),
         },
       );
     },
@@ -45,9 +45,10 @@ export default function AcarajeCalls_drive(
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             name: name?.trim() || "New folder",
-            parentId: parent ? parent.id : "root",
+            parentId: parent ? parent.id : undefined,
           }),
         });
+
         const data = await response.json();
         if (data.error) throw new Error(data.error);
 
@@ -68,7 +69,7 @@ export default function AcarajeCalls_drive(
       {
         loading: "Creating folder...",
         success: (data) => `Folder "${data?.name ?? "New folder"}" created`,
-        error: (err) => err instanceof Error ? err.message : "Failed to create folder",
+        error: (err) => (err instanceof Error ? err.message : "Failed to create folder"),
       },
     );
   }, []);
