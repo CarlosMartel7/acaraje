@@ -14,6 +14,7 @@ import {
   ChevronDown,
   Icon,
   Shrimp,
+  Cloud,
 } from "lucide-react";
 import { pepperChilli } from "@lucide/lab";
 import { cn } from "@/lib/utils";
@@ -25,6 +26,7 @@ const topNavItems = [
   { href: "/schemas", label: "Models", icon: Table2, description: "All Prisma models" },
   { href: "/relations", label: "Relations", icon: GitBranch, description: "Model relationships" },
   { href: "/seeder", label: "Seeder", icon: Sprout, description: "Generate fake data" },
+  { href: "/drive", label: "Drive", icon: Cloud, description: "Upload and manage folders" },
 ];
 
 export function Sidebar() {

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Lora, DM_Mono } from "next/font/google";
 import "./globals.css";
+import { Sidebar } from "@/components/sidebar";
 
 const serif = Lora({
   subsets: ["latin"],
@@ -22,7 +23,12 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className="dark">
-      <body className={`${serif.variable} ${mono.variable} font-sans antialiased`}>{children}</body>
+      <body className={`${serif.variable} ${mono.variable} font-sans antialiased`}>
+        <div className="flex h-screen overflow-hidden">
+          <Sidebar />
+          <main className="flex-1 overflow-auto">{children}</main>
+        </div>
+      </body>
     </html>
   );
 }

@@ -15,6 +15,7 @@ prisma/*.db-journal
 
 # Environment
 .env
+*-service-account*.json
 .env.local
 .env.development.local
 .env.test.local
