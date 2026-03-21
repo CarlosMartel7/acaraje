@@ -10,7 +10,8 @@
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
     "db:seed": "tsx prisma/seed.ts",
-    "db:studio": "prisma studio"
+    "db:studio": "prisma studio",
+    "storage:setup": "tsx scripts/setup-storage-bucket.ts"
   },
   "dependencies": {
     "@faker-js/faker": "^10.3.0",
@@ -35,9 +36,10 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "dagre": "^0.8.5",
-    "googleapis": "^171.4.0",
     "lucide-react": "^0.577.0",
+    "minio": "^8.0.7",
     "next": "15.0.4",
+    "next-auth": "^5.0.0-beta.30",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "sonner": "^2.0.7",

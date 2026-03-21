@@ -1,4 +1,4 @@
-export type DriveType = "google-drive";
+export type DriveType = "minio";
 
 export interface SelectedFolder {
   folderId: string;

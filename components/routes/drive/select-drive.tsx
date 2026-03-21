@@ -1,6 +1,6 @@
 "use client";
 
-import { Cloud, HardDrive, CheckCircle } from "lucide-react";
+import { Database, HardDrive, CheckCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import type { DriveType } from "./types";
@@ -14,10 +14,10 @@ interface DriveOption {
 
 const DRIVE_OPTIONS: DriveOption[] = [
   {
-    id: "google-drive",
-    name: "Google Drive",
-    icon: Cloud,
-    description: "Upload files to a folder in your Google Drive",
+    id: "minio",
+    name: "MinIO (S3)",
+    icon: Database,
+    description: "S3-compatible object storage",
   },
 ];
 
@@ -32,9 +32,9 @@ export function SelectDrive({ value, onChange }: SelectDriveProps) {
       <CardHeader>
         <CardTitle className="text-base flex items-center gap-2">
           <HardDrive className="w-4 h-4" />
-          Select Drive (coming soon)
+          Storage
         </CardTitle>
-        <CardDescription>Choose where to upload your files</CardDescription>
+        <CardDescription>Object storage backend</CardDescription>
       </CardHeader>
       <CardContent className="space-y-2">
         {DRIVE_OPTIONS.map((option) => {

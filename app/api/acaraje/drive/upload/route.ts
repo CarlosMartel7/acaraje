@@ -1,53 +1,35 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getGoogleDriveClient } from "@/lib/google-drive";
-import { Readable } from "stream";
+import { getMinioStorage } from "@/lib/storage/minio-storage";
+import { normalizeFolderPrefix, sanitizeObjectName } from "@/lib/storage/paths";
 
 export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();
     const file = formData.get("file") as File;
     const folderId = formData.get("folderId") as string;
+    const displayName = ((formData.get("displayName") as string) || "").trim() || file?.name;
 
     if (!file) return NextResponse.json({ error: "No file provided" }, { status: 400 });
     if (!folderId) return NextResponse.json({ error: "No folderId provided" }, { status: 400 });
 
-    const drive = getGoogleDriveClient();
-
-    // Convert File to readable stream
+    const fileName = sanitizeObjectName(displayName);
+    const folderPrefix = normalizeFolderPrefix(folderId);
+    const key = `${folderPrefix}${fileName}`;
     const buffer = Buffer.from(await file.arrayBuffer());
-    const stream = Readable.from(buffer);
-
-    const response = await drive.files.create({
-      requestBody: {
-        name: file.name,
-        mimeType: file.type,
-        parents: [folderId],
-      },
-      media: {
-        mimeType: file.type,
-        body: stream,
-      },
-      fields: "id, name, webViewLink, mimeType, size",
-    });
-
-    // Make file publicly viewable
-    await drive.permissions.create({
-      fileId: response.data.id!,
-      requestBody: {
-        role: "reader",
-        type: "anyone",
-      },
+    await getMinioStorage().uploadFile(key, buffer, {
+      contentType: file.type || "application/octet-stream",
     });
 
     return NextResponse.json({
-      id: response.data.id,
-      name: response.data.name,
-      webViewLink: response.data.webViewLink,
-      mimeType: response.data.mimeType,
-      size: response.data.size,
+      id: key,
+      name: displayName,
+      webViewLink: undefined,
+      mimeType: file.type,
+      size: String(buffer.length),
     });
   } catch (err) {
     console.error("Drive upload file error:", err);
-    return NextResponse.json({ error: err instanceof Error ? err.message : "Failed to upload file" }, { status: 500 });
+    const message = err instanceof Error ? err.message : "Failed to upload file";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import Link from "next/link";
+import { Suspense, useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { SelectDrive } from "@/components/routes/drive/select-drive";
 import { TargetFolder } from "@/components/routes/drive/target-folder";
@@ -34,12 +35,13 @@ function structureFolders(folders: RawFolder[]): FolderNode[] {
   return roots;
 }
 
-export default function DrivePage() {
+function DrivePageInner() {
   const searchParams = useSearchParams();
-  const [selectedDrive, setSelectedDrive] = useState<DriveType>("google-drive");
+  const [selectedDrive, setSelectedDrive] = useState<DriveType>("minio");
   const [selectedFolder, setSelectedFolder] = useState<SelectedFolder | null>(null);
   const [files, setFiles] = useState<SelectedFile[]>([]);
   const [fetchedFolders, setFetchedFolders] = useState<FolderNode[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const id = searchParams.get("folderId");
@@ -50,22 +52,46 @@ export default function DrivePage() {
     fetch("/api/acaraje/drive/folders")
       .then((r) => r.json())
       .then((data) => setFetchedFolders(structureFolders(data.folders ?? [])))
-      .catch(() => setFetchedFolders([]));
+      .catch(() => setFetchedFolders([]))
+      .finally(() => setLoading(false));
   }, []);
 
   return (
     <div className="p-8 space-y-6 animate-in">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Drive Upload</h1>
-        <p className="text-muted-foreground text-sm mt-1">Select a folder and upload files to the company Drive</p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Drive Upload</h1>
+          <p className="text-muted-foreground text-sm mt-1">Select a folder and upload files to MinIO storage</p>
+          <Link href="/drive/view" className="text-xs text-muted-foreground hover:text-foreground mt-2 inline-block">
+            View folder structure →
+          </Link>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <SelectDrive value={selectedDrive} onChange={setSelectedDrive} />
-        <TargetFolder value={selectedFolder} onChange={setSelectedFolder} folders={fetchedFolders || []} setFolders={setFetchedFolders} />
-      </div>
+      {loading && <div className="text-muted-foreground text-sm">Loading folders…</div>}
 
-      <FilesToUpload files={files} onFilesChange={setFiles} selectedFolder={selectedFolder} />
+      {!loading && (
+        <>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <SelectDrive value={selectedDrive} onChange={setSelectedDrive} />
+            <TargetFolder
+              value={selectedFolder}
+              onChange={setSelectedFolder}
+              folders={fetchedFolders || []}
+              setFolders={setFetchedFolders}
+            />
+          </div>
+          <FilesToUpload files={files} setFiles={setFiles} selectedFolder={selectedFolder} />
+        </>
+      )}
     </div>
+  );
+}
+
+export default function DrivePage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-muted-foreground text-sm">Loading…</div>}>
+      <DrivePageInner />
+    </Suspense>
   );
 }

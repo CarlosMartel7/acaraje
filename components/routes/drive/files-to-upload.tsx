@@ -16,11 +16,11 @@ function formatFileSize(bytes: number): string {
 
 interface FilesToUploadProps {
   files: SelectedFile[];
-  onFilesChange: (updater: (prev: SelectedFile[]) => SelectedFile[]) => void;
+  setFiles: React.Dispatch<React.SetStateAction<SelectedFile[]>>;
   selectedFolder: SelectedFolder | null;
 }
 
-export function FilesToUpload({ files, onFilesChange, selectedFolder }: FilesToUploadProps) {
+export function FilesToUpload({ files, setFiles, selectedFolder }: FilesToUploadProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadComplete, setUploadComplete] = useState(false);
@@ -36,18 +36,18 @@ export function FilesToUpload({ files, onFilesChange, selectedFolder }: FilesToU
         displayName: file.name,
         status: "pending",
       }));
-      onFilesChange((prev) => [...prev, ...added]);
+      setFiles((prev) => [...prev, ...added]);
       setUploadComplete(false);
     },
-    [onFilesChange],
+    [setFiles],
   );
 
   const removeFile = useCallback(
     (id: string) => {
-      onFilesChange((prev) => prev.filter((f) => f.id !== id));
+      setFiles((prev) => prev.filter((f) => f.id !== id));
       setEditingId((prev) => (prev === id ? null : prev));
     },
-    [onFilesChange],
+    [setFiles],
   );
 
   const startRename = useCallback((item: SelectedFile) => {
@@ -58,10 +58,10 @@ export function FilesToUpload({ files, onFilesChange, selectedFolder }: FilesToU
   const commitRename = useCallback(() => {
     if (!editingId) return;
     const trimmed = editingValue.trim();
-    onFilesChange((prev) => prev.map((f) => (f.id === editingId ? { ...f, displayName: trimmed || f.file.name } : f)));
+    setFiles((prev) => prev.map((f) => (f.id === editingId ? { ...f, displayName: trimmed || f.file.name } : f)));
     setEditingId(null);
     setEditingValue("");
-  }, [editingId, editingValue, onFilesChange]);
+  }, [editingId, editingValue, setFiles]);
 
   const cancelRename = useCallback(() => {
     setEditingId(null);
@@ -107,7 +107,7 @@ export function FilesToUpload({ files, onFilesChange, selectedFolder }: FilesToU
 
     for (let i = 0; i < files.length; i++) {
       const item = files[i];
-      onFilesChange((prev) => prev.map((f, idx) => (idx === i ? { ...f, status: "uploading" as const } : f)));
+      setFiles((prev) => prev.map((f, idx) => (idx === i ? { ...f, status: "uploading" as const } : f)));
 
       try {
         const formData = new FormData();
@@ -125,9 +125,9 @@ export function FilesToUpload({ files, onFilesChange, selectedFolder }: FilesToU
           throw new Error(err.error || `Upload failed: ${res.status}`);
         }
 
-        onFilesChange((prev) => prev.map((f, idx) => (idx === i ? { ...f, status: "success" as const } : f)));
+        setFiles([]);
       } catch (err) {
-        onFilesChange((prev) =>
+        setFiles((prev) =>
           prev.map((f, idx) =>
             idx === i ? { ...f, status: "error" as const, error: err instanceof Error ? err.message : "Upload failed" } : f,
           ),
