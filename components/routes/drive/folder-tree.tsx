@@ -7,20 +7,13 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
-export interface FolderNode {
-  id: string;
-  name: string;
-  children?: FolderNode[];
-  webViewLink?: string;
-}
-
 interface FolderTreeProps {
-  folders: FolderNode[];
+  folders: Drive.FolderNode[];
   selectedId?: string | null;
-  onSelect?: (folder: FolderNode) => void;
-  onDelete?: (folder: FolderNode) => void;
-  onRename?: (folder: FolderNode, newName: string) => void;
-  onCreateFolder?: (parent?: FolderNode, name?: string) => void;
+  onSelect?: (folder: Drive.FolderNode) => void;
+  onDelete?: (folder: Drive.FolderNode) => void;
+  onRename?: (folder: Drive.FolderNode, newName: string) => void;
+  onCreateFolder?: (parent?: Drive.FolderNode, name?: string) => void;
   defaultExpanded?: Set<string>;
 }
 
@@ -35,13 +28,13 @@ function FolderTreeItem({
   expandedIds,
   toggleExpand,
 }: {
-  folder: FolderNode;
+  folder: Drive.FolderNode;
   depth: number;
   selectedId?: string | null;
-  onSelect?: (folder: FolderNode) => void;
-  onDelete?: (folder: FolderNode) => void;
-  onRename?: (folder: FolderNode, newName: string) => void;
-  onCreateFolder?: (parent?: FolderNode, name?: string) => void;
+  onSelect?: (folder: Drive.FolderNode) => void;
+  onDelete?: (folder: Drive.FolderNode) => void;
+  onRename?: (folder: Drive.FolderNode, newName: string) => void;
+  onCreateFolder?: (parent?: Drive.FolderNode, name?: string) => void;
   expandedIds: Set<string>;
   toggleExpand: (id: string) => void;
 }) {

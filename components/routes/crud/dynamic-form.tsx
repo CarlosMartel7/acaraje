@@ -4,7 +4,17 @@ import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Loader2 } from "lucide-react";
+
+/** Radix Select requires non-empty string values; map empty selection to this sentinel. */
+const SELECT_EMPTY = "__acaraje_empty__";
 
 interface Field {
   name: string;
@@ -136,43 +146,56 @@ export function DynamicForm({
       const opts = relationOptions[field.type] || [];
       const fkField = field.relationFields?.[0];
       const fkVal = fkField ? (values[fkField] ?? "") : val;
+      const selectValue = fkVal === "" || fkVal === undefined ? SELECT_EMPTY : String(fkVal);
       return (
         <div key={field.name}>
           <Label required={field.isRequired}>{field.name}</Label>
-          <select
-            value={fkVal}
-            onChange={(e) => {
-              if (fkField) set(fkField, e.target.value);
-              else set(field.name, e.target.value);
+          <Select
+            value={selectValue}
+            onValueChange={(v) => {
+              const next = v === SELECT_EMPTY ? "" : v;
+              if (fkField) set(fkField, next);
+              else set(field.name, next);
             }}
-            className={cn(inputClass, "cursor-pointer")}
           >
-            <option value="">— select {field.type} —</option>
-            {opts.map((o) => (
-              <option key={o.value} value={o.value}>
-                {o.label}
-              </option>
-            ))}
-          </select>
+            <SelectTrigger className={cn(inputClass, "w-full")}>
+              <SelectValue placeholder={`— select ${field.type} —`} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={SELECT_EMPTY}>— select {field.type} —</SelectItem>
+              {opts.map((o) => (
+                <SelectItem key={o.value} value={String(o.value)}>
+                  {o.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       );
     }
 
     // Enum → select
     if (enumDef) {
+      const selectValue = val === "" || val === undefined ? SELECT_EMPTY : String(val);
       return (
         <div key={field.name}>
           <Label required={field.isRequired}>{field.name}</Label>
-          <select
-            value={val}
-            onChange={(e) => set(field.name, e.target.value)}
-            className={cn(inputClass, "cursor-pointer")}
+          <Select
+            value={selectValue}
+            onValueChange={(v) => set(field.name, v === SELECT_EMPTY ? "" : v)}
           >
-            <option value="">— select —</option>
-            {enumDef.values.map((v) => (
-              <option key={v} value={v}>{v}</option>
-            ))}
-          </select>
+            <SelectTrigger className={cn(inputClass, "w-full")}>
+              <SelectValue placeholder="— select —" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={SELECT_EMPTY}>— select —</SelectItem>
+              {enumDef.values.map((v) => (
+                <SelectItem key={v} value={v}>
+                  {v}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       );
     }

@@ -19,7 +19,7 @@ function generateFieldValue(fieldName: string, fieldType: string, enumValues?: s
   if (fieldType === "String") {
     if (name.includes("email")) return faker.internet.email();
     if (name.includes("password") || name.includes("hash")) return faker.internet.password({ length: 60 });
-    if (name.includes("phone")) return faker.phone.number();
+    if (name.includes("phone")) return faker.phone.number({ style: "international" });
     if (name.includes("url") || name.includes("avatar") || name.includes("image") || name.includes("logo")) return faker.image.url();
     if (name.includes("slug")) return `${faker.helpers.slugify(faker.lorem.words(2))}-${faker.string.alphanumeric(6)}`;
     if (name.includes("sku")) return faker.string.alphanumeric(10).toUpperCase();
@@ -53,7 +53,14 @@ function generateFieldValue(fieldName: string, fieldType: string, enumValues?: s
 
   if (fieldType === "Float" || fieldType === "Decimal") {
     if (name.includes("rating")) return faker.number.float({ min: 1, max: 5, fractionDigits: 1 });
-    if (name.includes("baseprice") || name.includes("price") || name.includes("unitprice") || name.includes("total") || name.includes("subtotal") || name.includes("amount")) {
+    if (
+      name.includes("baseprice") ||
+      name.includes("price") ||
+      name.includes("unitprice") ||
+      name.includes("total") ||
+      name.includes("subtotal") ||
+      name.includes("amount")
+    ) {
       return faker.commerce.price({ min: 1, max: 500 });
     }
     if (name.includes("shippingcost") || name.includes("tax") || name.includes("discount")) {
@@ -73,11 +80,12 @@ function generateFieldValue(fieldName: string, fieldType: string, enumValues?: s
     }
     return faker.date.past({ years: 2 });
   }
-  if (fieldType === "Json") return faker.helpers.arrayElement([
-    { color: faker.helpers.arrayElement(["red", "blue", "green", "black", "white"]) },
-    { size: faker.helpers.arrayElement(["S", "M", "L", "XL"]) },
-    { color: faker.color.human(), size: faker.helpers.arrayElement(["S", "M", "L"]) },
-  ]);
+  if (fieldType === "Json")
+    return faker.helpers.arrayElement([
+      { color: faker.helpers.arrayElement(["red", "blue", "green", "black", "white"]) },
+      { size: faker.helpers.arrayElement(["S", "M", "L", "XL"]) },
+      { color: faker.color.human(), size: faker.helpers.arrayElement(["S", "M", "L"]) },
+    ]);
 
   return null;
 }
@@ -87,9 +95,7 @@ export async function POST(req: NextRequest) {
     const { modelName, count = 5 } = await req.json();
 
     const schema = parseSchema();
-    const modelDef = schema.models.find(
-      (m) => m.name.toLowerCase() === modelName.toLowerCase()
-    );
+    const modelDef = schema.models.find((m) => m.name.toLowerCase() === modelName.toLowerCase());
 
     if (!modelDef) {
       return NextResponse.json({ error: `Model "${modelName}" not found` }, { status: 404 });
@@ -142,12 +148,7 @@ export async function POST(req: NextRequest) {
         }
 
         // For FK id fields that are already handled above via relation, skip
-        const isHandledByRelation = modelDef.fields.some(
-          (f) =>
-            f.isRelation &&
-            f.relationFields &&
-            f.relationFields.includes(field.name)
-        );
+        const isHandledByRelation = modelDef.fields.some((f) => f.isRelation && f.relationFields && f.relationFields.includes(field.name));
         if (isHandledByRelation) continue;
 
         // Optional field — 30% chance to leave null

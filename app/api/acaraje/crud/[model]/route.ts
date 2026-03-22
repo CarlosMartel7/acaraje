@@ -118,6 +118,11 @@ export async function DELETE(
     }
 
     const body = await req.json();
+    if (body.all === true) {
+      const result = await delegate.deleteMany({});
+      return NextResponse.json({ success: true, deleted: result.count });
+    }
+
     const ids = Array.isArray(body.ids) ? body.ids : [body.id].filter(Boolean);
     if (ids.length === 0) {
       return NextResponse.json({ error: "No ids provided" }, { status: 400 });

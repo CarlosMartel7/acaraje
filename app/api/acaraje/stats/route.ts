@@ -11,22 +11,15 @@ export async function GET() {
   try {
     const schema = parseSchema();
 
-    const totalFields = schema.models.reduce(
-      (acc, m) => acc + m.fields.length,
-      0
-    );
+    const totalFields = schema.models.reduce((acc, m) => acc + m.fields.length, 0);
     const totalRelations = schema.relations.length;
-    const totalIndexes = schema.models.reduce(
-      (acc, m) => acc + m.indexes.length,
-      0
-    );
+    const totalIndexes = schema.models.reduce((acc, m) => acc + m.indexes.length, 0);
     const modelsWithMap = schema.models.filter((m) => m.mapName).length;
 
     const fieldTypeDistribution: Record<string, number> = {};
     for (const model of schema.models) {
       for (const field of model.fields) {
-        fieldTypeDistribution[field.type] =
-          (fieldTypeDistribution[field.type] || 0) + 1;
+        fieldTypeDistribution[field.type] = (fieldTypeDistribution[field.type] || 0) + 1;
       }
     }
 
@@ -36,14 +29,10 @@ export async function GET() {
       .map(([type, count]) => ({ type, count }));
 
     const relationTypeCount = {
-      "one-to-one": schema.relations.filter((r) => r.type === "one-to-one")
-        .length,
-      "one-to-many": schema.relations.filter((r) => r.type === "one-to-many")
-        .length,
-      "many-to-one": schema.relations.filter((r) => r.type === "many-to-one")
-        .length,
-      "many-to-many": schema.relations.filter((r) => r.type === "many-to-many")
-        .length,
+      "one-to-one": schema.relations.filter((r) => r.type === "one-to-one").length,
+      "one-to-many": schema.relations.filter((r) => r.type === "one-to-many").length,
+      "many-to-one": schema.relations.filter((r) => r.type === "many-to-one").length,
+      "many-to-many": schema.relations.filter((r) => r.type === "many-to-many").length,
     };
 
     const recordCounts: Record<string, number> = {};
@@ -73,9 +62,6 @@ export async function GET() {
       })),
     });
   } catch (err) {
-    return NextResponse.json(
-      { error: "Failed to fetch stats", details: String(err) },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to fetch stats", details: String(err) }, { status: 500 });
   }
 }

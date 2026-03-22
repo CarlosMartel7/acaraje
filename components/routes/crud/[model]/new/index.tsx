@@ -1,49 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { ChevronLeft, CheckCircle, AlertCircle } from "lucide-react";
 import { Card } from "@/components/ui/card";
-import { DynamicForm } from "@/components/dynamic-form";
+import { DynamicForm } from "@/components/routes/crud/dynamic-form";
+import AcarajeCalls_crud_new from "./[[api-calls]";
 
 export function CrudNewContent() {
-  const params = useParams();
-  const router = useRouter();
-  const model = params.model as string;
-
-  const [schemaData, setSchemaData] = useState<any>(null);
-  const [loading, setLoading] = useState(false);
-  const [success, setSuccess] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    fetch("/api/acaraje/schemas").then((r) => r.json()).then(setSchemaData);
-  }, []);
-
-  const modelDef = schemaData?.models?.find(
-    (m: any) => m.name.toLowerCase() === model.toLowerCase()
-  );
-
-  const handleSubmit = async (data: Record<string, any>) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await fetch(`/api/acaraje/crud/${model}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "Failed to create");
-      setSuccess(true);
-      setTimeout(() => router.push(`/crud/${model}`), 1200);
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const { model, router, schemaData, modelDef, loading, success, error, handleSubmit } = AcarajeCalls_crud_new();
 
   return (
     <div className="p-8 space-y-6 animate-in max-w-4xl">
@@ -82,7 +46,7 @@ export function CrudNewContent() {
           <DynamicForm
             modelName={model}
             fields={modelDef.fields}
-            enums={schemaData?.enums || []}
+            enums={schemaData?.enums ?? []}
             onSubmit={handleSubmit}
             onCancel={() => router.push(`/crud/${model}`)}
             isLoading={loading}

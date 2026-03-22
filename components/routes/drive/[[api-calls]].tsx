@@ -1,9 +1,8 @@
 import { Dispatch, SetStateAction, useCallback } from "react";
 import { toast } from "sonner";
-import type { FolderNode } from "./folder-tree";
 
 export default function AcarajeCalls_drive(
-  setFolders: Dispatch<SetStateAction<FolderNode[]>>,
+  setFolders: Dispatch<SetStateAction<Drive.FolderNode[]>>,
   removeFolderFromTree: any,
   renameFolderInTree: any,
   addSubfolderToTree: any,
@@ -11,7 +10,7 @@ export default function AcarajeCalls_drive(
   value: any,
 ) {
   const handleDelete = useCallback(
-    (folder: FolderNode) => {
+    (folder: Drive.FolderNode) => {
       toast.promise(
         (async () => {
           const response = await fetch(`/api/acaraje/drive/folders?folderId=${encodeURIComponent(folder.id)}`, {
@@ -33,11 +32,11 @@ export default function AcarajeCalls_drive(
     [onChange, value],
   );
 
-  const handleRename = useCallback((folder: FolderNode, newName: string) => {
+  const handleRename = useCallback((folder: Drive.FolderNode, newName: string) => {
     setFolders((prev) => renameFolderInTree(prev, folder.id, newName));
   }, []);
 
-  const handleCreatefolder = useCallback((parent?: FolderNode, name?: string) => {
+  const handleCreatefolder = useCallback((parent?: Drive.FolderNode, name?: string) => {
     toast.promise(
       (async () => {
         const response = await fetch("/api/acaraje/drive/folders", {
@@ -52,7 +51,7 @@ export default function AcarajeCalls_drive(
         const data = await response.json();
         if (data.error) throw new Error(data.error);
 
-        const newFolder: FolderNode = {
+        const newFolder: Drive.FolderNode = {
           id: data.id,
           name: data.name ?? name?.trim() ?? "New folder",
           children: [],

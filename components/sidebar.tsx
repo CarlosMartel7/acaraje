@@ -16,7 +16,6 @@ import {
   FolderOpen,
   Upload,
 } from "lucide-react";
-import { pepperChilli } from "@lucide/lab";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useEffect, useState } from "react";
@@ -44,14 +43,6 @@ export function Sidebar() {
       .then((r) => r.json())
       .then((d) => setModels(d.models?.map((m: any) => m.name) || []));
   }, []);
-
-  useEffect(() => {
-    if (pathname.startsWith("/crud")) setCrudOpen(true);
-  }, [pathname]);
-
-  useEffect(() => {
-    if (pathname.startsWith("/drive")) setDriveOpen(true);
-  }, [pathname]);
 
   return (
     <aside className="w-64 flex-shrink-0 flex flex-col border-r border-border/60 bg-card/60">
@@ -126,7 +117,9 @@ export function Sidebar() {
                     href={item.href}
                     className={cn(
                       "flex items-center gap-2 rounded px-2.5 py-1.5 text-xs transition-all",
-                      isActive ? "text-primary-foreground bg-primary font-medium" : "text-muted-foreground/70 hover:text-foreground hover:bg-accent",
+                      isActive
+                        ? "text-primary-foreground bg-primary font-medium"
+                        : "text-muted-foreground/70 hover:text-foreground hover:bg-accent",
                     )}
                   >
                     <item.icon className="w-3 h-3 flex-shrink-0" />

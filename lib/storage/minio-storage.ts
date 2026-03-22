@@ -1,7 +1,6 @@
 import * as Minio from "minio";
 import type { Readable } from "stream";
 import { getMinioConfig } from "./config";
-import type { ObjectStorage, StorageFileEntry } from "./types";
 
 let client: Minio.Client | null = null;
 let minioImpl: MinioStorage | null = null;
@@ -20,7 +19,7 @@ export function getMinioClient(): Minio.Client {
   return client;
 }
 
-export class MinioStorage implements ObjectStorage {
+export class MinioStorage implements Storage.ObjectStorage {
   constructor(private readonly bucket: string) {}
 
   async ensureBucket(): Promise<void> {
@@ -65,8 +64,8 @@ export class MinioStorage implements ObjectStorage {
     await getMinioClient().removeObject(this.bucket, key);
   }
 
-  async listFiles(prefix = ""): Promise<StorageFileEntry[]> {
-    const out: StorageFileEntry[] = [];
+  async listFiles(prefix = ""): Promise<Storage.StorageFileEntry[]> {
+    const out: Storage.StorageFileEntry[] = [];
     const stream = getMinioClient().listObjectsV2(this.bucket, prefix, true);
     await new Promise<void>((resolve, reject) => {
       stream.on("data", (obj) => {

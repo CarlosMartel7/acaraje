@@ -3,165 +3,79 @@
 import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import {
-  Plus,
-  Search,
-  Trash2,
-  Pencil,
-  ChevronLeft,
-  ChevronRight,
-  AlertCircle,
-  Loader2,
-  RefreshCw,
-} from "lucide-react";
+import { Plus, Search, Trash2, Pencil, ChevronLeft, ChevronRight, AlertCircle, Loader2, RefreshCw, Copy } from "lucide-react";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
+import DeleteModal, { CRUD_DELETE_ALL_SENTINEL } from "./delete-modal";
+import AcarajeCalls_crud from "./[[api-calls]]";
 
-interface RecordRow {
-  id: string;
-  [key: string]: any;
+/** Same locale options as drive view (`folder-contents-table`). */
+function formatDateLike(d: Date): string {
+  return new Date(d).toLocaleString(undefined, {
+    dateStyle: "short",
+    timeStyle: "short",
+  });
 }
 
-interface PageData {
-  records: RecordRow[];
-  total: number;
-  page: number;
-  pageSize: number;
-  pageCount: number;
+function tryFormatAsDate(val: unknown): string | null {
+  if (val instanceof Date && !isNaN(val.getTime())) return formatDateLike(val);
+  if (typeof val === "string") {
+    const t = val.trim();
+    if (!/^\d{4}-\d{2}-\d{2}/.test(t)) return null;
+    const parsed = new Date(t);
+    if (!isNaN(parsed.getTime())) return formatDateLike(parsed);
+  }
+  return null;
 }
 
 function formatCell(val: any): string {
   if (val === null || val === undefined) return "—";
   if (typeof val === "boolean") return val ? "true" : "false";
+  const asDate = tryFormatAsDate(val);
+  if (asDate !== null) return asDate;
   if (val instanceof Object && val.constructor === Object) return JSON.stringify(val);
   const str = String(val);
   if (str.length > 40) return str.slice(0, 40) + "…";
   return str;
 }
 
-function DeleteModal({
-  ids,
-  onConfirm,
-  onCancel,
-  loading,
-}: {
-  ids: string[];
-  onConfirm: () => void;
-  onCancel: () => void;
-  loading: boolean;
-}) {
-  const count = ids.length;
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-      <Card className="p-6 max-w-sm w-full mx-4 shadow-2xl">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="w-9 h-9 rounded-full bg-destructive/10 border border-destructive/30 flex items-center justify-center">
-            <AlertCircle className="w-4.5 h-4.5 text-destructive" />
-          </div>
-          <div>
-            <p className="font-semibold text-sm">
-              Delete {count === 1 ? "Record" : `${count} Records`}
-            </p>
-            <p className="text-xs text-muted-foreground font-mono">
-              {count === 1 ? ids[0].slice(0, 20) + "…" : `${count} records selected`}
-            </p>
-          </div>
-        </div>
-        <p className="text-sm text-muted-foreground mb-5">
-          This action cannot be undone. The record{count > 1 ? "s will" : " will"} be permanently removed.
-        </p>
-        <div className="flex gap-3">
-          <Button
-            variant="destructive"
-            onClick={onConfirm}
-            disabled={loading}
-            className="flex-1"
-          >
-            {loading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-            Delete
-          </Button>
-          <Button variant="ghost" onClick={onCancel} className="flex-1">
-            Cancel
-          </Button>
-        </div>
-      </Card>
-    </div>
-  );
+function serializeForClipboard(val: any): string {
+  if (val === null || val === undefined) return "";
+  if (val instanceof Date) return val.toISOString();
+  if (typeof val === "object") return JSON.stringify(val);
+  return String(val);
 }
 
-export function CrudListContent() {
-  const params = useParams();
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const model = params.model as string;
+export default function CrudListContent() {
+  const {
+    handleDelete,
+    data,
+    columns,
+    deleteIds,
+    selectedIds,
+    deleteLoading,
+    error,
+    setSearch,
+    setDebouncedSearch,
+    setSelectedIds,
+    setDeleteIds,
+    search,
+    debouncedSearch,
+    model,
+    page,
+    fetchData,
+  } = AcarajeCalls_crud();
 
-  const page = parseInt(searchParams.get("page") || "1");
-  const [search, setSearch] = useState(searchParams.get("search") || "");
-  const [debouncedSearch, setDebouncedSearch] = useState(search);
-  const [data, setData] = useState<PageData | null>(null);
-  const [columns, setColumns] = useState<string[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [deleteIds, setDeleteIds] = useState<string[]>([]);
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [deleteLoading, setDeleteLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(search), 300);
     return () => clearTimeout(t);
   }, [search]);
-
-  const fetchData = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const params = new URLSearchParams({
-        page: String(page),
-        pageSize: "20",
-        search: debouncedSearch,
-      });
-      const res = await fetch(`/api/acaraje/crud/${model}?${params}`);
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "Failed to load");
-      setData(json);
-      if (json.records?.length > 0) {
-        const cols = Object.keys(json.records[0]).filter((k) => k !== "passwordHash");
-        setColumns(cols.slice(0, 8));
-      }
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  }, [model, page, debouncedSearch]);
-
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
-
-  const handleDelete = async () => {
-    if (deleteIds.length === 0) return;
-    setDeleteLoading(true);
-    try {
-      if (deleteIds.length === 1) {
-        await fetch(`/api/acaraje/crud/${model}/${deleteIds[0]}`, { method: "DELETE" });
-      } else {
-        await fetch(`/api/acaraje/crud/${model}`, {
-          method: "DELETE",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ids: deleteIds }),
-        });
-      }
-      setDeleteIds([]);
-      setSelectedIds(new Set());
-      fetchData();
-    } finally {
-      setDeleteLoading(false);
-    }
-  };
 
   const toggleSelectAll = (checked?: boolean) => {
     if (!data?.records.length) return;
@@ -188,6 +102,7 @@ export function CrudListContent() {
       {deleteIds.length > 0 && (
         <DeleteModal
           ids={deleteIds}
+          deleteAllTotal={deleteIds.length === 1 && deleteIds[0] === CRUD_DELETE_ALL_SENTINEL ? data?.total : undefined}
           onConfirm={handleDelete}
           onCancel={() => setDeleteIds([])}
           loading={deleteLoading}
@@ -202,11 +117,7 @@ export function CrudListContent() {
             <span className="text-primary-foreground">{model}</span>
           </div>
           <h1 className="text-2xl font-bold tracking-tight">{model}</h1>
-          {data && (
-            <p className="text-muted-foreground text-sm mt-1">
-              {data.total.toLocaleString()} total records
-            </p>
-          )}
+          {data && <p className="text-muted-foreground text-sm mt-1">{data.total.toLocaleString()} total records</p>}
         </div>
         <div className="flex items-center gap-2">
           {selectedIds.size > 0 && (
@@ -215,6 +126,15 @@ export function CrudListContent() {
               Delete {selectedIds.size} selected
             </Button>
           )}
+          <Button
+            variant="outline"
+            disabled={!data?.total}
+            onClick={() => setDeleteIds([CRUD_DELETE_ALL_SENTINEL])}
+            className="border-destructive/35 text-red-400 hover:bg-destructive/10 hover:text-red-300"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+            Delete all
+          </Button>
           <Button variant="outline" size="icon" onClick={fetchData}>
             <RefreshCw className="w-4 h-4" />
           </Button>
@@ -251,13 +171,7 @@ export function CrudListContent() {
               <tr className="border-b border-border/50 bg-secondary/20">
                 <th className="px-4 py-3 w-10">
                   <Checkbox
-                    checked={
-                      !data?.records.length
-                        ? false
-                        : data.records.every((r) => selectedIds.has(r.id))
-                          ? true
-                          : "indeterminate"
-                    }
+                    checked={!data?.records.length ? false : data.records.every((r) => selectedIds.has(r.id)) ? true : "indeterminate"}
                     onCheckedChange={(checked) => toggleSelectAll(checked === true)}
                   />
                 </th>
@@ -275,32 +189,19 @@ export function CrudListContent() {
               </tr>
             </thead>
             <tbody>
-              {loading ? (
-                [...Array(5)].map((_, i) => (
-                  <tr key={i} className="border-b border-border/20">
-                    {[...Array((columns.length || 4) + 2)].map((_, j) => (
-                      <td key={j} className="px-4 py-3">
-                        <div className="h-4 bg-secondary/50 rounded animate-pulse" />
-                      </td>
-                    ))}
-                  </tr>
-                ))
-              ) : data?.records.length === 0 ? (
+              {data === null ? null : data.records.length === 0 ? (
                 <tr>
-                  <td
-                    colSpan={columns.length + 2}
-                    className="px-4 py-12 text-center text-muted-foreground text-sm"
-                  >
+                  <td colSpan={columns.length + 2} className="px-4 py-12 text-center text-muted-foreground text-sm">
                     No records found
                   </td>
                 </tr>
               ) : (
-                data?.records.map((row) => (
+                data.records.map((row) => (
                   <tr
                     key={row.id}
                     className={cn(
                       "border-b border-border/20 hover:bg-accent/20 transition-colors group",
-                      selectedIds.has(row.id) && "bg-primary/30"
+                      selectedIds.has(row.id) && "bg-primary/30",
                     )}
                   >
                     <td className="px-4 py-3">
@@ -308,19 +209,41 @@ export function CrudListContent() {
                         checked={selectedIds.has(row.id)}
                         onCheckedChange={(checked) => {
                           if (checked) setSelectedIds((p) => new Set(p).add(row.id));
-                          else setSelectedIds((p) => { const n = new Set(p); n.delete(row.id); return n; });
+                          else
+                            setSelectedIds((p) => {
+                              const n = new Set(p);
+                              n.delete(row.id);
+                              return n;
+                            });
                         }}
                       />
                     </td>
                     {columns.map((col) => (
                       <td
                         key={col}
-                        className={cn(
-                          "px-4 py-3 font-mono text-xs whitespace-nowrap",
-                          col === "id" ? "text-muted-foreground/60" : "text-foreground"
-                        )}
+                        className={cn("px-4 py-3 font-mono text-xs", col === "id" ? "text-muted-foreground/60" : "text-foreground")}
                       >
-                        {formatCell(row[col])}
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <span className="min-w-0 truncate whitespace-nowrap">{formatCell(row[col])}</span>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon-sm"
+                            className="h-6 w-6 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-foreground"
+                            aria-label="Copy to clipboard"
+                            title="Copy to clipboard"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const text = serializeForClipboard(row[col]);
+                              void navigator.clipboard
+                                .writeText(text)
+                                .then(() => toast.success("Copied"))
+                                .catch(() => toast.error("Could not copy"));
+                            }}
+                          >
+                            <Copy className="w-3 h-3" />
+                          </Button>
+                        </div>
                       </td>
                     ))}
                     <td className="px-4 py-3 text-right">
@@ -354,13 +277,7 @@ export function CrudListContent() {
               Page {data.page} of {data.pageCount} · {data.total} records
             </span>
             <div className="flex items-center gap-1">
-              <Button
-                variant="outline"
-                size="icon-sm"
-                onClick={() => goPage(page - 1)}
-                disabled={page <= 1}
-                className="h-7 w-7"
-              >
+              <Button variant="outline" size="icon-sm" onClick={() => goPage(page - 1)} disabled={page <= 1} className="h-7 w-7">
                 <ChevronLeft className="w-3.5 h-3.5" />
               </Button>
               {[...Array(Math.min(5, data.pageCount))].map((_, i) => {
@@ -371,7 +288,11 @@ export function CrudListContent() {
                     variant={p === page ? "default" : "ghost"}
                     size="icon-sm"
                     onClick={() => goPage(p)}
-                    className={cn("h-7 w-7 text-xs font-mono", p === page && "bg-primary-foreground/10 border border-primary-foreground/40 text-primary-foreground hover:bg-primary-foreground/20")}
+                    className={cn(
+                      "h-7 w-7 text-xs font-mono",
+                      p === page &&
+                        "bg-primary-foreground/10 border border-primary-foreground/40 text-primary-foreground hover:bg-primary-foreground/20",
+                    )}
                   >
                     {p}
                   </Button>

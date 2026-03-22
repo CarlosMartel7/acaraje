@@ -2,12 +2,6 @@ import { getMinioClient, getMinioStorage } from "./minio-storage";
 import { getMinioConfig } from "./config";
 import { normalizeFolderPrefix, sanitizeFolderSegment } from "./paths";
 
-export interface MinioFolderRecord {
-  id: string;
-  name: string;
-  parents: string[];
-}
-
 function parentPrefixOf(folderId: string): string | undefined {
   const trimmed = folderId.replace(/\/$/, "");
   const idx = trimmed.lastIndexOf("/");
@@ -34,7 +28,7 @@ function collectFolderPrefixesFromKeys(keys: string[]): Set<string> {
   return folderSet;
 }
 
-function folderRecordsFromPrefixes(prefixes: Set<string>): MinioFolderRecord[] {
+function folderRecordsFromPrefixes(prefixes: Set<string>): Storage.MinioFolderRecord[] {
   return Array.from(prefixes).map((id) => {
     const nameWithoutSlash = id.replace(/\/$/, "");
     const name = nameWithoutSlash.includes("/") ? nameWithoutSlash.split("/").pop()! : nameWithoutSlash;
@@ -43,7 +37,7 @@ function folderRecordsFromPrefixes(prefixes: Set<string>): MinioFolderRecord[] {
   });
 }
 
-export async function listMinioFoldersFlat(): Promise<MinioFolderRecord[]> {
+export async function listMinioFoldersFlat(): Promise<Storage.MinioFolderRecord[]> {
   const bucket = getMinioConfig().bucket;
   const keys: string[] = [];
   const stream = getMinioClient().listObjectsV2(bucket, "", true);

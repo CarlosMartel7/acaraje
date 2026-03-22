@@ -1,5 +1,3 @@
-export type StorageDriver = "minio";
-
-export function getStorageDriver(): StorageDriver {
+export function getStorageDriver(): Storage.StorageDriver {
   return "minio";
 }

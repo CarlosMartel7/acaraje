@@ -1,56 +1,36 @@
 import fs from "fs";
 import path from "path";
 
-export interface PrismaField {
-  name: string;
-  type: string;
-  isRequired: boolean;
-  isList: boolean;
-  isId: boolean;
-  isUnique: boolean;
-  hasDefault: boolean;
-  defaultValue?: string;
-  isRelation: boolean;
-  relationFields?: string[];
-  attributes: string[];
-  rawLine: string;
+/** Built-in Prisma scalar types (field type is not another model/enum). */
+const PRISMA_SCALAR_TYPES = new Set([
+  "String",
+  "Boolean",
+  "Int",
+  "BigInt",
+  "Float",
+  "Decimal",
+  "DateTime",
+  "Json",
+  "Bytes",
+  "Unsupported",
+]);
+
+function typeReferencesAnotherModel(
+  type: string,
+  modelNames: Set<string>,
+  enumNames: Set<string>,
+): boolean {
+  if (PRISMA_SCALAR_TYPES.has(type)) return false;
+  if (enumNames.has(type)) return false;
+  return modelNames.has(type);
 }
 
-export interface PrismaModel {
-  name: string;
-  fields: PrismaField[];
-  mapName?: string;
-  indexes: string[];
-}
-
-export interface PrismaEnum {
-  name: string;
-  values: string[];
-}
-
-export interface PrismaRelation {
-  from: string;
-  fromField: string;
-  to: string;
-  type: "one-to-one" | "one-to-many" | "many-to-one" | "many-to-many";
-}
-
-export interface ParsedSchema {
-  models: PrismaModel[];
-  enums: PrismaEnum[];
-  relations: PrismaRelation[];
-  datasource: {
-    provider: string;
-    url: string;
-  } | null;
-  generator: {
-    provider: string;
-  } | null;
-  rawContent: string;
-}
-
-function parseFields(blockLines: string[]): PrismaField[] {
-  const fields: PrismaField[] = [];
+function parseFields(
+  blockLines: string[],
+  modelNames: Set<string>,
+  enumNames: Set<string>,
+): PrismaSchema.PrismaField[] {
+  const fields: PrismaSchema.PrismaField[] = [];
 
   for (const line of blockLines) {
     const trimmed = line.trim();
@@ -71,19 +51,19 @@ function parseFields(blockLines: string[]): PrismaField[] {
     const isId = trimmed.includes("@id");
     const isUnique = trimmed.includes("@unique");
     const hasDefault = trimmed.includes("@default");
-    const isRelation = trimmed.includes("@relation");
+    const hasExplicitRelation = trimmed.includes("@relation");
+    const isRelation =
+      hasExplicitRelation || typeReferencesAnotherModel(type, modelNames, enumNames);
 
     let defaultValue: string | undefined;
     const defaultMatch = trimmed.match(/@default\(([^)]+)\)/);
     if (defaultMatch) defaultValue = defaultMatch[1];
 
     const relationFields: string[] = [];
-    if (isRelation) {
+    if (hasExplicitRelation) {
       const relMatch = trimmed.match(/fields:\s*\[([^\]]+)\]/);
       if (relMatch) {
-        relationFields.push(
-          ...relMatch[1].split(",").map((f) => f.trim())
-        );
+        relationFields.push(...relMatch[1].split(",").map((f) => f.trim()));
       }
     }
 
@@ -111,10 +91,7 @@ function parseFields(blockLines: string[]): PrismaField[] {
   return fields;
 }
 
-function extractBlock(
-  content: string,
-  keyword: string
-): { name: string; lines: string[] }[] {
+function extractBlock(content: string, keyword: string): { name: string; lines: string[] }[] {
   const results: { name: string; lines: string[] }[] = [];
   const regex = new RegExp(`^${keyword}\\s+(\\w+)\\s*\\{`, "gm");
   let match;
@@ -136,8 +113,8 @@ function extractBlock(
   return results;
 }
 
-function inferRelations(models: PrismaModel[]): PrismaRelation[] {
-  const relations: PrismaRelation[] = [];
+function inferRelations(models: PrismaSchema.PrismaModel[]): PrismaSchema.PrismaRelation[] {
+  const relations: PrismaSchema.PrismaRelation[] = [];
   const modelNames = new Set(models.map((m) => m.name));
 
   for (const model of models) {
@@ -150,11 +127,9 @@ function inferRelations(models: PrismaModel[]): PrismaRelation[] {
       if (field.isRelation && field.relationFields && field.relationFields.length > 0) {
         // Check if target model has a list back-relation
         const targetModel = models.find((m) => m.name === field.type);
-        const backRelation = targetModel?.fields.find(
-          (f) => f.type === model.name
-        );
+        const backRelation = targetModel?.fields.find((f) => f.type === model.name);
 
-        let relType: PrismaRelation["type"] = "many-to-one";
+        let relType: PrismaSchema.PrismaRelation["type"] = "many-to-one";
         if (backRelation) {
           if (backRelation.isList) {
             relType = "one-to-many";
@@ -175,13 +150,9 @@ function inferRelations(models: PrismaModel[]): PrismaRelation[] {
 
   // Detect many-to-many (models with only two FK fields to other models)
   for (const model of models) {
-    const fkFields = model.fields.filter(
-      (f) => modelNames.has(f.type) && !f.isList && f.isRelation
-    );
+    const fkFields = model.fields.filter((f) => modelNames.has(f.type) && !f.isList && f.isRelation);
     if (fkFields.length === 2) {
-      const isJoin = model.fields.every(
-        (f) => f.isId || f.isRelation || fkFields.some((fk) => fk === f) || f.name.endsWith("Id")
-      );
+      const isJoin = model.fields.every((f) => f.isId || f.isRelation || fkFields.some((fk) => fk === f) || f.name.endsWith("Id"));
       if (isJoin) {
         // Already captured as individual one-to-many, skip
       }
@@ -191,44 +162,37 @@ function inferRelations(models: PrismaModel[]): PrismaRelation[] {
   return relations;
 }
 
-export function parseSchema(schemaPath?: string): ParsedSchema {
-  const filePath =
-    schemaPath ||
-    path.join(process.cwd(), "prisma", "schema.prisma");
+export function parseSchema(schemaPath?: string): PrismaSchema.ParsedSchema {
+  const filePath = schemaPath || path.join(process.cwd(), "prisma", "schema.prisma");
 
   const rawContent = fs.readFileSync(filePath, "utf-8");
 
-  // Parse models
   const modelBlocks = extractBlock(rawContent, "model");
-  const models: PrismaModel[] = modelBlocks.map(({ name, lines }) => {
-    const mapMatch = lines
-      .join("\n")
-      .match(/@@map\("([^"]+)"\)/);
-    const indexMatches = [...lines.join("\n").matchAll(/@@\w+\([^)]*\)/g)].map(
-      (m) => m[0]
-    );
+  const enumBlocks = extractBlock(rawContent, "enum");
+  const modelNames = new Set(modelBlocks.map((b) => b.name));
+  const enumNames = new Set(enumBlocks.map((b) => b.name));
+
+  // Parse models
+  const models: PrismaSchema.PrismaModel[] = modelBlocks.map(({ name, lines }) => {
+    const mapMatch = lines.join("\n").match(/@@map\("([^"]+)"\)/);
+    const indexMatches = [...lines.join("\n").matchAll(/@@\w+\([^)]*\)/g)].map((m) => m[0]);
     return {
       name,
-      fields: parseFields(lines),
+      fields: parseFields(lines, modelNames, enumNames),
       mapName: mapMatch?.[1],
       indexes: indexMatches,
     };
   });
 
   // Parse enums
-  const enumBlocks = extractBlock(rawContent, "enum");
-  const enums: PrismaEnum[] = enumBlocks.map(({ name, lines }) => ({
+  const enums: PrismaSchema.PrismaEnum[] = enumBlocks.map(({ name, lines }) => ({
     name,
-    values: lines
-      .map((l) => l.trim())
-      .filter((l) => l && !l.startsWith("//") && !l.startsWith("@")),
+    values: lines.map((l) => l.trim()).filter((l) => l && !l.startsWith("//") && !l.startsWith("@")),
   }));
 
   // Parse datasource
-  let datasource: ParsedSchema["datasource"] = null;
-  const dsMatch = rawContent.match(
-    /datasource\s+\w+\s*\{([^}]+)\}/
-  );
+  let datasource: PrismaSchema.ParsedSchema["datasource"] = null;
+  const dsMatch = rawContent.match(/datasource\s+\w+\s*\{([^}]+)\}/);
   if (dsMatch) {
     const providerMatch = dsMatch[1].match(/provider\s*=\s*"([^"]+)"/);
     const urlMatch = dsMatch[1].match(/url\s*=\s*([^\n]+)/);
@@ -239,7 +203,7 @@ export function parseSchema(schemaPath?: string): ParsedSchema {
   }
 
   // Parse generator
-  let generator: ParsedSchema["generator"] = null;
+  let generator: PrismaSchema.ParsedSchema["generator"] = null;
   const genMatch = rawContent.match(/generator\s+\w+\s*\{([^}]+)\}/);
   if (genMatch) {
     const providerMatch = genMatch[1].match(/provider\s*=\s*"([^"]+)"/);

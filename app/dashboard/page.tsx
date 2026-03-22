@@ -1,6 +1,4 @@
-"use client";
-
-import { DashboardContent } from "@/components/routes/dashboard/dashboard-content";
+import { DashboardContent } from "@/components/routes/dashboard";
 
 export default function DashboardPage() {
   return <DashboardContent />;

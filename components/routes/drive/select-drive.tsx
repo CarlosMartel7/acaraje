@@ -3,10 +3,8 @@
 import { Database, HardDrive, CheckCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import type { DriveType } from "./types";
-
 interface DriveOption {
-  id: DriveType;
+  id: Drive.DriveType;
   name: string;
   icon: React.ElementType;
   description: string;
@@ -22,8 +20,8 @@ const DRIVE_OPTIONS: DriveOption[] = [
 ];
 
 interface SelectDriveProps {
-  value: DriveType;
-  onChange: (value: DriveType) => void;
+  value: Drive.DriveType;
+  onChange: (value: Drive.DriveType) => void;
 }
 
 export function SelectDrive({ value, onChange }: SelectDriveProps) {

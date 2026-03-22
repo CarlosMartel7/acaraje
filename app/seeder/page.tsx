@@ -1,6 +1,6 @@
 "use client";
 
-import { SeederContent } from "@/components/routes/seeder/seeder-content";
+import { SeederContent } from "@/components/routes/seeder";
 
 export default function SeederPage() {
   return <SeederContent />;

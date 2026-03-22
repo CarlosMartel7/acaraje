@@ -3,11 +3,10 @@
 import { Dispatch, SetStateAction } from "react";
 import { FolderOpen } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { FolderTree, type FolderNode } from "./folder-tree";
-import type { SelectedFolder } from "./types";
+import { FolderTree } from "./folder-tree";
 import AcarajeCalls_drive from "./[[api-calls]]";
 
-function removeFolderFromTree(nodes: FolderNode[], id: string): FolderNode[] {
+function removeFolderFromTree(nodes: Drive.FolderNode[], id: string): Drive.FolderNode[] {
   return nodes
     .filter((n) => n.id !== id)
     .map((n) => ({
@@ -16,7 +15,7 @@ function removeFolderFromTree(nodes: FolderNode[], id: string): FolderNode[] {
     }));
 }
 
-function renameFolderInTree(nodes: FolderNode[], id: string, newName: string): FolderNode[] {
+function renameFolderInTree(nodes: Drive.FolderNode[], id: string, newName: string): Drive.FolderNode[] {
   return nodes.map((n) =>
     n.id === id
       ? { ...n, name: newName }
@@ -27,7 +26,11 @@ function renameFolderInTree(nodes: FolderNode[], id: string, newName: string): F
   );
 }
 
-function addSubfolderToTree(nodes: FolderNode[], parentId: string, newFolder: FolderNode): FolderNode[] {
+function addSubfolderToTree(
+  nodes: Drive.FolderNode[],
+  parentId: string,
+  newFolder: Drive.FolderNode,
+): Drive.FolderNode[] {
   return nodes.map((n) =>
     n.id === parentId
       ? {
@@ -42,10 +45,10 @@ function addSubfolderToTree(nodes: FolderNode[], parentId: string, newFolder: Fo
 }
 
 interface TargetFolderProps {
-  value: SelectedFolder | null;
-  onChange: (value: SelectedFolder | null) => void;
-  folders: FolderNode[];
-  setFolders: Dispatch<SetStateAction<FolderNode[]>>;
+  value: Drive.SelectedFolder | null;
+  onChange: (value: Drive.SelectedFolder | null) => void;
+  folders: Drive.FolderNode[];
+  setFolders: Dispatch<SetStateAction<Drive.FolderNode[]>>;
 }
 
 export function TargetFolder({ value, onChange, folders, setFolders }: TargetFolderProps) {

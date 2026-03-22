@@ -6,8 +6,6 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import type { SelectedFile, SelectedFolder } from "./types";
-
 function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
@@ -15,9 +13,9 @@ function formatFileSize(bytes: number): string {
 }
 
 interface FilesToUploadProps {
-  files: SelectedFile[];
-  setFiles: React.Dispatch<React.SetStateAction<SelectedFile[]>>;
-  selectedFolder: SelectedFolder | null;
+  files: Drive.SelectedFile[];
+  setFiles: React.Dispatch<React.SetStateAction<Drive.SelectedFile[]>>;
+  selectedFolder: Drive.SelectedFolder | null;
 }
 
 export function FilesToUpload({ files, setFiles, selectedFolder }: FilesToUploadProps) {
@@ -30,7 +28,7 @@ export function FilesToUpload({ files, setFiles, selectedFolder }: FilesToUpload
   const addFiles = useCallback(
     (newFiles: FileList | File[]) => {
       const fileArray = Array.from(newFiles);
-      const added: SelectedFile[] = fileArray.map((file) => ({
+      const added: Drive.SelectedFile[] = fileArray.map((file) => ({
         file,
         id: `${file.name}-${file.size}-${Date.now()}-${Math.random()}`,
         displayName: file.name,
@@ -50,7 +48,7 @@ export function FilesToUpload({ files, setFiles, selectedFolder }: FilesToUpload
     [setFiles],
   );
 
-  const startRename = useCallback((item: SelectedFile) => {
+  const startRename = useCallback((item: Drive.SelectedFile) => {
     setEditingId(item.id);
     setEditingValue(item.displayName);
   }, []);

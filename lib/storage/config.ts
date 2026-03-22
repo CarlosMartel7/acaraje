@@ -1,13 +1,4 @@
-export interface MinioEnvConfig {
-  endPoint: string;
-  port: number;
-  useSSL: boolean;
-  accessKey: string;
-  secretKey: string;
-  bucket: string;
-}
-
-export function getMinioConfig(): MinioEnvConfig {
+export function getMinioConfig(): Storage.MinioEnvConfig {
   return {
     endPoint: process.env.MINIO_ENDPOINT ?? "localhost",
     port: Number(process.env.MINIO_PORT ?? 9000),
