@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { FolderContentsTable } from "./folder-contents-table";
 import AcarajeCalls_drive_view from "./[[api-calls]";
 import { DriveFolderBreadcrumbs, parseFolderBreadcrumb } from "./folder-breadcrumbs";
+import { DriveViewHeader, DriveViewBodySkeleton } from "@/components/routes/skeletons";
 
 export function DriveFolderBrowser() {
   const {
@@ -26,29 +27,20 @@ export function DriveFolderBrowser() {
 
   return (
     <div className="p-8 space-y-6 animate-in">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Drive View</h1>
-        <p className="text-muted-foreground text-sm mt-1">Browse folders and files in storage</p>
-      </div>
+      <DriveViewHeader />
       <div className="space-y-4">
-        <DriveFolderBreadcrumbs
-          rootPrefix={ROOT}
-          breadcrumbs={breadcrumbs}
-          onNavigate={setCurrentPrefix}
-        />
+        <DriveFolderBreadcrumbs rootPrefix={ROOT} breadcrumbs={breadcrumbs} onNavigate={setCurrentPrefix} />
 
-        {!hasLoaded ? null : folders.length === 0 && files.length === 0 ? (
+        {!hasLoaded ? (
+          <DriveViewBodySkeleton />
+        ) : folders.length === 0 && files.length === 0 ? (
           <div className="rounded-lg border border-dashed border-border/50 p-8 text-center text-muted-foreground text-sm">
             <FolderOpen className="w-10 h-10 mx-auto mb-2 opacity-50" />
             <p>This folder is empty</p>
             {currentPrefix !== ROOT && (
               <button
                 type="button"
-                onClick={() =>
-                  setCurrentPrefix(
-                    breadcrumbs.length >= 2 ? breadcrumbs[breadcrumbs.length - 2]!.id : ROOT,
-                  )
-                }
+                onClick={() => setCurrentPrefix(breadcrumbs.length >= 2 ? breadcrumbs[breadcrumbs.length - 2]!.id : ROOT)}
                 className="mt-2 text-foreground hover:underline"
               >
                 Go back

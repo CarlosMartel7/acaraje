@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { GitBranch, Table2, Hash, Layers, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { acarajePath } from "@/lib/acaraje-routes";
 import { Card } from "@/components/ui/card";
 
 function StatCard({
@@ -62,7 +63,7 @@ export function DashboardStatCards({ stats }: { stats: Dashboard.DashboardStats 
         value={stats.totalModels}
         icon={Table2}
         color="text-primary-foreground"
-        href="/schemas?tab=models"
+        href={`${acarajePath("/schemas")}?tab=models`}
         sub={`${stats.modelsWithMap} with @map`}
       />
       <StatCard
@@ -70,7 +71,7 @@ export function DashboardStatCards({ stats }: { stats: Dashboard.DashboardStats 
         value={stats.totalRelations}
         icon={GitBranch}
         color="text-chart-5"
-        href="/relations"
+        href={acarajePath("/relations")}
         sub={`across all models`}
       />
       <StatCard
@@ -85,7 +86,7 @@ export function DashboardStatCards({ stats }: { stats: Dashboard.DashboardStats 
         value={stats.totalEnums}
         icon={Layers}
         color="text-chart-1"
-        href="/schemas?tab=enums"
+        href={`${acarajePath("/schemas")}?tab=enums`}
         sub={`${stats.totalIndexes} indexes`}
       />
     </div>

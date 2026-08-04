@@ -1,7 +1,5 @@
-"use client";
-
 import { RelationsContent } from "@/components/routes/relations";
 
-export default function RelationsPage() {
+export default async function RelationsPage() {
   return <RelationsContent />;
 }

@@ -12,5 +12,6 @@ export default function AcarajeCalls_relations() {
 
   return {
     allRelations,
+    loading: data === null,
   };
 }

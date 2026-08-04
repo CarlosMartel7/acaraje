@@ -1,9 +1,11 @@
 "use client";
 
 import Link from "next/link";
+import { acarajePath } from "@/lib/acaraje-routes";
 import { ChevronLeft, CheckCircle, AlertCircle } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { DynamicForm } from "@/components/routes/crud/dynamic-form";
+import { CrudFormBodySkeleton } from "@/components/routes/skeletons";
 import AcarajeCalls_crud_new from "./[[api-calls]";
 
 export function CrudNewContent() {
@@ -12,7 +14,7 @@ export function CrudNewContent() {
   return (
     <div className="p-8 space-y-6 animate-in max-w-4xl">
       <div className="flex items-center gap-2 text-xs font-mono text-muted-foreground">
-        <Link href={`/crud/${model}`} className="flex items-center gap-1 hover:text-primary-foreground transition-colors">
+        <Link href={acarajePath(`/crud/${model}`)} className="flex items-center gap-1 hover:text-primary-foreground transition-colors">
           <ChevronLeft className="w-3.5 h-3.5" />
           {model}
         </Link>
@@ -48,12 +50,12 @@ export function CrudNewContent() {
             fields={modelDef.fields}
             enums={schemaData?.enums ?? []}
             onSubmit={handleSubmit}
-            onCancel={() => router.push(`/crud/${model}`)}
+            onCancel={() => router.push(acarajePath(`/crud/${model}`))}
             isLoading={loading}
           />
         </Card>
       ) : (
-        <Card className="h-48 animate-pulse bg-card/40" />
+        <CrudFormBodySkeleton />
       )}
     </div>
   );

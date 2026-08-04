@@ -1,6 +1,7 @@
 "use client";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { acarajePath } from "@/lib/acaraje-routes";
 
 interface AcarajeCalls_schemasProps {
   search: string;
@@ -34,7 +35,7 @@ export default function AcarajeCalls_schemas({ search, setActiveTab, tabParam, s
     const params = new URLSearchParams();
     params.set("tab", "models");
     if (selectedModelName !== modelName) params.set("model", modelName);
-    router.push(`/schemas?${params.toString()}`);
+    router.push(`${acarajePath("/schemas")}?${params.toString()}`);
   };
 
   return { data, filteredModels, filteredEnums, selectedModel, handleSelectModel, router };

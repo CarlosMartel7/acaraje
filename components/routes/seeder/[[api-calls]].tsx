@@ -48,29 +48,32 @@ export default function AcarajeCalls_seeder() {
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [states, setStates] = useState<Record<string, ModelState>>({});
   const [seedingAll, setSeedingAll] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    Promise.all([fetch("/api/acaraje/schemas").then((r) => r.json()), fetch("/api/acaraje/seed").then((r) => r.json())]).then(([schema, seedData]) => {
-      const ms: ModelInfo[] = (schema.models || []).map((m: any) => ({
-        name: m.name,
-        fieldCount: m.fields.length,
-      }));
-      ms.sort((a, b) => {
-        const ai = SEED_ORDER.indexOf(a.name);
-        const bi = SEED_ORDER.indexOf(b.name);
-        if (ai === -1 && bi === -1) return 0;
-        if (ai === -1) return 1;
-        if (bi === -1) return -1;
-        return ai - bi;
-      });
-      setModels(ms);
-      setCounts(seedData.counts || {});
-      const init: Record<string, ModelState> = {};
-      for (const m of ms) {
-        init[m.name] = { count: 5, loading: false, result: null, error: null, expanded: false };
-      }
-      setStates(init);
-    });
+    Promise.all([fetch("/api/acaraje/schemas").then((r) => r.json()), fetch("/api/acaraje/seed").then((r) => r.json())])
+      .then(([schema, seedData]) => {
+        const ms: ModelInfo[] = (schema.models || []).map((m: any) => ({
+          name: m.name,
+          fieldCount: m.fields.length,
+        }));
+        ms.sort((a, b) => {
+          const ai = SEED_ORDER.indexOf(a.name);
+          const bi = SEED_ORDER.indexOf(b.name);
+          if (ai === -1 && bi === -1) return 0;
+          if (ai === -1) return 1;
+          if (bi === -1) return -1;
+          return ai - bi;
+        });
+        setModels(ms);
+        setCounts(seedData.counts || {});
+        const init: Record<string, ModelState> = {};
+        for (const m of ms) {
+          init[m.name] = { count: 5, loading: false, result: null, error: null, expanded: false };
+        }
+        setStates(init);
+      })
+      .finally(() => setLoading(false));
   }, []);
 
   const updateState = useCallback((model: string, patch: Partial<ModelState>) => {
@@ -114,6 +117,7 @@ export default function AcarajeCalls_seeder() {
     counts,
     states,
     seedingAll,
+    loading,
     updateState,
     seedModel,
     seedAll,

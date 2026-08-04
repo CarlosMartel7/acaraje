@@ -3,6 +3,7 @@ import { useSearchParams } from "next/navigation";
 import { SelectDrive } from "@/components/routes/drive/select-drive";
 import { TargetFolder } from "@/components/routes/drive/target-folder";
 import { FilesToUpload } from "@/components/routes/drive/files-to-upload";
+import { DriveUploadHeader, DriveUploadBodySkeleton } from "@/components/routes/skeletons";
 type RawFolder = { id: string; name: string; parents?: string[]; webViewLink?: string };
 
 function structureFolders(folders: RawFolder[]): Drive.FolderNode[] {
@@ -35,6 +36,7 @@ export default function DrivePageInner() {
   const [selectedFolder, setSelectedFolder] = useState<Drive.SelectedFolder | null>(null);
   const [files, setFiles] = useState<Drive.SelectedFile[]>([]);
   const [fetchedFolders, setFetchedFolders] = useState<Drive.FolderNode[]>([]);
+  const [foldersLoading, setFoldersLoading] = useState(true);
 
   useEffect(() => {
     const id = searchParams.get("folderId");
@@ -45,21 +47,30 @@ export default function DrivePageInner() {
     fetch("/api/acaraje/drive/folders")
       .then((r) => r.json())
       .then((data) => setFetchedFolders(structureFolders(data.folders ?? [])))
-      .catch(() => setFetchedFolders([]));
+      .catch(() => setFetchedFolders([]))
+      .finally(() => setFoldersLoading(false));
   }, []);
 
   return (
     <div className="p-8 space-y-6 animate-in">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Drive Upload</h1>
-        <p className="text-muted-foreground text-sm mt-1">Select a folder and upload files to MinIO storage</p>
-      </div>
+      <DriveUploadHeader />
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <SelectDrive value={selectedDrive} onChange={setSelectedDrive} />
-        <TargetFolder value={selectedFolder} onChange={setSelectedFolder} folders={fetchedFolders || []} setFolders={setFetchedFolders} />
-      </div>
-      <FilesToUpload files={files} setFiles={setFiles} selectedFolder={selectedFolder} />
+      {foldersLoading ? (
+        <DriveUploadBodySkeleton />
+      ) : (
+        <>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <SelectDrive value={selectedDrive} onChange={setSelectedDrive} />
+            <TargetFolder
+              value={selectedFolder}
+              onChange={setSelectedFolder}
+              folders={fetchedFolders || []}
+              setFolders={setFetchedFolders}
+            />
+          </div>
+          <FilesToUpload files={files} setFiles={setFiles} selectedFolder={selectedFolder} />
+        </>
+      )}
     </div>
   );
 }

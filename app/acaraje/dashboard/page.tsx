@@ -1,5 +1,5 @@
 import { DashboardContent } from "@/components/routes/dashboard";
 
-export default function DashboardPage() {
+export default async function DashboardPage() {
   return <DashboardContent />;
 }

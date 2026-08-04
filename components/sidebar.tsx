@@ -1,5 +1,7 @@
 "use client";
 
+console.log("sidebar");
+
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -17,19 +19,20 @@ import {
   Upload,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { acarajePath } from "@/lib/acaraje-routes";
 import { Button } from "@/components/ui/button";
 import { useEffect, useState } from "react";
 
 const topNavItems = [
-  { href: "/dashboard", label: "Overview", icon: LayoutDashboard, description: "Schema summary" },
-  { href: "/schemas", label: "Models", icon: Table2, description: "All Prisma models" },
-  { href: "/relations", label: "Relations", icon: GitBranch, description: "Model relationships" },
-  { href: "/seeder", label: "Seeder", icon: Sprout, description: "Generate fake data" },
+  { href: acarajePath("/dashboard"), label: "Overview", icon: LayoutDashboard, description: "Schema summary" },
+  { href: acarajePath("/schemas"), label: "Models", icon: Table2, description: "All Prisma models" },
+  { href: acarajePath("/relations"), label: "Relations", icon: GitBranch, description: "Model relationships" },
+  { href: acarajePath("/seeder"), label: "Seeder", icon: Sprout, description: "Generate fake data" },
 ];
 
 const driveSubItems = [
-  { href: "/drive", label: "Upload", icon: Upload },
-  { href: "/drive/view", label: "View", icon: FolderOpen },
+  { href: acarajePath("/drive"), label: "Upload", icon: Upload },
+  { href: acarajePath("/drive/view"), label: "View", icon: FolderOpen },
 ];
 
 export function Sidebar() {
@@ -95,7 +98,7 @@ export function Sidebar() {
             onClick={() => setDriveOpen((v) => !v)}
             className={cn(
               "w-full justify-start gap-3 rounded-md px-3 py-2.5 h-auto font-medium",
-              pathname.startsWith("/drive")
+              pathname.startsWith(acarajePath("/drive"))
                 ? "bg-primary border border-primary-foreground/25 text-primary-foreground"
                 : "text-muted-foreground hover:text-foreground hover:bg-accent border border-transparent",
             )}
@@ -139,7 +142,7 @@ export function Sidebar() {
             onClick={() => setCrudOpen((v) => !v)}
             className={cn(
               "w-full justify-start gap-3 rounded-md px-3 py-2.5 h-auto font-medium",
-              pathname.startsWith("/crud")
+              pathname.startsWith(acarajePath("/crud"))
                 ? "bg-primary border border-primary-foreground/25 text-primary-foreground"
                 : "text-muted-foreground hover:text-foreground hover:bg-accent border border-transparent",
             )}
@@ -154,7 +157,7 @@ export function Sidebar() {
           {crudOpen && (
             <div className="mt-1 ml-4 pl-3 border-l border-border/50 space-y-0.5">
               {models.map((model) => {
-                const href = `/crud/${model}`;
+                const href = acarajePath(`/crud/${model}`);
                 const isActive = pathname.startsWith(href);
                 return (
                   <Link

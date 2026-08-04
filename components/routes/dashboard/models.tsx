@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Database, GitBranch, TrendingUp } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { acarajePath } from "@/lib/acaraje-routes";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card } from "@/components/ui/card";
 
@@ -38,7 +39,7 @@ export function DashboardModelsSection({ stats }: { stats: Dashboard.DashboardSt
                   <div key={model.name} className="group">
                     <div className="flex items-center justify-between mb-0.5">
                       <Link
-                        href={`/schemas?model=${model.name}`}
+                        href={`${acarajePath("/schemas")}?model=${model.name}`}
                         className="text-xs font-mono text-muted-foreground hover:text-primary-foreground transition-colors"
                       >
                         {model.name}
@@ -65,7 +66,7 @@ export function DashboardModelsSection({ stats }: { stats: Dashboard.DashboardSt
                   <div key={model.name} className="group">
                     <div className="flex items-center justify-between mb-0.5">
                       <Link
-                        href={`/schemas?model=${model.name}`}
+                        href={`${acarajePath("/schemas")}?model=${model.name}`}
                         className="text-xs font-mono text-muted-foreground hover:text-primary-foreground transition-colors"
                       >
                         {model.name}

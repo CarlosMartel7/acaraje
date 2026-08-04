@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { acarajePath } from "@/lib/acaraje-routes";
 
 export default function AcarajeCalls_crud_new() {
   const params = useParams();
@@ -37,7 +38,7 @@ export default function AcarajeCalls_crud_new() {
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "Failed to create");
       setSuccess(true);
-      setTimeout(() => router.push(`/crud/${model}`), 1200);
+      setTimeout(() => router.push(acarajePath(`/crud/${model}`)), 1200);
     } catch (err: any) {
       setError(err.message);
     } finally {

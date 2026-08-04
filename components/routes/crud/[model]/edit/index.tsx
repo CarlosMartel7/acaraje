@@ -1,9 +1,11 @@
 "use client";
 
 import Link from "next/link";
+import { acarajePath } from "@/lib/acaraje-routes";
 import { ChevronLeft, CheckCircle, AlertCircle } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { DynamicForm } from "@/components/routes/crud/dynamic-form";
+import { CrudFormBodySkeleton } from "@/components/routes/skeletons";
 import AcarajeCalls_crud_edit from "./[[api-calls]";
 
 export function CrudEditContent() {
@@ -13,7 +15,7 @@ export function CrudEditContent() {
   return (
     <div className="p-8 space-y-6 animate-in max-w-4xl">
       <div className="flex items-center gap-2 text-xs font-mono text-muted-foreground">
-        <Link href={`/crud/${model}`} className="flex items-center gap-1 hover:text-primary-foreground transition-colors">
+        <Link href={acarajePath(`/crud/${model}`)} className="flex items-center gap-1 hover:text-primary-foreground transition-colors">
           <ChevronLeft className="w-3.5 h-3.5" />
           {model}
         </Link>
@@ -42,9 +44,11 @@ export function CrudEditContent() {
         </div>
       )}
 
-      {record?.error ? (
+      {record === null ? (
+        <CrudFormBodySkeleton />
+      ) : record?.error ? (
         <div className="text-center py-12 text-muted-foreground">Record not found</div>
-      ) : modelDef && record != null ? (
+      ) : modelDef ? (
         <Card className="p-6">
           <DynamicForm
             modelName={model}
@@ -52,7 +56,7 @@ export function CrudEditContent() {
             enums={schemaData?.enums ?? []}
             initialData={record}
             onSubmit={handleSubmit}
-            onCancel={() => router.push(`/crud/${model}`)}
+            onCancel={() => router.push(acarajePath(`/crud/${model}`))}
             isLoading={saving}
           />
         </Card>

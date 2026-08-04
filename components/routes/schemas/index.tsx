@@ -9,6 +9,8 @@ import { SchemaModelsTab } from "./models";
 import { SchemaEnumsTab } from "./enums";
 import { SchemaModelViewer } from "./viewer";
 import AcarajeCalls_schemas from "./[[api-calls]]";
+import { acarajePath } from "@/lib/acaraje-routes";
+import { SchemasHeader, SchemasSidebarBodySkeleton, SchemasViewerSkeleton } from "@/components/routes/skeletons";
 
 export function SchemasContent() {
   const [search, setSearch] = useState("");
@@ -27,13 +29,13 @@ export function SchemasContent() {
     router,
   });
 
-  console.log(data);
+  const loading = !data;
 
   return (
     <div className="flex h-full animate-in">
       <div className="w-72 flex-shrink-0 border-r border-border/50 flex flex-col min-h-0">
         <div className="p-4 border-b border-border/50 shrink-0">
-          <h1 className="text-sm font-bold mb-3">Schema Explorer</h1>
+          <SchemasHeader />
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
             <Input
@@ -44,42 +46,50 @@ export function SchemasContent() {
             />
           </div>
         </div>
-        <Tabs
-          value={activeTab}
-          onValueChange={(v) => {
-            const tab = v as "models" | "enums";
-            setActiveTab(tab);
-            const q = new URLSearchParams();
-            q.set("tab", tab);
-            if (tab === "models" && selectedModelName) q.set("model", selectedModelName);
-            router.replace(`/schemas?${q.toString()}`);
-          }}
-          className="flex-1 flex flex-col min-h-0"
-        >
-          <div className="px-4 pt-3 pb-2 shrink-0">
-            <TabsList className="w-full">
-              <TabsTrigger value="models" className="flex-1">
-                Models ({data?.models.length ?? "—"})
-              </TabsTrigger>
-              <TabsTrigger value="enums" className="flex-1">
-                Enums ({data?.enums.length ?? "—"})
-              </TabsTrigger>
-            </TabsList>
-          </div>
-          <TabsContent value="models" className="flex-1 overflow-y-auto p-3 space-y-2 mt-0 min-h-0">
-            <SchemaModelsTab models={filteredModels} selectedModelName={selectedModelName} onSelectModel={handleSelectModel} />
-          </TabsContent>
-          <TabsContent value="enums" className="flex-1 overflow-y-auto p-3 space-y-2 mt-0 min-h-0">
-            <SchemaEnumsTab enums={filteredEnums} />
-          </TabsContent>
-        </Tabs>
+        {loading ? (
+          <SchemasSidebarBodySkeleton />
+        ) : (
+          <Tabs
+            value={activeTab}
+            onValueChange={(v) => {
+              const tab = v as "models" | "enums";
+              setActiveTab(tab);
+              const q = new URLSearchParams();
+              q.set("tab", tab);
+              if (tab === "models" && selectedModelName) q.set("model", selectedModelName);
+              router.replace(`${acarajePath("/schemas")}?${q.toString()}`);
+            }}
+            className="flex-1 flex flex-col min-h-0"
+          >
+            <div className="px-4 pt-3 pb-2 shrink-0">
+              <TabsList className="w-full">
+                <TabsTrigger value="models" className="flex-1">
+                  Models ({data?.models.length ?? "—"})
+                </TabsTrigger>
+                <TabsTrigger value="enums" className="flex-1">
+                  Enums ({data?.enums.length ?? "—"})
+                </TabsTrigger>
+              </TabsList>
+            </div>
+            <TabsContent value="models" className="flex-1 overflow-y-auto p-3 space-y-2 mt-0 min-h-0">
+              <SchemaModelsTab models={filteredModels} selectedModelName={selectedModelName} onSelectModel={handleSelectModel} />
+            </TabsContent>
+            <TabsContent value="enums" className="flex-1 overflow-y-auto p-3 space-y-2 mt-0 min-h-0">
+              <SchemaEnumsTab enums={filteredEnums} />
+            </TabsContent>
+          </Tabs>
+        )}
       </div>
 
-      <SchemaModelViewer
-        model={selectedModel}
-        modelsCount={data?.models.length ?? 0}
-        enumNames={new Set(data?.enums.map((e) => e.name) ?? [])}
-      />
+      {loading ? (
+        <SchemasViewerSkeleton />
+      ) : (
+        <SchemaModelViewer
+          model={selectedModel}
+          modelsCount={data?.models.length ?? 0}
+          enumNames={new Set(data?.enums.map((e) => e.name) ?? [])}
+        />
+      )}
     </div>
   );
 }
