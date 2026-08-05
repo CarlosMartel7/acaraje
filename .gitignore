@@ -47,3 +47,6 @@ coverage/
 *.log
 *.tsbuildinfo
 .turbo
+
+# Boards config (local, regenerates on first read)
+acaraje.boards.json

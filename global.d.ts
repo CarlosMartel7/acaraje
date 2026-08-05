@@ -210,6 +210,113 @@ declare namespace Relations {
   }
 }
 
+/** Boards — manually-configured dashboard pages and chart widgets */
+declare namespace Boards {
+  type ChartType = "pie" | "bar" | "line" | "stat" | "table";
+  type AggregateOp = "sum" | "avg" | "min" | "max";
+  type Op = "count" | AggregateOp;
+
+  interface EqualsFilter {
+    /** Boolean / enum / relation-FK field on the target model. */
+    field: string;
+    /** Relation-FK -> related record's id. */
+    value: string | number | boolean;
+  }
+
+  /** One level, reused by Line's Y, Bar's Y (same-model branch), and both legs of Stat's divide. */
+  interface SimpleMetric {
+    model: string;
+    op: Op;
+    /** Required iff op !== "count"; numeric field on `model`. */
+    field?: string;
+    filter?: EqualsFilter;
+  }
+
+  interface PieMetric {
+    chartType: "pie";
+    model: string;
+    /** Boolean | enum | relation-FK field on `model`. */
+    field: string;
+  }
+
+  interface LineMetric {
+    chartType: "line";
+    model: string;
+    /** DateTime field on `model`. */
+    dateField: string;
+    bucket: "day" | "week" | "month" | "year";
+    /** y.model === model */
+    y: SimpleMetric;
+  }
+
+  interface BarYTarget {
+    /** undefined = same model as X's bucket model. Otherwise: an isRelation&&isList field
+     *  name on X's model, pointing at the model actually being measured. */
+    via?: string;
+    op: Op;
+    /** Numeric field on the target model (X's model, or via's target). */
+    field?: string;
+    /** field belongs to the target model. */
+    filter?: EqualsFilter;
+  }
+
+  interface BarMetric {
+    chartType: "bar";
+    model: string;
+    /** X bucket field — enum-typed field on `model`. */
+    field: string;
+    y: BarYTarget;
+  }
+
+  interface StatSimpleMetric {
+    chartType: "stat";
+    mode: "simple";
+    metric: SimpleMetric;
+  }
+  interface StatDivideMetric {
+    chartType: "stat";
+    mode: "divide";
+    numerator: SimpleMetric;
+    denominator: SimpleMetric;
+  }
+  type StatMetric = StatSimpleMetric | StatDivideMetric;
+
+  type MetricSpec = PieMetric | BarMetric | LineMetric | StatMetric;
+
+  interface WidgetConfig {
+    id: string;
+    title: string;
+    /** chartType lives only here (metric.chartType) — not duplicated at the top level. */
+    metric: MetricSpec;
+    order: number;
+  }
+
+  interface Page {
+    id: string;
+    slug: string;
+    name: string;
+    order: number;
+    widgets: WidgetConfig[];
+  }
+
+  interface ConfigFile {
+    pages: Page[];
+  }
+
+  /** Normalized response from the widget-data route, uniform regardless of metric shape —
+   *  rendering only ever branches on chartType. */
+  interface SeriesResult {
+    label: string;
+    points: { bucket: string; value: number }[];
+  }
+
+  interface WidgetDataResponse {
+    chartType: ChartType;
+    series: SeriesResult[];
+    meta?: { generatedAt: string; note?: string };
+  }
+}
+
 /** Crud — CRUD operations */
 declare namespace Crud {
   interface PageData {

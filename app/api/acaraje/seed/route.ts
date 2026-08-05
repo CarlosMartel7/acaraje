@@ -1,12 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { faker } from "@faker-js/faker";
-import { prisma } from "@/lib/prisma";
 import { parseSchema } from "@/lib/schema-parser";
-
-function getDelegate(modelName: string): any {
-  const key = modelName.charAt(0).toLowerCase() + modelName.slice(1);
-  return (prisma as any)[key];
-}
+import { getDelegate } from "@/lib/prisma-delegate";
 
 function generateFieldValue(fieldName: string, fieldType: string, enumValues?: string[]): any {
   // Enums

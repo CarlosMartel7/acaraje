@@ -1,11 +1,6 @@
 import { NextResponse } from "next/server";
 import { parseSchema } from "@/lib/schema-parser";
-import { prisma } from "@/lib/prisma";
-
-function getDelegate(modelName: string): { count: () => Promise<number> } | null {
-  const key = modelName.charAt(0).toLowerCase() + modelName.slice(1);
-  return (prisma as any)[key] ?? null;
-}
+import { getDelegate } from "@/lib/prisma-delegate";
 
 export async function GET() {
   try {

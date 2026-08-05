@@ -372,6 +372,35 @@ export function CrudFormBodySkeleton() {
   );
 }
 
+export function BoardsPageBodySkeleton() {
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+      {Array.from({ length: 6 }).map((_, i) => (
+        <Card key={i} className="p-5 space-y-3">
+          <Skeleton className="h-4 w-32" />
+          <Skeleton className="h-40 w-full rounded-lg" />
+        </Card>
+      ))}
+    </div>
+  );
+}
+
+export function BoardsPageSkeleton() {
+  return (
+    <div className="p-8 space-y-6">
+      <div className="flex items-center justify-between gap-4">
+        <Skeleton className="h-8 w-48" />
+        <Skeleton className="h-9 w-28" />
+      </div>
+      <BoardsPageBodySkeleton />
+    </div>
+  );
+}
+
+export function WidgetBodySkeleton() {
+  return <Skeleton className="h-40 w-full rounded-lg" />;
+}
+
 export function CrudFormSkeleton() {
   return (
     <div className="p-8 space-y-6 max-w-4xl">

@@ -1,10 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-
-function getDelegate(modelName: string): any {
-  const key = modelName.charAt(0).toLowerCase() + modelName.slice(1);
-  return (prisma as any)[key];
-}
+import { getDelegate } from "@/lib/prisma-delegate";
 
 export async function GET(
   req: NextRequest,

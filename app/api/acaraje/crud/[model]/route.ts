@@ -1,12 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { parseSchema } from "@/lib/schema-parser";
-
-// Safely get a Prisma model delegate by name (case-insensitive)
-function getDelegate(modelName: string): any {
-  const key = modelName.charAt(0).toLowerCase() + modelName.slice(1);
-  return (prisma as any)[key];
-}
+import { getDelegate } from "@/lib/prisma-delegate";
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ model: string }> }) {
   const { model } = await params;

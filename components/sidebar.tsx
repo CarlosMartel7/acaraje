@@ -1,9 +1,7 @@
 "use client";
 
-console.log("sidebar");
-
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   GitBranch,
   LayoutDashboard,
@@ -17,10 +15,13 @@ import {
   Cloud,
   FolderOpen,
   Upload,
+  LayoutGrid,
+  Plus,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { acarajePath } from "@/lib/acaraje-routes";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { useEffect, useState } from "react";
 
 const topNavItems = [
@@ -37,15 +38,45 @@ const driveSubItems = [
 
 export function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
   const [models, setModels] = useState<string[]>([]);
+  const [pages, setPages] = useState<Boards.Page[]>([]);
   const [crudOpen, setCrudOpen] = useState(false);
   const [driveOpen, setDriveOpen] = useState(false);
+  const [boardsOpen, setBoardsOpen] = useState(false);
+  const [addingPage, setAddingPage] = useState(false);
+  const [newPageName, setNewPageName] = useState("");
 
   useEffect(() => {
     fetch("/api/acaraje/schemas")
       .then((r) => r.json())
       .then((d) => setModels(d.models?.map((m: any) => m.name) || []));
   }, []);
+
+  const refreshPages = () => {
+    fetch("/api/acaraje/boards/pages")
+      .then((r) => r.json())
+      .then((d) => setPages((d.pages ?? []).slice().sort((a: Boards.Page, b: Boards.Page) => a.order - b.order)));
+  };
+
+  useEffect(() => {
+    refreshPages();
+  }, []);
+
+  const submitNewPage = async () => {
+    const name = newPageName.trim();
+    if (!name) return;
+    const res = await fetch("/api/acaraje/boards/pages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name }),
+    });
+    const page = await res.json();
+    setNewPageName("");
+    setAddingPage(false);
+    refreshPages();
+    if (page?.slug) router.push(acarajePath(`/boards/${page.slug}`));
+  };
 
   return (
     <aside className="w-64 flex-shrink-0 flex flex-col border-r border-border/60 bg-card/60">
@@ -173,6 +204,91 @@ export function Sidebar() {
                   </Link>
                 );
               })}
+            </div>
+          )}
+        </div>
+
+        {/* Boards accordion */}
+        <div className="pt-4">
+          <p className="px-3 mb-2 text-[10px] font-mono tracking-[0.12em] uppercase text-muted-foreground/40">Analytics</p>
+          <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              onClick={() => setBoardsOpen((v) => !v)}
+              className={cn(
+                "flex-1 justify-start gap-3 rounded-md px-3 py-2.5 h-auto font-medium",
+                pathname.startsWith(acarajePath("/boards"))
+                  ? "bg-primary border border-primary-foreground/25 text-primary-foreground"
+                  : "text-muted-foreground hover:text-foreground hover:bg-accent border border-transparent",
+              )}
+            >
+              <LayoutGrid className="w-4 h-4 flex-shrink-0 text-muted-foreground/60" />
+              <span className="flex-1 text-left">Boards</span>
+              <ChevronDown
+                className={cn("w-3.5 h-3.5 text-muted-foreground/40 transition-transform duration-200", boardsOpen && "rotate-180")}
+              />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              className="flex-shrink-0 text-muted-foreground/60 hover:text-foreground"
+              onClick={() => {
+                setBoardsOpen(true);
+                setAddingPage((v) => !v);
+              }}
+              aria-label="New board page"
+            >
+              <Plus className="w-3.5 h-3.5" />
+            </Button>
+          </div>
+
+          {boardsOpen && (
+            <div className="mt-1 ml-4 pl-3 border-l border-border/50 space-y-0.5">
+              {pages.map((page) => {
+                const href = acarajePath(`/boards/${page.slug}`);
+                const isActive = pathname === href;
+                return (
+                  <Link
+                    key={page.id}
+                    href={href}
+                    className={cn(
+                      "flex items-center gap-2 rounded px-2.5 py-1.5 text-xs transition-all",
+                      isActive ? "text-primary-foreground bg-primary font-medium" : "text-muted-foreground/70 hover:text-foreground hover:bg-accent",
+                    )}
+                  >
+                    <span className={cn("w-1 h-1 rounded-full flex-shrink-0", isActive ? "bg-primary-foreground" : "bg-border")} />
+                    {page.name}
+                  </Link>
+                );
+              })}
+
+              {addingPage ? (
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    submitNewPage();
+                  }}
+                  className="flex items-center gap-1 px-1 pt-1"
+                >
+                  <Input
+                    autoFocus
+                    value={newPageName}
+                    onChange={(e) => setNewPageName(e.target.value)}
+                    onBlur={() => !newPageName.trim() && setAddingPage(false)}
+                    placeholder="Page name..."
+                    className="h-7 text-xs"
+                  />
+                </form>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setAddingPage(true)}
+                  className="flex items-center gap-2 rounded px-2.5 py-1.5 text-xs text-muted-foreground/50 hover:text-foreground hover:bg-accent transition-all w-full"
+                >
+                  <Plus className="w-3 h-3 flex-shrink-0" />
+                  New page
+                </button>
+              )}
             </div>
           )}
         </div>

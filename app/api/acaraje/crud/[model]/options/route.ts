@@ -1,11 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { parseSchema } from "@/lib/schema-parser";
-
-function getDelegate(modelName: string): any {
-  const key = modelName.charAt(0).toLowerCase() + modelName.slice(1);
-  return (prisma as any)[key];
-}
+import { getDelegate } from "@/lib/prisma-delegate";
 
 // Returns a short list of records for a related model to populate dropdowns
 export async function GET(
