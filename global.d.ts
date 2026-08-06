@@ -235,7 +235,7 @@ declare namespace Boards {
   interface PieMetric {
     chartType: "pie";
     model: string;
-    /** Boolean | enum | relation-FK field on `model`. */
+    /** Enum-typed field on `model` (e.g. `role`). */
     field: string;
   }
 
@@ -283,9 +283,31 @@ declare namespace Boards {
 
   type MetricSpec = PieMetric | BarMetric | LineMetric | StatMetric;
 
+  type WidgetSize = "1x1" | "2x2" | "3x3";
+
+  /** Optional presentation overrides for a widget. */
+  interface WidgetDisplay {
+    /** Shown under the title. */
+    subtitle?: string;
+    /** Primary / single-series color (CSS color). */
+    color?: string;
+    /** Multi-series palette by index (CSS colors). */
+    colors?: string[];
+    /** X-axis title (bar, line). */
+    xAxisLabel?: string;
+    /** Y-axis title (bar, line). */
+    yAxisLabel?: string;
+    /** Map data series labels → custom legend / header labels. */
+    seriesLabels?: Record<string, string>;
+  }
+
   interface WidgetConfig {
     id: string;
     title: string;
+    /** Grid footprint on the 4×3 board canvas. Stat widgets must be 1×1. */
+    size?: WidgetSize;
+    /** Subtitle, colors, axis titles, series label overrides. */
+    display?: WidgetDisplay;
     /** chartType lives only here (metric.chartType) — not duplicated at the top level. */
     metric: MetricSpec;
     order: number;

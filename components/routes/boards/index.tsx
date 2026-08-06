@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { BoardsPageBodySkeleton } from "@/components/routes/skeletons";
 import { Widget } from "@/components/routes/boards/widget";
 import { WidgetBuilder } from "@/components/routes/boards/widget-builder";
+import { BOARD_GRID_CLASS, BOARD_GRID_ROWS, emptyCells, packBoard } from "@/lib/boards-layout";
 
 function humanizeSlug(slug: string): string {
   return slug
@@ -76,52 +77,69 @@ export function BoardPageContent({ slug }: { slug: string }) {
       ) : !page ? (
         <div className="text-center py-12 text-muted-foreground">Page not found</div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {widgets.map((widget, i) => (
-            <div key={widget.id} className="relative group">
-              <Widget config={widget} />
-              {editMode && (
-                <div className="absolute top-2 right-2 flex items-center gap-1 bg-background/90 backdrop-blur-sm rounded-md border border-border/50 p-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <Button variant="ghost" size="icon-sm" onClick={() => moveWidget(widget.id, -1)} disabled={i === 0} className="h-6 w-6">
-                    <ChevronLeft className="w-3 h-3" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    onClick={() => moveWidget(widget.id, 1)}
-                    disabled={i === widgets.length - 1}
-                    className="h-6 w-6"
-                  >
-                    <ChevronRight className="w-3 h-3" />
-                  </Button>
-                  <Button variant="ghost" size="icon-sm" onClick={() => setBuilderWidget(widget)} className="h-6 w-6">
-                    <Pencil className="w-3 h-3" />
-                  </Button>
-                  <Button variant="ghost" size="icon-sm" onClick={() => deleteWidget(widget.id)} className="h-6 w-6">
-                    <Trash2 className="w-3 h-3 text-red-400" />
-                  </Button>
+        (() => {
+          const { placements, maxRow, occupied } = packBoard(widgets);
+          // In edit mode the canvas pads out to the nominal 4×3 size so there's always room to
+          // hover an empty cell and add a widget; in view mode it hugs the actual content.
+          const rows = editMode ? Math.max(BOARD_GRID_ROWS, maxRow) : maxRow;
+          const empties = editMode ? emptyCells(rows, occupied) : [];
+          return (
+            <div className={BOARD_GRID_CLASS} style={{ gridTemplateRows: `repeat(${Math.max(rows, 1)}, minmax(6rem, 1fr))` }}>
+              {placements.map(({ widget, row, col, rowSpan, colSpan }, i) => (
+                <div
+                  key={widget.id}
+                  className="relative group min-h-0"
+                  style={{ gridColumn: `${col + 1} / span ${colSpan}`, gridRow: `${row + 1} / span ${rowSpan}` }}
+                >
+                  <Widget config={widget} />
+                  {editMode && (
+                    <div className="absolute top-2 right-2 flex items-center gap-1 bg-background/90 backdrop-blur-sm rounded-md border border-border/50 p-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Button variant="ghost" size="icon-sm" onClick={() => moveWidget(widget.id, -1)} disabled={i === 0} className="h-6 w-6">
+                        <ChevronLeft className="w-3 h-3" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        onClick={() => moveWidget(widget.id, 1)}
+                        disabled={i === placements.length - 1}
+                        className="h-6 w-6"
+                      >
+                        <ChevronRight className="w-3 h-3" />
+                      </Button>
+                      <Button variant="ghost" size="icon-sm" onClick={() => setBuilderWidget(widget)} className="h-6 w-6">
+                        <Pencil className="w-3 h-3" />
+                      </Button>
+                      <Button variant="ghost" size="icon-sm" onClick={() => deleteWidget(widget.id)} className="h-6 w-6">
+                        <Trash2 className="w-3 h-3 text-red-400" />
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              ))}
+
+              {empties.map(({ row, col }) => (
+                <button
+                  key={`empty-${row}-${col}`}
+                  type="button"
+                  onClick={() => setBuilderWidget("new")}
+                  style={{ gridColumn: `${col + 1} / span 1`, gridRow: `${row + 1} / span 1` }}
+                  className="group/cell rounded-lg border border-transparent hover:border-dashed hover:border-border/50 flex items-center justify-center transition-colors"
+                >
+                  <span className="opacity-0 group-hover/cell:opacity-100 transition-opacity flex flex-col items-center gap-1 text-muted-foreground text-xs">
+                    <Plus className="w-4 h-4" />
+                    Add widget
+                  </span>
+                </button>
+              ))}
+
+              {!editMode && widgets.length === 0 && (
+                <div className="col-span-full text-center py-12 text-muted-foreground">
+                  No widgets yet — click "Edit layout" to add one
                 </div>
               )}
             </div>
-          ))}
-
-          {editMode && (
-            <button
-              type="button"
-              onClick={() => setBuilderWidget("new")}
-              className="min-h-[10rem] rounded-lg border border-dashed border-border/50 flex flex-col items-center justify-center gap-2 text-muted-foreground hover:text-foreground hover:border-border transition-colors"
-            >
-              <Plus className="w-5 h-5" />
-              <span className="text-xs">Add widget</span>
-            </button>
-          )}
-
-          {!editMode && widgets.length === 0 && (
-            <div className="col-span-full text-center py-12 text-muted-foreground">
-              No widgets yet — click "Edit layout" to add one
-            </div>
-          )}
-        </div>
+          );
+        })()
       )}
 
       {builderWidget && page && schema && (

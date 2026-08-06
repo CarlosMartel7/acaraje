@@ -28,8 +28,9 @@ const topNavItems = [
   { href: acarajePath("/dashboard"), label: "Overview", icon: LayoutDashboard, description: "Schema summary" },
   { href: acarajePath("/schemas"), label: "Models", icon: Table2, description: "All Prisma models" },
   { href: acarajePath("/relations"), label: "Relations", icon: GitBranch, description: "Model relationships" },
-  { href: acarajePath("/seeder"), label: "Seeder", icon: Sprout, description: "Generate fake data" },
 ];
+
+const dataNavItems = [{ href: acarajePath("/seeder"), label: "Seeder", icon: Sprout, description: "Generate fake data" }];
 
 const driveSubItems = [
   { href: acarajePath("/drive"), label: "Upload", icon: Upload },
@@ -122,24 +123,106 @@ export function Sidebar() {
           );
         })}
 
-        {/* Drive accordion */}
-        <div className="pt-1">
-          <Button
-            variant="ghost"
-            onClick={() => setDriveOpen((v) => !v)}
-            className={cn(
-              "w-full justify-start gap-3 rounded-md px-3 py-2.5 h-auto font-medium",
-              pathname.startsWith(acarajePath("/drive"))
-                ? "bg-primary border border-primary-foreground/25 text-primary-foreground"
-                : "text-muted-foreground hover:text-foreground hover:bg-accent border border-transparent",
-            )}
-          >
-            <Cloud className="w-4 h-4 flex-shrink-0 text-muted-foreground/60" />
-            <span className="flex-1 text-left">Drive</span>
-            <ChevronDown
-              className={cn("w-3.5 h-3.5 text-muted-foreground/40 transition-transform duration-200", driveOpen && "rotate-180")}
-            />
-          </Button>
+        {/* Data section: Seeder, Drive, CRUD */}
+        <div className="pt-4">
+          <p className="px-3 mb-2 text-[10px] font-mono tracking-[0.12em] uppercase text-muted-foreground/40">Data</p>
+          {/* CRUD accordion */}
+          <div className="flex items-center gap-1 mt-0.5">
+            <Link
+              href={acarajePath("/crud")}
+              className={cn(
+                "flex-1 flex items-center gap-3 rounded-md px-3 py-2.5 h-auto font-medium text-sm",
+                pathname.startsWith(acarajePath("/crud"))
+                  ? "bg-primary border border-primary-foreground/25 text-primary-foreground"
+                  : "text-muted-foreground hover:text-foreground hover:bg-accent border border-transparent",
+              )}
+            >
+              <PencilRuler className="w-4 h-4 flex-shrink-0 text-muted-foreground/60" />
+              <span className="flex-1 text-left">CRUD</span>
+            </Link>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              className="flex-shrink-0 text-muted-foreground/60 hover:text-foreground"
+              onClick={() => setCrudOpen((v) => !v)}
+              aria-label="Toggle CRUD submenu"
+            >
+              <ChevronDown className={cn("w-3.5 h-3.5 transition-transform duration-200", crudOpen && "rotate-180")} />
+            </Button>
+          </div>
+
+          {crudOpen && (
+            <div className="mt-1 ml-4 pl-3 border-l border-border/50 space-y-0.5">
+              {models.map((model) => {
+                const href = acarajePath(`/crud/${model}`);
+                const isActive = pathname.startsWith(href);
+                return (
+                  <Link
+                    key={model}
+                    href={href}
+                    className={cn(
+                      "flex items-center gap-2 rounded px-2.5 py-1.5 text-xs font-mono transition-all",
+                      isActive ? "text-primary-foreground bg-primary" : "text-muted-foreground/70 hover:text-foreground hover:bg-accent",
+                    )}
+                  >
+                    <span className={cn("w-1 h-1 rounded-full flex-shrink-0", isActive ? "bg-primary-foreground" : "bg-border")} />
+                    {model}
+                  </Link>
+                );
+              })}
+            </div>
+          )}
+
+
+          {dataNavItems.map((item) => {
+            const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={cn(
+                  "group flex items-center gap-3 rounded-md px-3 py-2.5 text-sm transition-all duration-150",
+                  isActive
+                    ? "bg-primary border border-primary-foreground/25 text-primary-foreground "
+                    : "text-muted-foreground hover:text-foreground hover:bg-accent border border-transparent",
+                )}
+              >
+                <item.icon
+                  className={cn(
+                    "w-4 h-4 flex-shrink-0",
+                    isActive ? "text-primary-foreground" : "text-muted-foreground/60 group-hover:text-muted-foreground",
+                  )}
+                />
+                <span className="flex-1 font-medium">{item.label}</span>
+                {isActive && <span className="w-1.5 h-1.5 rounded-full bg-primary-foreground opacity-80" />}
+              </Link>
+            );
+          })}
+
+          {/* Drive accordion */}
+          <div className="flex items-center gap-1 mt-0.5">
+            <Link
+              href={acarajePath("/drive")}
+              className={cn(
+                "flex-1 flex items-center gap-3 rounded-md px-3 py-2.5 h-auto font-medium text-sm",
+                pathname.startsWith(acarajePath("/drive"))
+                  ? "bg-primary border border-primary-foreground/25 text-primary-foreground"
+                  : "text-muted-foreground hover:text-foreground hover:bg-accent border border-transparent",
+              )}
+            >
+              <Cloud className="w-4 h-4 flex-shrink-0 text-muted-foreground/60" />
+              <span className="flex-1 text-left">Drive</span>
+            </Link>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              className="flex-shrink-0 text-muted-foreground/60 hover:text-foreground"
+              onClick={() => setDriveOpen((v) => !v)}
+              aria-label="Toggle Drive submenu"
+            >
+              <ChevronDown className={cn("w-3.5 h-3.5 transition-transform duration-200", driveOpen && "rotate-180")} />
+            </Button>
+          </div>
 
           {driveOpen && (
             <div className="mt-1 ml-4 pl-3 border-l border-border/50 space-y-0.5">
@@ -163,49 +246,7 @@ export function Sidebar() {
               })}
             </div>
           )}
-        </div>
 
-        {/* CRUD accordion */}
-        <div className="pt-4">
-          <p className="px-3 mb-2 text-[10px] font-mono tracking-[0.12em] uppercase text-muted-foreground/40">Data</p>
-          <Button
-            variant="ghost"
-            onClick={() => setCrudOpen((v) => !v)}
-            className={cn(
-              "w-full justify-start gap-3 rounded-md px-3 py-2.5 h-auto font-medium",
-              pathname.startsWith(acarajePath("/crud"))
-                ? "bg-primary border border-primary-foreground/25 text-primary-foreground"
-                : "text-muted-foreground hover:text-foreground hover:bg-accent border border-transparent",
-            )}
-          >
-            <PencilRuler className="w-4 h-4 flex-shrink-0 text-muted-foreground/60" />
-            <span className="flex-1 text-left">CRUD</span>
-            <ChevronDown
-              className={cn("w-3.5 h-3.5 text-muted-foreground/40 transition-transform duration-200", crudOpen && "rotate-180")}
-            />
-          </Button>
-
-          {crudOpen && (
-            <div className="mt-1 ml-4 pl-3 border-l border-border/50 space-y-0.5">
-              {models.map((model) => {
-                const href = acarajePath(`/crud/${model}`);
-                const isActive = pathname.startsWith(href);
-                return (
-                  <Link
-                    key={model}
-                    href={href}
-                    className={cn(
-                      "flex items-center gap-2 rounded px-2.5 py-1.5 text-xs font-mono transition-all",
-                      isActive ? "text-primary-foreground bg-primary" : "text-muted-foreground/70 hover:text-foreground hover:bg-accent",
-                    )}
-                  >
-                    <span className={cn("w-1 h-1 rounded-full flex-shrink-0", isActive ? "bg-primary-foreground" : "bg-border")} />
-                    {model}
-                  </Link>
-                );
-              })}
-            </div>
-          )}
         </div>
 
         {/* Boards accordion */}

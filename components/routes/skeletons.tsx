@@ -1,5 +1,6 @@
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 
 function SkeletonTable({ rows = 6, cols = 4 }: { rows?: number; cols?: number }) {
   return (
@@ -312,6 +313,47 @@ export function DriveViewSkeleton() {
   );
 }
 
+export function CrudOverviewHeader() {
+  return (
+    <div>
+      <h1 className="text-2xl font-bold tracking-tight">CRUD</h1>
+      <p className="text-muted-foreground text-sm mt-1">Browse and manage records for every model</p>
+    </div>
+  );
+}
+
+export function CrudOverviewBodySkeleton() {
+  return (
+    <>
+      <Skeleton className="h-9 w-full max-w-sm" />
+      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <Card key={i} className="p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <Skeleton className="h-4 w-24" />
+              <Skeleton className="h-3 w-16" />
+            </div>
+            <Skeleton className="h-3 w-32" />
+            <div className="flex gap-2">
+              <Skeleton className="h-8 flex-1" />
+              <Skeleton className="h-8 flex-1" />
+            </div>
+          </Card>
+        ))}
+      </div>
+    </>
+  );
+}
+
+export function CrudOverviewSkeleton() {
+  return (
+    <div className="p-8 space-y-6">
+      <CrudOverviewHeader />
+      <CrudOverviewBodySkeleton />
+    </div>
+  );
+}
+
 export function CrudListBodySkeleton() {
   return (
     <>
@@ -374,13 +416,19 @@ export function CrudFormBodySkeleton() {
 
 export function BoardsPageBodySkeleton() {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-      {Array.from({ length: 6 }).map((_, i) => (
-        <Card key={i} className="p-5 space-y-3">
-          <Skeleton className="h-4 w-32" />
-          <Skeleton className="h-40 w-full rounded-lg" />
-        </Card>
-      ))}
+    <div className="grid grid-cols-4 gap-4 auto-rows-fr grid-flow-dense min-h-[min(720px,calc(100vh-10rem))]">
+      <Card className="col-span-1 row-span-1 p-4 space-y-2">
+        <Skeleton className="h-4 w-24" />
+        <Skeleton className="h-8 w-16 mx-auto" />
+      </Card>
+      <Card className="col-span-2 row-span-2 p-5 space-y-3">
+        <Skeleton className="h-4 w-32" />
+        <Skeleton className="h-full min-h-[8rem] w-full rounded-lg" />
+      </Card>
+      <Card className="col-span-3 row-span-3 p-5 space-y-3">
+        <Skeleton className="h-4 w-40" />
+        <Skeleton className="h-full min-h-[12rem] w-full rounded-lg" />
+      </Card>
     </div>
   );
 }
@@ -397,8 +445,8 @@ export function BoardsPageSkeleton() {
   );
 }
 
-export function WidgetBodySkeleton() {
-  return <Skeleton className="h-40 w-full rounded-lg" />;
+export function WidgetBodySkeleton({ className }: { className?: string }) {
+  return <Skeleton className={cn("h-40 w-full rounded-lg", className)} />;
 }
 
 export function CrudFormSkeleton() {

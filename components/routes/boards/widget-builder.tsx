@@ -1,13 +1,21 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { WidgetChart } from "@/components/routes/boards/widget";
+import {
+  allowedSizesForChart,
+  defaultSizeForChart,
+  normalizeWidgetSize,
+  WIDGET_SIZE_OPTIONS,
+  type WidgetSize,
+} from "@/lib/boards-layout";
 
 const CHART_TYPES: { value: Boards.ChartType; label: string }[] = [
   { value: "pie", label: "Pie" },
@@ -24,15 +32,14 @@ const NUMERIC_TYPES = new Set(["Int", "BigInt", "Float", "Decimal"]);
 // are actually valid for that slot, driven by the live schema.
 // ---------------------------------------------------------------------------
 
-/** Boolean / enum / relation-FK (non-list) fields — Pie's bucket field, and the eligible set for
- *  equals-filters everywhere else. */
+/** Boolean / enum / relation-FK (non-list) fields — eligible set for equals-filters. */
 function bucketFieldCandidates(model: Schema.Model, schema: Schema.SchemaData): Schema.Field[] {
   return model.fields.filter(
     (f) => f.type === "Boolean" || schema.enums.some((e) => e.name === f.type) || (f.isRelation && !f.isList),
   );
 }
-/** Bar's X only buckets by enum-typed fields (e.g. `role`). */
-function barXFieldCandidates(model: Schema.Model, schema: Schema.SchemaData): Schema.Field[] {
+/** Pie and Bar X only bucket by enum-typed fields (e.g. `role`). */
+function enumFieldCandidates(model: Schema.Model, schema: Schema.SchemaData): Schema.Field[] {
   return model.fields.filter((f) => !f.isList && schema.enums.some((e) => e.name === f.type));
 }
 function numericFieldCandidates(model: Schema.Model): Schema.Field[] {
@@ -368,8 +375,9 @@ function PieForm({
         <FieldSelect
           value={value.field}
           onChange={(v) => onChange({ ...value, field: v })}
-          options={bucketFieldCandidates(model, schema)}
-          placeholder="Field..."
+          options={enumFieldCandidates(model, schema)}
+          placeholder="Enum field..."
+          emptyMessage="No enum field on this model — pie chart not possible"
         />
       )}
     </div>
@@ -516,7 +524,7 @@ function BarForm({
         <FieldSelect
           value={value.field}
           onChange={(v) => onChange({ ...value, field: v })}
-          options={barXFieldCandidates(model, schema)}
+          options={enumFieldCandidates(model, schema)}
           placeholder="X field (enum)..."
           emptyMessage="No enum field on this model — graph not possible"
         />
@@ -645,6 +653,67 @@ function StatForm({
 }
 
 // ---------------------------------------------------------------------------
+// Mock preview data — the Preview tab is for eyeballing appearance (size, colors, labels), not
+// live numbers, so it never hits the network. Series labels still mirror the real widget-data
+// route's labeling exactly (spec.model, or "num / denom" for a divide stat) so that seriesLabels
+// overrides keyed by those labels apply the same way here as they will at runtime.
+// ---------------------------------------------------------------------------
+
+const MOCK_CURVE = [42, 27, 18, 11, 7, 4];
+
+function mockPointsForLabels(labels: string[]): { bucket: string; value: number }[] {
+  return labels.map((label, i) => ({ bucket: label, value: MOCK_CURVE[i % MOCK_CURVE.length] }));
+}
+
+/** Real enum values when the field is genuinely enum-typed (always true for Pie/Bar's X after
+ *  their enum-only restriction) — falls back to placeholders only if that ever changes. */
+function enumValuesFor(schema: Schema.SchemaData, modelName: string, fieldName: string): string[] {
+  const field = schema.models.find((m) => m.name === modelName)?.fields.find((f) => f.name === fieldName);
+  const enumDef = field && schema.enums.find((e) => e.name === field.type);
+  return enumDef?.values ?? ["Category A", "Category B", "Category C"];
+}
+
+function mockLineBuckets(bucket: Boards.LineMetric["bucket"]): string[] {
+  const labels: string[] = [];
+  for (let i = 4; i >= 0; i--) {
+    const d = new Date();
+    if (bucket === "day") d.setUTCDate(d.getUTCDate() - i);
+    else if (bucket === "week") d.setUTCDate(d.getUTCDate() - i * 7);
+    else if (bucket === "month") d.setUTCMonth(d.getUTCMonth() - i);
+    else d.setUTCFullYear(d.getUTCFullYear() - i);
+    labels.push(
+      bucket === "month" ? d.toISOString().slice(0, 7) : bucket === "year" ? d.toISOString().slice(0, 4) : d.toISOString().slice(0, 10),
+    );
+  }
+  return labels;
+}
+
+function buildMockPreview(metric: Boards.MetricSpec, schema: Schema.SchemaData): Boards.WidgetDataResponse {
+  switch (metric.chartType) {
+    case "pie":
+      return {
+        chartType: "pie",
+        series: [{ label: metric.model, points: mockPointsForLabels(enumValuesFor(schema, metric.model, metric.field)) }],
+      };
+    case "bar":
+      return {
+        chartType: "bar",
+        series: [{ label: metric.model, points: mockPointsForLabels(enumValuesFor(schema, metric.model, metric.field)) }],
+      };
+    case "line":
+      return {
+        chartType: "line",
+        series: [{ label: metric.model, points: mockPointsForLabels(mockLineBuckets(metric.bucket)) }],
+      };
+    case "stat": {
+      const label = metric.mode === "simple" ? metric.metric.model : `${metric.numerator.model} / ${metric.denominator.model}`;
+      const value = metric.mode === "simple" ? 128 : 3.5;
+      return { chartType: "stat", series: [{ label, points: [{ bucket: "total", value }] }] };
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Builder shell
 // ---------------------------------------------------------------------------
 
@@ -666,6 +735,15 @@ export function WidgetBuilder({
 
   const [title, setTitle] = useState(existing?.title ?? "");
   const [chartType, setChartType] = useState<Boards.ChartType>(existing?.metric.chartType ?? "bar");
+  const [size, setSize] = useState<WidgetSize>(
+    normalizeWidgetSize(existing?.metric.chartType ?? "bar", existing?.size),
+  );
+  const [subtitle, setSubtitle] = useState(existing?.display?.subtitle ?? "");
+  const [color, setColor] = useState(existing?.display?.color ?? "#3987e5");
+  const [extraColors, setExtraColors] = useState((existing?.display?.colors ?? []).slice(1).join(", "));
+  const [xAxisLabel, setXAxisLabel] = useState(existing?.display?.xAxisLabel ?? "");
+  const [yAxisLabel, setYAxisLabel] = useState(existing?.display?.yAxisLabel ?? "");
+  const [seriesLabels, setSeriesLabels] = useState<Record<string, string>>(existing?.display?.seriesLabels ?? {});
   const [pie, setPie] = useState<PieFormState>(existing?.metric.chartType === "pie" ? specToPieForm(existing.metric) : emptyPie());
   const [bar, setBar] = useState<BarFormState>(existing?.metric.chartType === "bar" ? specToBarForm(existing.metric) : emptyBar());
   const [line, setLine] = useState<LineFormState>(
@@ -675,10 +753,33 @@ export function WidgetBuilder({
     existing?.metric.chartType === "stat" ? specToStatForm(existing.metric) : emptyStat(),
   );
 
-  const [preview, setPreview] = useState<Boards.WidgetDataResponse | null>(null);
-  const [previewError, setPreviewError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const allowed = allowedSizesForChart(chartType);
+    if (!allowed.includes(size)) {
+      setSize(defaultSizeForChart(chartType));
+    }
+  }, [chartType, size]);
+
+  function buildDisplay(): Boards.WidgetDisplay | undefined {
+    const colors = [color.trim(), ...extraColors.split(",").map((c) => c.trim())].filter(Boolean);
+    const display: Boards.WidgetDisplay = {};
+    if (subtitle.trim()) display.subtitle = subtitle.trim();
+    if (colors[0]) display.color = colors[0];
+    if (colors.length > 1) display.colors = colors;
+    if (xAxisLabel.trim()) display.xAxisLabel = xAxisLabel.trim();
+    if (yAxisLabel.trim()) display.yAxisLabel = yAxisLabel.trim();
+    const labelEntries = Object.entries(seriesLabels).filter(([, v]) => v.trim());
+    if (labelEntries.length) {
+      display.seriesLabels = Object.fromEntries(labelEntries.map(([k, v]) => [k, v.trim()]));
+    }
+    return Object.keys(display).length ? display : undefined;
+  }
+
+  const display = buildDisplay();
+  const normalizedSize = normalizeWidgetSize(chartType, size);
 
   function buildMetric(): Boards.MetricSpec | null {
     switch (chartType) {
@@ -696,32 +797,19 @@ export function WidgetBuilder({
   }
 
   const metric = buildMetric();
+  // Preview is mocked, not fetched — it's for eyeballing size/colors/labels, not live numbers.
+  const mockPreview = useMemo(() => (metric ? buildMockPreview(metric, schema) : null), [JSON.stringify(metric), schema]);
 
   useEffect(() => {
-    if (!metric) {
-      setPreview(null);
-      setPreviewError(null);
-      return;
-    }
-    const t = setTimeout(() => {
-      fetch("/api/acaraje/boards/widget-data", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ metric }),
-      })
-        .then(async (r) => {
-          const json = await r.json();
-          if (!r.ok) throw new Error(json.error ?? "Failed to preview");
-          setPreview(json);
-          setPreviewError(null);
-        })
-        .catch((err) => {
-          setPreview(null);
-          setPreviewError(err.message);
-        });
-    }, 350);
-    return () => clearTimeout(t);
-  }, [JSON.stringify(metric)]);
+    if (!mockPreview?.series.length) return;
+    setSeriesLabels((prev) => {
+      const next = { ...prev };
+      for (const s of mockPreview.series) {
+        if (next[s.label] === undefined) next[s.label] = prev[s.label] ?? "";
+      }
+      return next;
+    });
+  }, [mockPreview?.series.map((s) => s.label).join("|")]);
 
   const handleSave = async () => {
     if (!title.trim() || !metric) return;
@@ -734,7 +822,7 @@ export function WidgetBuilder({
       const res = await fetch(url, {
         method: existing ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: title.trim(), metric }),
+        body: JSON.stringify({ title: title.trim(), metric, size: normalizedSize, display }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? "Failed to save widget");
@@ -779,29 +867,127 @@ export function WidgetBuilder({
             </div>
           </div>
 
-          <div className="space-y-1">
-            <label className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">Metric</label>
-            {chartType === "pie" && <PieForm schema={schema} value={pie} onChange={setPie} />}
-            {chartType === "bar" && <BarForm schema={schema} value={bar} onChange={setBar} />}
-            {chartType === "line" && <LineForm schema={schema} value={line} onChange={setLine} />}
-            {chartType === "stat" && <StatForm schema={schema} value={stat} onChange={setStat} />}
-          </div>
+          <Tabs defaultValue="data">
+            <TabsList className="grid grid-cols-2 w-full">
+              <TabsTrigger value="data">Data</TabsTrigger>
+              <TabsTrigger value="preview">Preview</TabsTrigger>
+            </TabsList>
 
-          <div className="space-y-1">
-            <label className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">Preview</label>
-            <Card className="p-3">
-              {previewError ? (
-                <div className="h-40 flex items-center justify-center text-xs text-red-400 text-center px-4">{previewError}</div>
-              ) : !metric ? (
-                <div className="h-40 flex items-center justify-center text-xs text-muted-foreground">Fill in the fields above</div>
-              ) : !preview ? (
-                <div className="h-40 flex items-center justify-center text-xs text-muted-foreground">Loading preview…</div>
-              ) : (
-                <WidgetChart data={preview} />
+            <TabsContent value="data" className="space-y-1">
+              <label className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">Metric</label>
+              {chartType === "pie" && <PieForm schema={schema} value={pie} onChange={setPie} />}
+              {chartType === "bar" && <BarForm schema={schema} value={bar} onChange={setBar} />}
+              {chartType === "line" && <LineForm schema={schema} value={line} onChange={setLine} />}
+              {chartType === "stat" && <StatForm schema={schema} value={stat} onChange={setStat} />}
+            </TabsContent>
+
+            <TabsContent value="preview" className="space-y-4">
+              <Card className="p-3">
+                {metric && mockPreview ? (
+                  <WidgetChart data={mockPreview} display={display} size={normalizedSize} />
+                ) : (
+                  <div className="h-40 flex items-center justify-center text-xs text-muted-foreground text-center px-4">
+                    Fill in the Data tab first
+                  </div>
+                )}
+              </Card>
+              {chartType === "line" && (
+                <p className="text-[10px] text-muted-foreground/60 -mt-2">
+                  Showing mock data — the real widget will show the last 5 periods
+                </p>
               )}
-            </Card>
-            {chartType === "line" && <p className="text-[10px] text-muted-foreground/60">Showing the last 5 periods</p>}
-          </div>
+              {chartType !== "line" && (
+                <p className="text-[10px] text-muted-foreground/60 -mt-2">
+                  Showing mock data to preview appearance — not the actual values
+                </p>
+              )}
+
+              <div className="space-y-3 rounded-lg border border-border/40 p-3">
+                <p className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">Appearance</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">Subtitle</label>
+                    <Input
+                      value={subtitle}
+                      onChange={(e) => setSubtitle(e.target.value)}
+                      placeholder="Optional subtitle..."
+                      className="h-8 text-xs"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">Size (4×3 grid)</label>
+                    <Select
+                      value={normalizedSize}
+                      onValueChange={(v) => setSize(v as WidgetSize)}
+                      disabled={chartType === "stat"}
+                    >
+                      <SelectTrigger className="h-8 text-xs">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {WIDGET_SIZE_OPTIONS.filter((o) => allowedSizesForChart(chartType).includes(o.value)).map((o) => (
+                          <SelectItem key={o.value} value={o.value}>
+                            {o.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">Primary color</label>
+                    <div className="flex gap-2">
+                      <input
+                        type="color"
+                        value={color.startsWith("#") ? color : "#3987e5"}
+                        onChange={(e) => setColor(e.target.value)}
+                        className="h-8 w-10 rounded border border-border/50 bg-transparent cursor-pointer"
+                      />
+                      <Input value={color} onChange={(e) => setColor(e.target.value)} className="h-8 text-xs font-mono flex-1" />
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">Extra series colors</label>
+                    <Input
+                      value={extraColors}
+                      onChange={(e) => setExtraColors(e.target.value)}
+                      placeholder="#d95926, #199e70, …"
+                      className="h-8 text-xs font-mono"
+                    />
+                  </div>
+                  {(chartType === "bar" || chartType === "line") && (
+                    <>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">X axis label</label>
+                        <Input value={xAxisLabel} onChange={(e) => setXAxisLabel(e.target.value)} className="h-8 text-xs" />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">Y axis label</label>
+                        <Input value={yAxisLabel} onChange={(e) => setYAxisLabel(e.target.value)} className="h-8 text-xs" />
+                      </div>
+                    </>
+                  )}
+                </div>
+                {mockPreview && mockPreview.series.length > 0 && (
+                  <div className="space-y-2 pt-1">
+                    <label className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">Series labels</label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {mockPreview.series.map((s) => (
+                        <div key={s.label} className="space-y-1">
+                          <span className="text-[10px] text-muted-foreground font-mono truncate block">{s.label}</span>
+                          <Input
+                            value={seriesLabels[s.label] ?? ""}
+                            onChange={(e) => setSeriesLabels((prev) => ({ ...prev, [s.label]: e.target.value }))}
+                            placeholder={s.label}
+                            className="h-7 text-xs"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </TabsContent>
+          </Tabs>
 
           {saveError && <p className="text-xs text-red-400">{saveError}</p>}
 

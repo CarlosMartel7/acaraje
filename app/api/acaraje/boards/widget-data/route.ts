@@ -108,6 +108,10 @@ async function runSimpleMetric(schema: PrismaSchema.ParsedSchema, spec: Boards.S
 async function computePie(schema: PrismaSchema.ParsedSchema, spec: Boards.PieMetric): Promise<Boards.SeriesResult> {
   const model = findModel(schema, spec.model);
   if (!model) throw new Error(`Model "${spec.model}" not found`);
+  const field = findField(model, spec.field);
+  if (!field || !schema.enums.some((e) => e.name === field.type)) {
+    throw new Error(`Pie charts require an enum field on "${spec.model}" (e.g. role)`);
+  }
   const resolved = resolveGroupByColumn(model, spec.field);
   if (!resolved) throw new Error(`Field "${spec.field}" not found on model "${spec.model}"`);
   const delegate = getDelegate(spec.model);

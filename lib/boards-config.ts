@@ -1,6 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { randomUUID } from "crypto";
+import { normalizeWidgetSize } from "./boards-layout";
 
 function configPath(): string {
   return path.join(process.cwd(), "acaraje.boards.json");
@@ -89,10 +90,36 @@ export function addWidget(pageId: string, widget: Omit<Boards.WidgetConfig, "id"
   const page = config.pages.find((p) => p.id === pageId);
   if (!page) return null;
   const order = page.widgets.length ? Math.max(...page.widgets.map((w) => w.order)) + 1 : 0;
-  const newWidget: Boards.WidgetConfig = { id: `wg_${randomUUID()}`, order, ...widget };
+  const normalized = normalizeWidgetPayload(widget);
+  const newWidget: Boards.WidgetConfig = { id: `wg_${randomUUID()}`, order, ...normalized };
   page.widgets.push(newWidget);
   writeConfig(config);
   return newWidget;
+}
+
+function normalizeWidgetPayload(widget: Omit<Boards.WidgetConfig, "id" | "order">): Omit<Boards.WidgetConfig, "id" | "order"> {
+  const chartType = widget.metric.chartType;
+  const size = normalizeWidgetSize(chartType, widget.size);
+  const display = sanitizeDisplay(widget.display);
+  return { ...widget, size, display };
+}
+
+function sanitizeDisplay(display?: Boards.WidgetDisplay): Boards.WidgetDisplay | undefined {
+  if (!display) return undefined;
+  const out: Boards.WidgetDisplay = {};
+  if (display.subtitle?.trim()) out.subtitle = display.subtitle.trim();
+  if (display.color?.trim()) out.color = display.color.trim();
+  if (display.colors?.length) out.colors = display.colors.map((c) => c.trim()).filter(Boolean);
+  if (display.xAxisLabel?.trim()) out.xAxisLabel = display.xAxisLabel.trim();
+  if (display.yAxisLabel?.trim()) out.yAxisLabel = display.yAxisLabel.trim();
+  if (display.seriesLabels && Object.keys(display.seriesLabels).length) {
+    out.seriesLabels = Object.fromEntries(
+      Object.entries(display.seriesLabels)
+        .filter(([, v]) => v.trim())
+        .map(([k, v]) => [k, v.trim()]),
+    );
+  }
+  return Object.keys(out).length ? out : undefined;
 }
 
 export function updateWidget(
@@ -104,7 +131,9 @@ export function updateWidget(
   const page = config.pages.find((p) => p.id === pageId);
   const widget = page?.widgets.find((w) => w.id === widgetId);
   if (!page || !widget) return null;
-  Object.assign(widget, patch);
+  const merged = { ...widget, ...patch };
+  const normalized = normalizeWidgetPayload(merged);
+  Object.assign(widget, normalized);
   writeConfig(config);
   return widget;
 }
