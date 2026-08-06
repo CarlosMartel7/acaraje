@@ -28,6 +28,43 @@ npm run storage:setup        # ensure MinIO bucket exists (scripts/setup-storage
 docker compose up -d         # local Postgres + MinIO
 ```
 
+### Switching database providers
+
+The app can run against **PostgreSQL, SQLite, or MongoDB** — one at a time (Prisma only ever
+targets one provider per generated client). Three variant schema files live in `prisma/`:
+`schema.postgresql.prisma`, `schema.sqlite.prisma`, `schema.mongodb.prisma`. `prisma/schema.prisma`
+itself is just the currently-selected variant (committed equal to the postgresql one, so a fresh
+clone behaves exactly as before with zero extra steps).
+
+`npm run db:generate` / `db:push` / `db:studio` each auto-select the right variant first (a `pre*`
+npm hook runs `scripts/select-schema.ts`, copying `prisma/schema.<provider>.prisma` over
+`prisma/schema.prisma`), reading `DATABASE_PROVIDER` from the environment (`postgresql` | `sqlite`
+| `mongodb`, defaults to `postgresql`). To force a variant regardless of the env var:
+
+```bash
+npm run db:use:postgresql   # or db:use:sqlite / db:use:mongodb
+```
+
+Set `DATABASE_PROVIDER` and a matching `DATABASE_URL` in `.env` (see `.env.example` for one example
+per provider). `docker compose up -d mongo mongo-init` starts a single-node Mongo replica set
+(required for Prisma's Mongo connector, which needs transactions); SQLite needs no docker service
+(file-based, `prisma/*.db` is gitignored).
+
+Two caveats specific to non-Postgres providers:
+- **SQLite has no `enum` keyword.** Its schema variant represents the 6 enum fields as `String`
+  with a trailing `// @enum A | B | C` comment instead — `lib/schema-parser.ts` parses this into
+  `pseudoEnumValues`, so CRUD forms, the seeder, and the boards widget builder still treat the
+  field as constrained-choice. See `lib/enum-values.ts`'s `getEnumValues()`, the one helper all of
+  those call instead of looking up `schema.enums` directly.
+- **Case-insensitive search** (`mode: "insensitive"` in CRUD list/filter queries) is a
+  PostgreSQL/MongoDB-only Prisma feature — `app/api/acaraje/crud/[model]/route.ts` drops it when
+  `parseSchema().datasource?.provider === "sqlite"`, so SQLite search/filter is case-sensitive.
+- **Money fields on SQLite**: `prisma/schema.sqlite.prisma` keeps bare `Decimal` (dropping only the
+  Postgres-specific `@db.Decimal(10, 2)` attribute) rather than falling back to `Float`. This has
+  **not been confirmed** with `npx prisma validate --schema=prisma/schema.sqlite.prisma` in this
+  environment — run that before relying on the SQLite variant, and switch the 12 money fields to
+  `Float` in that file if Prisma rejects bare `Decimal` there.
+
 There is no test suite configured in this repo — verification is `tsc --noEmit`, `npm run lint`,
 and manually exercising the feature via `npm run dev` (see AGENTS.md's verification checklist).
 

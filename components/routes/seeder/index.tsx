@@ -6,10 +6,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { SeederHeader, SeederBodySkeleton } from "@/components/routes/skeletons";
+import { SeederModelConfigButton } from "@/components/routes/seeder/config-panel";
 import AcarajeCalls_seeder from "./[[api-calls]]";
 
 export function SeederContent() {
-  const { models, counts, states, seedingAll, loading, updateState, seedModel, seedAll } = AcarajeCalls_seeder();
+  const { models, schema, seederConfig, setSeederConfig, counts, states, seedingAll, loading, updateState, seedModel, seedAll } =
+    AcarajeCalls_seeder();
 
   const totalRecords = Object.values(counts).reduce((a, b) => a + b, 0);
 
@@ -113,6 +115,13 @@ export function SeederContent() {
                         <ChevronUp className="w-3 h-3" />
                       </Button>
                     </div>
+
+                    <SeederModelConfigButton
+                      modelName={model.name}
+                      schema={schema}
+                      config={seederConfig}
+                      onConfigChange={setSeederConfig}
+                    />
 
                     <Button
                       variant="outline"

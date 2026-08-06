@@ -18,7 +18,7 @@ Admin **pages** live under **`/acaraje/*`**. **API handlers** live under **`/api
 |------|--------|
 | Framework | Next.js **15** (App Router) |
 | UI | React **19**, Tailwind **3**, Radix UI, shadcn-style components in `components/ui/` |
-| Data | Prisma **5**, PostgreSQL (`DATABASE_URL`) |
+| Data | Prisma **5**, PostgreSQL / SQLite / MongoDB (`DATABASE_PROVIDER` + `DATABASE_URL`) |
 | Storage | `minio` client; Drive APIs under `app/api/acaraje/drive/` |
 
 **Note:** `next-auth` appears in root `package.json` but is **not referenced** in application code. Treat it as unused or reserved; the admin surface has **no built-in authentication** — do not expose it publicly without adding your own auth (e.g. middleware, reverse proxy).
@@ -56,7 +56,32 @@ Useful scripts from root `package.json`:
 ## Environment variables
 
 - **`DATABASE_URL`** — required for Prisma.
+- **`DATABASE_PROVIDER`** — `postgresql` (default) | `sqlite` | `mongodb`. Selects which
+  `prisma/schema.<provider>.prisma` variant `db:generate`/`db:push`/`db:studio` copy over
+  `prisma/schema.prisma` before running (via `scripts/select-schema.ts`, wired in as a `pre*` npm
+  hook). See `.env.example`.
 - **MinIO** (Drive) — see `lib/storage/config.ts`. Typical vars: `MINIO_ENDPOINT`, `MINIO_PORT`, `MINIO_USE_SSL`, `MINIO_ACCESS_KEY`, `MINIO_SECRET_KEY`, `MINIO_BUCKET`.
+
+---
+
+## Switching database providers
+
+Three schema variants live in `prisma/`: `schema.postgresql.prisma`, `schema.sqlite.prisma`,
+`schema.mongodb.prisma`. `prisma/schema.prisma` is whichever one is currently selected (committed
+equal to the postgresql variant, so a fresh clone needs no extra steps).
+
+```bash
+npm run db:use:postgresql    # or db:use:sqlite / db:use:mongodb — force a variant
+npm run db:generate          # auto-selects from DATABASE_PROVIDER first, then `prisma generate`
+```
+
+Caveats: SQLite has no `enum` keyword, so its variant encodes the 6 enum fields as `String` with a
+trailing `// @enum A | B | C` comment (`lib/schema-parser.ts` parses this into
+`pseudoEnumValues`, consumed via `lib/enum-values.ts`'s `getEnumValues()`); SQLite search/filter is
+case-sensitive (Prisma's `mode: "insensitive"` isn't supported there); Mongo needs a replica set
+(`docker compose up -d mongo mongo-init`) since its Prisma connector requires transactions. The
+SQLite variant's choice to keep bare `Decimal` on the 12 money fields (rather than `Float`) has not
+been verified with `npx prisma validate` in this environment — do that before relying on it.
 
 ---
 

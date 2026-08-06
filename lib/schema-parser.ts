@@ -38,7 +38,13 @@ function parseFields(
       continue;
     }
 
-    const parts = trimmed.split(/\s+/);
+    // Split off any trailing `//` comment so it can't leak into the attribute regex (and so a
+    // `// @enum ...` pseudo-enum comment, see below, is read from the comment alone).
+    const commentIdx = trimmed.indexOf("//");
+    const code = (commentIdx === -1 ? trimmed : trimmed.slice(0, commentIdx)).trim();
+    const comment = commentIdx === -1 ? "" : trimmed.slice(commentIdx + 2).trim();
+
+    const parts = code.split(/\s+/);
     if (parts.length < 2) continue;
 
     const name = parts[0];
@@ -48,29 +54,43 @@ function parseFields(
     const isList = type.endsWith("[]");
     type = type.replace("?", "").replace("[]", "");
 
-    const isId = trimmed.includes("@id");
-    const isUnique = trimmed.includes("@unique");
-    const hasDefault = trimmed.includes("@default");
-    const hasExplicitRelation = trimmed.includes("@relation");
+    const isId = code.includes("@id");
+    const isUnique = code.includes("@unique");
+    const hasDefault = code.includes("@default");
+    const hasExplicitRelation = code.includes("@relation");
     const isRelation =
       hasExplicitRelation || typeReferencesAnotherModel(type, modelNames, enumNames);
 
     let defaultValue: string | undefined;
-    const defaultMatch = trimmed.match(/@default\(([^)]+)\)/);
+    const defaultMatch = code.match(/@default\(([^)]+)\)/);
     if (defaultMatch) defaultValue = defaultMatch[1];
 
     const relationFields: string[] = [];
     if (hasExplicitRelation) {
-      const relMatch = trimmed.match(/fields:\s*\[([^\]]+)\]/);
+      const relMatch = code.match(/fields:\s*\[([^\]]+)\]/);
       if (relMatch) {
         relationFields.push(...relMatch[1].split(",").map((f) => f.trim()));
       }
     }
 
-    // Collect attributes
+    // Collect attributes. `[\w.]` (not just `\w`) so dotted native-type attributes like
+    // `@db.ObjectId` / `@db.Decimal(10, 2)` capture in full instead of truncating to `@db`.
     const attrs: string[] = [];
-    const attrMatches = trimmed.matchAll(/@\w+(\([^)]*\))?/g);
+    const attrMatches = code.matchAll(/@[\w.]+(\([^)]*\))?/g);
     for (const m of attrMatches) attrs.push(m[0]);
+
+    // Pseudo-enum convention (for providers with no native `enum`, e.g. SQLite): a field
+    // documented as `// @enum A | B | C` is treated as constrained-choice everywhere a real
+    // Prisma enum would be, driven entirely from this comment — see `getEnumValues()`.
+    let pseudoEnumValues: string[] | undefined;
+    const enumMatch = comment.match(/@enum\s+(.+)/i);
+    if (enumMatch) {
+      const values = enumMatch[1]
+        .split("|")
+        .map((v) => v.trim())
+        .filter(Boolean);
+      if (values.length > 0) pseudoEnumValues = values;
+    }
 
     fields.push({
       name,
@@ -84,6 +104,7 @@ function parseFields(
       isRelation,
       relationFields,
       attributes: attrs,
+      pseudoEnumValues,
       rawLine: trimmed,
     });
   }

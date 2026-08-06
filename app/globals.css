@@ -4,6 +4,7 @@
 
 @layer base {
   :root {
+    --scrollbar-thumb: 0 0% 100%;
     --background: 24 19.2308% 10.1961%;
     --foreground: 34.2857 28% 90.1961%;
     --card: 24 16.129% 12.1569%;
@@ -69,14 +70,17 @@
     height: 4px;
   }
   ::-webkit-scrollbar-track {
-    background: oklch(var(--background));
+    background: transparent;
   }
   ::-webkit-scrollbar-thumb {
-    background: oklch(var(--border));
+    background: hsl(var(--scrollbar-thumb) / 0.3);
     border-radius: 2px;
   }
-  ::-webkit-scrollbar-thumb:hover {
-    background: oklch(var(--muted-foreground));
+
+  /* Firefox */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--scrollbar-thumb) / 0.3) transparent;
   }
 }
 
@@ -121,5 +125,26 @@
     background: radial-gradient(ellipse at 50% 0%, oklch(var(--primary-foreground) / 0.07) 0%, transparent 70%);
     pointer-events: none;
     border-radius: inherit;
+  }
+
+  /* Sidebar — thin; transparent track */
+  .sidebar-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--scrollbar-thumb) / 0.3) transparent;
+  }
+  .sidebar-scroll::-webkit-scrollbar {
+    width: 3px;
+    background: transparent;
+  }
+  .sidebar-scroll::-webkit-scrollbar-track {
+    background: transparent;
+    margin-block: 4px;
+  }
+  .sidebar-scroll::-webkit-scrollbar-thumb {
+    background: hsl(var(--scrollbar-thumb) / 0.3);
+    border-radius: 9999px;
+  }
+  .sidebar-scroll::-webkit-scrollbar-corner {
+    background: transparent;
   }
 }

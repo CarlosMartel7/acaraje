@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { WidgetChart } from "@/components/routes/boards/widget";
+import { getEnumValues } from "@/lib/enum-values";
 import {
   allowedSizesForChart,
   defaultSizeForChart,
@@ -32,15 +33,15 @@ const NUMERIC_TYPES = new Set(["Int", "BigInt", "Float", "Decimal"]);
 // are actually valid for that slot, driven by the live schema.
 // ---------------------------------------------------------------------------
 
-/** Boolean / enum / relation-FK (non-list) fields — eligible set for equals-filters. */
+/** Boolean / enum (or pseudo-enum) / relation-FK (non-list) fields — eligible set for equals-filters. */
 function bucketFieldCandidates(model: Schema.Model, schema: Schema.SchemaData): Schema.Field[] {
   return model.fields.filter(
-    (f) => f.type === "Boolean" || schema.enums.some((e) => e.name === f.type) || (f.isRelation && !f.isList),
+    (f) => f.type === "Boolean" || getEnumValues(f, schema.enums) !== undefined || (f.isRelation && !f.isList),
   );
 }
-/** Pie and Bar X only bucket by enum-typed fields (e.g. `role`). */
+/** Pie and Bar X only bucket by enum-typed (or pseudo-enum) fields (e.g. `role`). */
 function enumFieldCandidates(model: Schema.Model, schema: Schema.SchemaData): Schema.Field[] {
-  return model.fields.filter((f) => !f.isList && schema.enums.some((e) => e.name === f.type));
+  return model.fields.filter((f) => !f.isList && getEnumValues(f, schema.enums) !== undefined);
 }
 function numericFieldCandidates(model: Schema.Model): Schema.Field[] {
   return model.fields.filter((f) => NUMERIC_TYPES.has(f.type) && !f.isList);
@@ -237,13 +238,11 @@ function FilterPicker({
                 ))}
               {!field.isRelation &&
                 field.type !== "Boolean" &&
-                schema.enums
-                  .find((e) => e.name === field.type)
-                  ?.values.map((v) => (
-                    <SelectItem key={v} value={v}>
-                      {v}
-                    </SelectItem>
-                  ))}
+                getEnumValues(field, schema.enums)?.map((v) => (
+                  <SelectItem key={v} value={v}>
+                    {v}
+                  </SelectItem>
+                ))}
             </SelectContent>
           </Select>
         </div>
@@ -665,12 +664,12 @@ function mockPointsForLabels(labels: string[]): { bucket: string; value: number 
   return labels.map((label, i) => ({ bucket: label, value: MOCK_CURVE[i % MOCK_CURVE.length] }));
 }
 
-/** Real enum values when the field is genuinely enum-typed (always true for Pie/Bar's X after
- *  their enum-only restriction) — falls back to placeholders only if that ever changes. */
+/** Real enum (or pseudo-enum) values when the field is genuinely constrained-choice (always true
+ *  for Pie/Bar's X after their enum-only restriction) — falls back to placeholders only if that
+ *  ever changes. */
 function enumValuesFor(schema: Schema.SchemaData, modelName: string, fieldName: string): string[] {
   const field = schema.models.find((m) => m.name === modelName)?.fields.find((f) => f.name === fieldName);
-  const enumDef = field && schema.enums.find((e) => e.name === field.type);
-  return enumDef?.values ?? ["Category A", "Category B", "Category C"];
+  return (field && getEnumValues(field, schema.enums)) ?? ["Category A", "Category B", "Category C"];
 }
 
 function mockLineBuckets(bucket: Boards.LineMetric["bucket"]): string[] {

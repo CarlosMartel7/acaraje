@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
+import { getEnumValues } from "@/lib/enum-values";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -28,6 +29,7 @@ interface Field {
   isRelation: boolean;
   relationFields?: string[];
   attributes: string[];
+  pseudoEnumValues?: string[];
 }
 
 interface EnumType {
@@ -138,7 +140,7 @@ export function DynamicForm({
   };
 
   const renderField = (field: Field) => {
-    const enumDef = enums.find((e) => e.name === field.type);
+    const enumValues = getEnumValues(field, enums);
     const val = values[field.name] ?? "";
 
     // Relation field → dropdown
@@ -174,8 +176,8 @@ export function DynamicForm({
       );
     }
 
-    // Enum → select
-    if (enumDef) {
+    // Enum (or pseudo-enum, e.g. SQLite's `// @enum A | B | C`) → select
+    if (enumValues) {
       const selectValue = val === "" || val === undefined ? SELECT_EMPTY : String(val);
       return (
         <div key={field.name}>
@@ -189,7 +191,7 @@ export function DynamicForm({
             </SelectTrigger>
             <SelectContent>
               <SelectItem value={SELECT_EMPTY}>— select —</SelectItem>
-              {enumDef.values.map((v) => (
+              {enumValues.map((v) => (
                 <SelectItem key={v} value={v}>
                   {v}
                 </SelectItem>

@@ -7,10 +7,16 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
+    "predb:generate": "tsx scripts/select-schema.ts",
     "db:generate": "prisma generate",
+    "predb:push": "tsx scripts/select-schema.ts",
     "db:push": "prisma db push",
     "db:seed": "tsx prisma/seed.ts",
+    "predb:studio": "tsx scripts/select-schema.ts",
     "db:studio": "prisma studio",
+    "db:use:postgresql": "tsx scripts/select-schema.ts postgresql",
+    "db:use:sqlite": "tsx scripts/select-schema.ts sqlite",
+    "db:use:mongodb": "tsx scripts/select-schema.ts mongodb",
     "storage:setup": "tsx scripts/setup-storage-bucket.ts"
   },
   "dependencies": {

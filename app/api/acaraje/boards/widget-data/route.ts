@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { parseSchema } from "@/lib/schema-parser";
 import { getDelegate } from "@/lib/prisma-delegate";
+import { getEnumValues } from "@/lib/enum-values";
 
 /** Soft cap on rows pulled client-side where there's no DB-side equivalent (Bar cross-model, Line bucketing). */
 const ROW_SAMPLE_CAP = 10000;
@@ -109,7 +110,7 @@ async function computePie(schema: PrismaSchema.ParsedSchema, spec: Boards.PieMet
   const model = findModel(schema, spec.model);
   if (!model) throw new Error(`Model "${spec.model}" not found`);
   const field = findField(model, spec.field);
-  if (!field || !schema.enums.some((e) => e.name === field.type)) {
+  if (!field || !getEnumValues(field, schema.enums)) {
     throw new Error(`Pie charts require an enum field on "${spec.model}" (e.g. role)`);
   }
   const resolved = resolveGroupByColumn(model, spec.field);

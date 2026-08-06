@@ -102,6 +102,9 @@ declare namespace Schema {
     attributes: string[];
     /** FK field names when @relation uses `fields: [...]` */
     relationFields?: string[];
+    /** Set when the field has a trailing `// @enum A | B | C` comment (pseudo-enum convention for
+     *  providers with no native `enum`, e.g. SQLite) — see `lib/schema-parser.ts`. */
+    pseudoEnumValues?: string[];
   }
 
   interface Model {
@@ -163,6 +166,9 @@ declare namespace PrismaSchema {
     isRelation: boolean;
     relationFields?: string[];
     attributes: string[];
+    /** Set when the field has a trailing `// @enum A | B | C` comment (pseudo-enum convention for
+     *  providers with no native `enum`, e.g. SQLite) — see `lib/schema-parser.ts`. */
+    pseudoEnumValues?: string[];
     rawLine: string;
   }
 
@@ -339,8 +345,80 @@ declare namespace Boards {
   }
 }
 
+/** Seeder — fake data generation rules */
+declare namespace Seeder {
+  type GeneratorKind = "default" | "faker" | "int" | "float" | "boolean" | "enum" | "fixed" | "skip";
+
+  interface DefaultGenerator {
+    kind: "default";
+  }
+
+  interface FakerGenerator {
+    kind: "faker";
+    /** Dot path on `@faker-js/faker`, e.g. `internet.email`. */
+    path: string;
+  }
+
+  interface IntGenerator {
+    kind: "int";
+    min?: number;
+    max?: number;
+  }
+
+  interface FloatGenerator {
+    kind: "float";
+    min?: number;
+    max?: number;
+    fractionDigits?: number;
+  }
+
+  interface BooleanGenerator {
+    kind: "boolean";
+    /** 0–1 chance of true when `value` is not set. */
+    trueChance?: number;
+    value?: boolean;
+  }
+
+  interface EnumGenerator {
+    kind: "enum";
+    /** Subset of enum values; omit to use all schema values. */
+    values?: string[];
+  }
+
+  interface FixedGenerator {
+    kind: "fixed";
+    value: string | number | boolean | null;
+  }
+
+  interface SkipGenerator {
+    kind: "skip";
+  }
+
+  type FieldGenerator =
+    | DefaultGenerator
+    | FakerGenerator
+    | IntGenerator
+    | FloatGenerator
+    | BooleanGenerator
+    | EnumGenerator
+    | FixedGenerator
+    | SkipGenerator;
+
+  /** Per-model field generator overrides keyed by field name. */
+  type ModelRules = Record<string, FieldGenerator>;
+
+  interface ConfigFile {
+    /** Chance (0–1) to leave optional fields null. Default 0.3. */
+    optionalNullChance?: number;
+    /** Model name → field name → generator rule. */
+    models: Record<string, ModelRules>;
+  }
+}
+
 /** Crud — CRUD operations */
 declare namespace Crud {
+  type RecordRow = Record<string, any>;
+
   interface PageData {
     records: RecordRow[];
     total: number;
@@ -348,6 +426,17 @@ declare namespace Crud {
     pageSize: number;
     pageCount: number;
   }
+
+  type FilterOperator = "contains" | "startsWith" | "endsWith" | "equals" | "not" | "gt" | "gte" | "lt" | "lte";
+
+  interface FilterCondition {
+    field: string;
+    operator: FilterOperator;
+    /** Always a string on the wire; parsed server-side per the field's kind. */
+    value: string;
+  }
+
+  type SortOrder = "asc" | "desc";
 }
 
 /** Ui — shared primitives */

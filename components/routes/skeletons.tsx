@@ -1,6 +1,7 @@
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import { ConnectionBadge } from "@/components/connection-badge";
 
 function SkeletonTable({ rows = 6, cols = 4 }: { rows?: number; cols?: number }) {
   return (
@@ -35,7 +36,7 @@ export function DashboardHeader() {
     <div>
       <div className="flex items-center gap-2 text-xs font-mono text-muted-foreground mb-2">
         <span className="text-primary-foreground">●</span>
-        <span>CONNECTED · postgresql</span>
+        <ConnectionBadge />
       </div>
       <h1 className="text-2xl font-bold tracking-tight">Schema Overview</h1>
       <p className="text-muted-foreground text-sm mt-1">

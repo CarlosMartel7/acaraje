@@ -41,6 +41,7 @@ export function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const [models, setModels] = useState<string[]>([]);
+  const [provider, setProvider] = useState("postgresql");
   const [pages, setPages] = useState<Boards.Page[]>([]);
   const [crudOpen, setCrudOpen] = useState(false);
   const [driveOpen, setDriveOpen] = useState(false);
@@ -51,7 +52,10 @@ export function Sidebar() {
   useEffect(() => {
     fetch("/api/acaraje/schemas")
       .then((r) => r.json())
-      .then((d) => setModels(d.models?.map((m: any) => m.name) || []));
+      .then((d) => {
+        setModels(d.models?.map((m: any) => m.name) || []);
+        if (d.datasource?.provider) setProvider(d.datasource.provider);
+      });
   }, []);
 
   const refreshPages = () => {
@@ -80,7 +84,7 @@ export function Sidebar() {
   };
 
   return (
-    <aside className="w-64 flex-shrink-0 flex flex-col border-r border-border/60 bg-card/60">
+    <aside className="w-64 flex-shrink-0 flex flex-col min-h-0 border-r border-border/60 bg-transparent">
       {/* Logo */}
       <div className="px-6 py-6 border-b border-border/60">
         <div className="flex items-center gap-3">
@@ -95,7 +99,7 @@ export function Sidebar() {
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 px-3 py-5 space-y-0.5 overflow-y-auto">
+      <nav className="sidebar-scroll flex-1 min-h-0 px-3 py-5 space-y-0.5 overflow-y-auto overflow-x-hidden">
         <p className="px-3 mb-3 text-[10px] font-mono tracking-[0.12em] uppercase text-muted-foreground/40">Explore</p>
 
         {topNavItems.map((item) => {
@@ -344,7 +348,7 @@ export function Sidebar() {
           </div>
           <div className="flex items-center gap-2">
             <ListTree className="w-3 h-3" />
-            <span>postgresql · dev</span>
+            <span>{provider} · dev</span>
           </div>
         </div>
       </div>

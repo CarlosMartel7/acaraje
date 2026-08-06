@@ -14,6 +14,7 @@ import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CrudListBodySkeleton } from "@/components/routes/skeletons";
 import DeleteModal, { CRUD_DELETE_ALL_SENTINEL } from "./delete-modal";
+import { FilterBar } from "./filter-bar";
 import AcarajeCalls_crud from "./[[api-calls]]";
 
 /** Same locale options as drive view (`folder-contents-table`). */
@@ -71,6 +72,9 @@ export default function CrudListContent() {
     model,
     page,
     fetchData,
+    filters,
+    sortField,
+    sortOrder,
   } = AcarajeCalls_crud();
 
   const router = useRouter();
@@ -95,10 +99,27 @@ export default function CrudListContent() {
     setDeleteIds(idsToDelete);
   };
 
-  const goPage = (p: number) => {
-    const sp = new URLSearchParams({ page: String(p), search: debouncedSearch });
+  const buildAndPush = (overrides: {
+    page?: number;
+    filters?: Crud.FilterCondition[];
+    sortField?: string;
+    sortOrder?: Crud.SortOrder;
+  }) => {
+    const nextFilters = overrides.filters ?? filters;
+    const nextSortField = overrides.sortField ?? sortField;
+    const nextSortOrder = overrides.sortOrder ?? sortOrder;
+    const sp = new URLSearchParams({ page: String(overrides.page ?? page), search: debouncedSearch });
+    if (nextFilters.length > 0) sp.set("filters", JSON.stringify(nextFilters));
+    if (nextSortField) {
+      sp.set("sortField", nextSortField);
+      sp.set("sortOrder", nextSortOrder);
+    }
     router.push(`${acarajePath(`/crud/${model}`)}?${sp}`);
   };
+
+  const goPage = (p: number) => buildAndPush({ page: p });
+  const handleFiltersChange = (next: Crud.FilterCondition[]) => buildAndPush({ filters: next, page: 1 });
+  const handleSortChange = (field: string, order: Crud.SortOrder) => buildAndPush({ sortField: field, sortOrder: order, page: 1 });
 
   const loading = data === null && !error;
 
@@ -172,6 +193,15 @@ export default function CrudListContent() {
               className="pl-9 font-mono"
             />
           </div>
+
+          <FilterBar
+            model={model}
+            filters={filters}
+            sortField={sortField}
+            sortOrder={sortOrder}
+            onFiltersChange={handleFiltersChange}
+            onSortChange={handleSortChange}
+          />
 
           {error && (
             <div className="flex items-center gap-3 px-4 py-3 rounded border border-destructive/30 bg-destructive/5 text-red-400 text-sm">

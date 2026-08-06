@@ -45,15 +45,23 @@ const SEED_ORDER = [
 
 export default function AcarajeCalls_seeder() {
   const [models, setModels] = useState<ModelInfo[]>([]);
+  const [schema, setSchema] = useState<Schema.SchemaData | null>(null);
+  const [seederConfig, setSeederConfig] = useState<Seeder.ConfigFile | null>(null);
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [states, setStates] = useState<Record<string, ModelState>>({});
   const [seedingAll, setSeedingAll] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    Promise.all([fetch("/api/acaraje/schemas").then((r) => r.json()), fetch("/api/acaraje/seed").then((r) => r.json())])
-      .then(([schema, seedData]) => {
-        const ms: ModelInfo[] = (schema.models || []).map((m: any) => ({
+    Promise.all([
+      fetch("/api/acaraje/schemas").then((r) => r.json()),
+      fetch("/api/acaraje/seed").then((r) => r.json()),
+      fetch("/api/acaraje/seed/config").then((r) => r.json()),
+    ])
+      .then(([schemaData, seedData, configData]) => {
+        setSchema(schemaData);
+        setSeederConfig(configData);
+        const ms: ModelInfo[] = (schemaData.models || []).map((m: Schema.Model) => ({
           name: m.name,
           fieldCount: m.fields.length,
         }));
@@ -114,6 +122,9 @@ export default function AcarajeCalls_seeder() {
 
   return {
     models,
+    schema,
+    seederConfig,
+    setSeederConfig,
     counts,
     states,
     seedingAll,

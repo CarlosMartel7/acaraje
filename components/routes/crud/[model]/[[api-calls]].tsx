@@ -1,7 +1,7 @@
 "use client";
 
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { CRUD_DELETE_ALL_SENTINEL } from "./delete-modal";
 
 export default function AcarajeCalls_crud() {
@@ -19,6 +19,19 @@ export default function AcarajeCalls_crud() {
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const filtersParam = searchParams.get("filters") || "";
+  const filters: Crud.FilterCondition[] = useMemo(() => {
+    if (!filtersParam) return [];
+    try {
+      const parsed = JSON.parse(filtersParam);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }, [filtersParam]);
+  const sortField = searchParams.get("sortField") || "";
+  const sortOrder: Crud.SortOrder = searchParams.get("sortOrder") === "asc" ? "asc" : "desc";
+
   const fetchData = useCallback(async () => {
     setError(null);
     try {
@@ -27,6 +40,11 @@ export default function AcarajeCalls_crud() {
         pageSize: "20",
         search: debouncedSearch,
       });
+      if (filtersParam) params.set("filters", filtersParam);
+      if (sortField) {
+        params.set("sortField", sortField);
+        params.set("sortOrder", sortOrder);
+      }
       const res = await fetch(`/api/acaraje/crud/${model}?${params}`);
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "Failed to load");
@@ -40,7 +58,7 @@ export default function AcarajeCalls_crud() {
     } catch (err: any) {
       setError(err.message);
     }
-  }, [model, page, debouncedSearch]);
+  }, [model, page, debouncedSearch, filtersParam, sortField, sortOrder]);
 
   useEffect(() => {
     fetchData();
@@ -92,5 +110,8 @@ export default function AcarajeCalls_crud() {
     model,
     page,
     fetchData,
+    filters,
+    sortField,
+    sortOrder,
   };
 }
