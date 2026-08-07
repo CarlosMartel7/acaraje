@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
-import { Lora, DM_Mono, Geist } from "next/font/google";
+import { DM_Mono, Geist } from "next/font/google";
 import "./globals.css";
-import { Sidebar } from "@/components/sidebar";
 import { Toaster } from "@/components/ui/sonner";
 import { cn } from "@/lib/utils";
 
@@ -23,10 +22,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" className={cn("dark", "font-sans", geist.variable)}>
       <body className={`${geist.variable} ${mono.variable} font-sans antialiased`}>
         <Toaster />
-        <div className="flex h-screen overflow-hidden">
-          <Sidebar />
-          <main className="flex-1 overflow-auto">{children}</main>
-        </div>
+        {children}
       </body>
     </html>
   );

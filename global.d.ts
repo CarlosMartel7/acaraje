@@ -2,6 +2,19 @@
  * Ambient app types grouped by service. Do not import — use `Drive.*`, `Schema.*`, etc.
  */
 
+/** Auth — env-based admin session (no Prisma auth models) */
+declare namespace Auth {
+  interface SessionPayload {
+    username: string;
+    exp: number;
+  }
+
+  interface SessionResponse {
+    authenticated: boolean;
+    username?: string;
+  }
+}
+
 /** Drive — MinIO object browser UI */
 declare namespace Drive {
   type DriveType = "minio";

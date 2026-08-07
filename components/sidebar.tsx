@@ -17,12 +17,17 @@ import {
   Upload,
   LayoutGrid,
   Plus,
+  LogOut,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { acarajePath } from "@/lib/acaraje-routes";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useEffect, useState } from "react";
+
+interface SidebarProps {
+  username?: string;
+}
 
 const topNavItems = [
   { href: acarajePath("/dashboard"), label: "Overview", icon: LayoutDashboard, description: "Schema summary" },
@@ -37,7 +42,7 @@ const driveSubItems = [
   { href: acarajePath("/drive/view"), label: "View", icon: FolderOpen },
 ];
 
-export function Sidebar() {
+export function Sidebar({ username }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [models, setModels] = useState<string[]>([]);
@@ -340,7 +345,28 @@ export function Sidebar() {
       </nav>
 
       {/* Footer */}
-      <div className="px-5 py-4 border-t border-border/60">
+      <div className="px-5 py-4 border-t border-border/60 space-y-3">
+        {username && (
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs text-muted-foreground truncate" title={username}>
+              {username}
+            </span>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              className="flex-shrink-0 text-muted-foreground hover:text-foreground"
+              title="Sign out"
+              onClick={async () => {
+                await fetch("/api/acaraje/auth/logout", { method: "POST" });
+                router.replace("/login");
+                router.refresh();
+              }}
+            >
+              <LogOut className="w-3.5 h-3.5" />
+            </Button>
+          </div>
+        )}
         <div className="text-[10px] font-mono text-muted-foreground/35 space-y-1">
           <div className="flex items-center gap-2">
             <Layers className="w-3 h-3" />

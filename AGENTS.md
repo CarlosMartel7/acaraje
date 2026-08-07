@@ -21,7 +21,7 @@ Admin **pages** live under **`/acaraje/*`**. **API handlers** live under **`/api
 | Data | Prisma **5**, PostgreSQL / SQLite / MongoDB (`DATABASE_PROVIDER` + `DATABASE_URL`) |
 | Storage | `minio` client; Drive APIs under `app/api/acaraje/drive/` |
 
-**Note:** `next-auth` appears in root `package.json` but is **not referenced** in application code. Treat it as unused or reserved; the admin surface has **no built-in authentication** — do not expose it publicly without adding your own auth (e.g. middleware, reverse proxy).
+**Auth:** Env-based admin login (`ACARAJE_ADMIN_USERNAME`, `ACARAJE_ADMIN_PASSWORD`, `ACARAJE_AUTH_SECRET`). No Prisma auth models. Middleware protects `/acaraje/*` and `/api/acaraje/*` (except `/api/acaraje/auth/*`). Session is a signed `httpOnly` cookie (`acaraje_session`).
 
 ---
 
@@ -61,6 +61,7 @@ Useful scripts from root `package.json`:
   `prisma/schema.prisma` before running (via `scripts/select-schema.ts`, wired in as a `pre*` npm
   hook). See `.env.example`.
 - **MinIO** (Drive) — see `lib/storage/config.ts`. Typical vars: `MINIO_ENDPOINT`, `MINIO_PORT`, `MINIO_USE_SSL`, `MINIO_ACCESS_KEY`, `MINIO_SECRET_KEY`, `MINIO_BUCKET`.
+- **`ACARAJE_ADMIN_USERNAME` / `ACARAJE_ADMIN_PASSWORD` / `ACARAJE_AUTH_SECRET`** — admin panel login. Change credentials by editing `.env` and restarting; rotate `ACARAJE_AUTH_SECRET` to invalidate sessions. See README Authentication section.
 
 ---
 
@@ -96,7 +97,7 @@ been verified with `npx prisma validate` in this environment — do that before 
 
 ## Verification checklist
 
-1. `npm run dev` — home redirects to `/acaraje/dashboard`.
+1. `npm run dev` — unauthenticated visit redirects to `/login`; after login, home → `/acaraje/dashboard`.
 2. Sidebar loads model list from `/api/acaraje/schemas`.
 3. CRUD: `/acaraje/crud/<ModelName>` matches a Prisma model.
 
