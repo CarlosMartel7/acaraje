@@ -1,0 +1,98 @@
+// Sample marketplace schema used by tests/prisma-parser.test.ts.
+// Kept structurally equivalent to the sampleDBs/schema.*.sql files so both
+// parsers can be exercised against the same domain (users selling products,
+// organized in categories, bought through orders, and reviewed afterwards).
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  ADMIN
+  SELLER
+  BUYER
+}
+
+enum ProductStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum OrderStatus {
+  PENDING
+  PAID
+  SHIPPED
+  DELIVERED
+  CANCELED
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  name      String
+  role      Role     @default(BUYER)
+  products  Product[]
+  orders    Order[]
+  reviews   Review[]
+  createdAt DateTime @default(now())
+}
+
+model Category {
+  id       String    @id @default(uuid())
+  name     String    @unique
+  products Product[]
+}
+
+model Product {
+  id         String        @id @default(uuid())
+  name       String
+  price      Decimal       @db.Decimal(10, 2)
+  stock      Int           @default(0)
+  status     ProductStatus @default(DRAFT)
+  seller     User          @relation(fields: [sellerId], references: [id])
+  sellerId   String
+  category   Category      @relation(fields: [categoryId], references: [id])
+  categoryId String
+  orderItems OrderItem[]
+  reviews    Review[]
+  createdAt  DateTime      @default(now())
+}
+
+model Order {
+  id        String      @id @default(uuid())
+  buyer     User        @relation(fields: [buyerId], references: [id])
+  buyerId   String
+  status    OrderStatus @default(PENDING)
+  total     Decimal     @db.Decimal(10, 2)
+  items     OrderItem[]
+  createdAt DateTime    @default(now())
+}
+
+model OrderItem {
+  id        String  @id @default(uuid())
+  order     Order   @relation(fields: [orderId], references: [id])
+  orderId   String
+  product   Product @relation(fields: [productId], references: [id])
+  productId String
+  quantity  Int
+  price     Decimal @db.Decimal(10, 2)
+}
+
+model Review {
+  id        String   @id @default(uuid())
+  product   Product  @relation(fields: [productId], references: [id])
+  productId String
+  author    User     @relation(fields: [authorId], references: [id])
+  authorId  String
+  rating    Int
+  comment   String?
+  createdAt DateTime @default(now())
+
+  @@unique([productId, authorId])
+}

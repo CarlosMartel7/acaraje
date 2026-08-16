@@ -1,0 +1,73 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: amazon_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d amazon_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  minio:
+    image: minio/minio:latest
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    volumes:
+      - minio_data:/data
+    command: server /data --console-address ":9001"
+
+  # GCS emulator for local testing when scripts/storage-settings.ts sets
+  # CURRENT_STORAGE_PROVIDER = "gcs". No init container needed — bucket creation is handled
+  # app-side via ensureGcsBucketReady(), same as MinIO's ensureMinioBucketReady().
+  fake-gcs-server:
+    image: fsouza/fake-gcs-server:latest
+    ports:
+      - "4443:4443"
+    volumes:
+      - gcs_data:/data
+    command:
+      - -scheme=http
+      - -backend=filesystem
+      - -filesystem-root=/data
+      - -public-host=localhost:4443
+
+  # MongoDB's Prisma connector requires transactions, which require replica-set mode even for a
+  # single node — hence `--replSet` plus the one-shot `mongo-init` initiator below.
+  mongo:
+    image: mongo:7
+    ports:
+      - "27018:27017"
+    command: ["--replSet", "rs0", "--bind_ip_all"]
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  mongo-init:
+    image: mongo:7
+    depends_on:
+      mongo:
+        condition: service_healthy
+    restart: "no"
+    entrypoint: ["mongosh", "--host", "mongo:27017", "--eval",
+      "try { rs.status() } catch (e) { rs.initiate({_id: 'rs0', members: [{_id: 0, host: 'mongo:27017'}]}) }"]
+
+volumes:
+  postgres_data:
+  minio_data:
+  gcs_data:
+  mongo_data:
