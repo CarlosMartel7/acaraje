@@ -1,0 +1,227 @@
+[
+  {
+    "name": "app",
+    "subfolders": [
+      {
+        "name": "[PROJECT_NAME]",
+        "subfolders": [
+          {
+            "name": "boards"
+          },
+          {
+            "name": "crud",
+            "subfolders": [
+              {
+                "name": "[model]",
+                "subfolders": [
+                  {
+                    "name": "[id]"
+                  },
+                  {
+                    "name": "[new]"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "name": "dashboard"
+          },
+          {
+            "name": "drive",
+            "subfolders": [
+              {
+                "name": "view"
+              }
+            ]
+          },
+          {
+            "name": "relations"
+          },
+          {
+            "name": "schemas"
+          },
+          {
+            "name": "seeder"
+          }
+        ]
+      },
+      {
+        "name": "api",
+        "subfolders": [
+          {
+            "name": "auth",
+            "subfolders": [
+              {
+                "name": "login"
+              },
+              {
+                "name": "logout"
+              },
+              {
+                "name": "session"
+              }
+            ]
+          },
+          {
+            "name": "boards"
+          },
+          {
+            "name": "crud",
+            "subfolders": [
+              {
+                "name": "[MODEL_NAME]",
+                "subfolders": [
+                  {
+                    "name": "[id]"
+                  },
+                  {
+                    "name": "options"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "name": "drive",
+            "subfolders": [
+              {
+                "name": "auth"
+              },
+              {
+                "name": "contents"
+              },
+              {
+                "name": "delete"
+              },
+              {
+                "name": "folders"
+              },
+              {
+                "name": "storage-config"
+              },
+              {
+                "name": "upload"
+              }
+            ]
+          },
+          {
+            "name": "relations"
+          },
+          {
+            "name": "schemas"
+          },
+          {
+            "name": "seed",
+            "subfolders": [
+              {
+                "name": "config"
+              }
+            ]
+          },
+          {
+            "name": "stats"
+          }
+        ]
+      },
+      {
+        "name": "login"
+      }
+    ]
+  },
+  {
+    "name": "components",
+    "subfolders": [
+      {
+        "name": "dev"
+      },
+      {
+        "name": "providers"
+      },
+      {
+        "name": "routes",
+        "subfolders": [
+          {
+            "name": "boards"
+          },
+          {
+            "name": "crud",
+            "subfolders": [
+              {
+                "name": "model",
+                "subfolders": [
+                  {
+                    "name": "edit"
+                  },
+                  {
+                    "name": "new"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "name": "dashboard"
+          },
+          {
+            "name": "drive",
+            "subfolders": [
+              {
+                "name": "view"
+              }
+            ]
+          },
+          {
+            "name": "login"
+          },
+          {
+            "name": "relations"
+          },
+          {
+            "name": "schemas"
+          },
+          {
+            "name": "seeder"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "lib",
+    "subfolders": [
+      {
+        "name": "charts"
+      },
+      {
+        "name": "form"
+      },
+      {
+        "name": "seeder"
+      },
+      {
+        "name": "storage"
+      }
+    ]
+  },
+  {
+    "name": "query",
+    "subfolders": [
+      {
+        "name": "auth"
+      },
+      {
+        "name": "seeder"
+      },
+      {
+        "name": "storage"
+      },
+      {
+        "name": "utils"
+      },
+      {
+        "name": "[QUERY_MODEL]"
+      }
+    ]
+  }
+]
