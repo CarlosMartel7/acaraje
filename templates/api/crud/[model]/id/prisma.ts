@@ -53,9 +53,9 @@ export async function PUT(
 
 export const writeDeleteFoo = (prisma: string) => {
 
-  return `
+  const body = code`
 export async function DELETE(
-  req: NextRequest,
+  req: ${NextRequest},
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
@@ -67,6 +67,7 @@ export async function DELETE(
     return ${NextResponse}.json({ error: err.message }, { status: 500 });
   }
 }
-
   `
+
+  return body
 }

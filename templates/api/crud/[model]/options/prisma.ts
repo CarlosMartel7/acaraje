@@ -1,5 +1,4 @@
 import { imp, code } from "ts-poet";
-import { undefined } from "zod";
 
 const NextRequest = imp("NextRequest@next/server");
 const NextResponse = imp("NextResponse@next/server");

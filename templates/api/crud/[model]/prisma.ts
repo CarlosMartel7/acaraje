@@ -14,7 +14,7 @@ export function writeReadFoo(
   model: PrismaSchema.PrismaModel,
   prisma: string,
   caseInsensitive: boolean,
-): string {
+) {
   const stringFields = model.fields.filter(
     (f) => f.type === "String" && !f.isRelation && !f.isList
   );
@@ -111,7 +111,7 @@ export function writeReadFoo(
     }
   `;
 
-  return body.toString();
+  return body;
 }
 
 export const writeCreateFoo = (
