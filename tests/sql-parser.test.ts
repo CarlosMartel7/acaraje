@@ -1,6 +1,6 @@
 import path from "path";
 
-import { sqlParser, type SqlDatabaseType } from "../src/lib/sql-parser";
+import { sqlParser, type SqlDatabaseType } from "../src/steps/sql-parser";
 import { writeLog } from "./logger";
 
 const SAMPLE_DBS = path.join(__dirname, "sampleDBs");

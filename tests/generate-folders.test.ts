@@ -2,9 +2,9 @@ import fs from "fs";
 import os from "os";
 import path from "path";
 
-import { createFolderStructure } from "../src/lib/generate-folders";
-import { prismaParser } from "../src/lib/prisma-parser";
-import { sqlParser } from "../src/lib/sql-parser";
+import { createFolderStructure } from "../src/steps/generate-folders";
+import { prismaParser } from "../src/steps/prisma-parser";
+import { sqlParser } from "../src/steps/sql-parser";
 import { writeLog } from "./logger";
 
 const SCHEMA_PATH = path.join(__dirname, "sampleDBs", "schema.prisma");

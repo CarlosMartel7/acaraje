@@ -7,8 +7,16 @@
     "strict": true,
     "skipLibCheck": true,
     "resolveJsonModule": true,
-    "types": ["jest", "node"],
+    "types": [
+      "jest",
+      "node"
+    ],
     "noEmit": true
   },
-  "include": ["src", "tests", "global.d.ts"]
+  "include": [
+    "src",
+    "tests",
+    "global.d.ts",
+    "templates"
+  ]
 }

@@ -1,6 +1,6 @@
 import path from "path";
 
-import { prismaParser } from "../src/lib/prisma-parser";
+import { prismaParser } from "../src/steps/prisma-parser";
 import { writeLog } from "./logger";
 
 const SCHEMA_PATH = path.join(__dirname, "sampleDBs", "schema.prisma");
