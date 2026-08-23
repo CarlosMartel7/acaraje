@@ -17,6 +17,20 @@ function readFolderStructure(): FolderNode[] {
   return JSON.parse(fs.readFileSync(filePath, "utf-8"));
 }
 
+function sanitizeProjectName(name: string): string {
+  const sanitized = name
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
+  if (!sanitized) {
+    throw new Error(`Invalid project name "${name}": must contain at least one alphanumeric character`);
+  }
+
+  return sanitized;
+}
+
 function resolveNames(nodeName: string, projectName: string, modelNames: string[]): string[] {
   if (nodeName === PROJECT_NAME_TOKEN) return [projectName];
   if (MODEL_NAME_TOKENS.has(nodeName)) return modelNames;
@@ -44,10 +58,11 @@ export function createFolderStructure(
   schema: PrismaSchema.ParsedSchema,
   baseDir: string = process.cwd(),
 ): void {
+  const projectName = sanitizeProjectName(name);
   const modelNames = schema.models.map((m) => m.name);
   const structure = readFolderStructure();
 
   for (const node of structure) {
-    buildNode(node, baseDir, name, modelNames);
+    buildNode(node, baseDir, projectName, modelNames);
   }
 }

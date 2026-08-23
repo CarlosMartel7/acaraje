@@ -1,6 +1,6 @@
 import { code } from "ts-poet";
 
-const body = code`
+const writeLibCrudFilters = () => code`
 
 /**
  * Classifies Prisma field types into filter/sort "kinds" and defines which operators are valid
@@ -163,4 +163,4 @@ export function sanitizeInput(data: Record<string, any>) {
   return out;
 }`
 
-export default body
+export default writeLibCrudFilters 

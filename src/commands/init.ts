@@ -33,7 +33,7 @@ const prompts = p.group(
         message: "Select your ORM",
         options: [
           { value: "prisma", label: "Prisma" },
-          { value: "pure-sql", label: "No ORM (Pure SQL)" },
+          { value: "pure-sql", label: "No ORM (Kysely)" },
         ],
       }),
 
