@@ -108,6 +108,52 @@ export function buildPrismaFilterCondition(
   return { [fieldName]: { [operator]: value } };
 }
 
+/**
+ * Builds a Kysely 'where' expression for one field/operator/value, for use inside a
+ * '.where((eb) => ...)' callback. 'caseInsensitive' (default true) switches string comparisons
+ * to 'ilike', which Postgres understands natively — MySQL and SQLite don't, so callers must pass
+ * 'false' there. Untyped 'eb' keeps this file dependency-free for projects that don't use Kysely.
+ */
+export function buildKyselyFilterCondition(
+  eb: any,
+  fieldName: string,
+  kind: FieldKind,
+  operator: FilterOperator,
+  value: any,
+  caseInsensitive = true,
+) {
+  if (kind === "string") {
+    const likeOp = caseInsensitive ? "ilike" : "like";
+    switch (operator) {
+      case "contains":
+        return eb(fieldName, likeOp, "%" + value + "%");
+      case "startsWith":
+        return eb(fieldName, likeOp, value + "%");
+      case "endsWith":
+        return eb(fieldName, likeOp, "%" + value);
+      case "equals":
+        return eb(fieldName, caseInsensitive ? "ilike" : "=", value);
+      default:
+        return eb(fieldName, "=", value);
+    }
+  }
+
+  switch (operator) {
+    case "not":
+      return eb(fieldName, "!=", value);
+    case "gt":
+      return eb(fieldName, ">", value);
+    case "gte":
+      return eb(fieldName, ">=", value);
+    case "lt":
+      return eb(fieldName, "<", value);
+    case "lte":
+      return eb(fieldName, "<=", value);
+    default:
+      return eb(fieldName, "=", value);
+  }
+}
+
 export function sanitizeInput(data: Record<string, any>) {
   const out: Record<string, any> = {};
   for (const [key, val] of Object.entries(data)) {
