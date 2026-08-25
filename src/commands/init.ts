@@ -33,7 +33,7 @@ const prompts = p.group(
         message: "Select your ORM",
         options: [
           { value: "prisma", label: "Prisma" },
-          { value: "pure-sql", label: "No ORM (Kysely)" },
+          { value: "pure-sql", label: "No ORM (SQL via Kysely)" },
         ],
       }),
 
@@ -147,6 +147,8 @@ const C = async () => {
   // await Promise.all([
   // generateCRUDs(schema)
   // generateStorage(storage)
+  // generateSeeder(schema)
+  // generateRestOfApi(schema)
   // generateFEComponents(schema, storage)
   // generatePages(schema, storage)
   // ])
