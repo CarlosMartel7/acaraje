@@ -2,16 +2,18 @@ import { code, imp } from "ts-poet";
 
 const NextRequest = imp("NextRequest@next/server")
 const NextResponse = imp("NextResponse@next/server")
-const listStorageFoldersFlat = imp("listStorageFoldersFlat@@/lib/storage")
-const createStorageFolder = imp("createStorageFolder@@/lib/storage")
-const deleteStorageFolderRecursive = imp("deleteStorageFolderRecursive@@/lib/storage")
 
-const writeDriveFolders = () => {
+const writeDriveFolders = (storage: "minio" | "gcs") => {
+  const Storage = storage[0].toUpperCase() + storage.slice(1)
+
+  const listFoldersFlat = imp(`list${Storage}FoldersFlat@@/lib/storage`)
+  const createFolder = imp(`create${Storage}Folder@@/lib/storage`)
+  const deleteFolderRecursive = imp(`delete${Storage}FolderRecursive@@/lib/storage`)
 
   return code`
 export async function GET() {
   try {
-    const records = await ${listStorageFoldersFlat}();
+    const records = await ${listFoldersFlat}();
     const folders = records.map((f) => ({
       id: f.id,
       name: f.name,
@@ -34,7 +36,7 @@ export async function POST(request: ${NextRequest}) {
     const name = (body.name as string) || "Test Folder";
     const rawParent = body.parentId as string | undefined;
     const parentId = rawParent && rawParent !== "root" ? rawParent : undefined;
-    const created = await ${createStorageFolder}(parentId, name);
+    const created = await ${createFolder}(parentId, name);
     return ${NextResponse}.json({
       id: created.id,
       name: created.name,
@@ -55,7 +57,7 @@ export async function DELETE(request: ${NextRequest}) {
     if (!folderId) {
       return ${NextResponse}.json({ error: "Missing folderId" }, { status: 400 });
     }
-    await ${deleteStorageFolderRecursive}(folderId);
+    await ${deleteFolderRecursive}(folderId);
     return ${NextResponse}.json({ success: true });
   } catch (err) {
     console.error("Drive delete folder error:", err);

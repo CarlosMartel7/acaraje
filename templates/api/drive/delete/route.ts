@@ -2,10 +2,12 @@ import { code, imp } from "ts-poet";
 
 const NextResponse = imp("NextResponse@next/server")
 const NextRequest = imp("NextRequest@next/server")
-const getObjectStorage = imp("getObjectStorage@@/lib/storage")
-const deleteStorageFolderRecursive = imp("deleteStorageFolderRecursive@@/lib/storage")
 
-const writeDriveDelete = () => {
+const writeDriveDelete = (storage: "minio" | "gcs") => {
+  const Storage = storage[0].toUpperCase() + storage.slice(1)
+
+  const getStorage = imp(`get${Storage}Storage@@/lib/storage`)
+  const deleteFolderRecursive = imp(`delete${Storage}FolderRecursive@@/lib/storage`)
 
   return code`
 export async function POST(request: ${NextRequest}) {
@@ -18,13 +20,13 @@ export async function POST(request: ${NextRequest}) {
       return ${NextResponse}.json({ error: "No files or folders to delete" }, { status: 400 });
     }
 
-    const storage = ${getObjectStorage}();
+    const storage = ${getStorage}();
 
     for (const key of files) {
       await storage.deleteFile(key);
     }
     for (const folderId of folders) {
-      await ${deleteStorageFolderRecursive}(folderId);
+      await ${deleteFolderRecursive}(folderId);
     }
 
     return ${NextResponse}.json({ success: true });

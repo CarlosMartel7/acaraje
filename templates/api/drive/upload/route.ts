@@ -2,11 +2,13 @@ import { code, imp } from "ts-poet";
 
 const NextRequest = imp("NextRequest@next/server")
 const NextResponse = imp("NextResponse@next/server")
-const getObjectStorage = imp("getObjectStorage@@/lib/storage")
 const normalizeFolderPrefix = imp("normalizeFolderPrefix@@/lib/storage")
 const sanitizeObjectName = imp("sanitizeObjectName@@/lib/storage")
 
-const writeDriveUpload = () => {
+const writeDriveUpload = (storage: "minio" | "gcs") => {
+  const Storage = storage[0].toUpperCase() + storage.slice(1)
+
+  const getStorage = imp(`get${Storage}Storage@@/lib/storage`)
 
   return code`
 export async function POST(request: ${NextRequest}) {
@@ -23,7 +25,7 @@ export async function POST(request: ${NextRequest}) {
     const folderPrefix = ${normalizeFolderPrefix}(folderId);
     const key = \`\${folderPrefix}\${fileName}\`;
     const buffer = Buffer.from(await file.arrayBuffer());
-    await ${getObjectStorage}().uploadFile(key, buffer, {
+    await ${getStorage}().uploadFile(key, buffer, {
       contentType: file.type || "application/octet-stream",
     });
 
