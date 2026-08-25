@@ -1,31 +1,44 @@
-// import { NextRequest, NextResponse } from "next/server";
-// import { getObjectStorage, deleteStorageFolderRecursive } from "@/lib/storage";
-//
-// export async function POST(request: NextRequest) {
-//   try {
-//     const body = await request.json().catch(() => ({}));
-//     const files = (body.files as string[]) ?? [];
-//     const folders = (body.folders as string[]) ?? [];
-//
-//     if (files.length === 0 && folders.length === 0) {
-//       return NextResponse.json({ error: "No files or folders to delete" }, { status: 400 });
-//     }
-//
-//     const storage = getObjectStorage();
-//
-//     for (const key of files) {
-//       await storage.deleteFile(key);
-//     }
-//     for (const folderId of folders) {
-//       await deleteStorageFolderRecursive(folderId);
-//     }
-//
-//     return NextResponse.json({ success: true });
-//   } catch (err) {
-//     console.error("Drive delete error:", err);
-//     return NextResponse.json(
-//       { error: err instanceof Error ? err.message : "Failed to delete" },
-//       { status: 500 }
-//     );
-//   }
-// }
+import { code, imp } from "ts-poet";
+
+const NextResponse = imp("NextResponse@next/server")
+const NextRequest = imp("NextRequest@next/server")
+
+const writeDriveDelete = (storage: "minio" | "gcs") => {
+  const objectStorage = storage[0].toUpperCase() + storage.slice(1)
+
+  const getObjectStorage = imp(`get${objectStorage}Storage@@/lib/storage`)
+  const deleteStorageFolderRecursive = imp(`delete${objectStorage}FolderRecursive`)
+
+  return code`
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json().catch(() => ({}));
+    const files = (body.files as string[]) ?? [];
+    const folders = (body.folders as string[]) ?? [];
+
+    if (files.length === 0 && folders.length === 0) {
+      return NextResponse.json({ error: "No files or folders to delete" }, { status: 400 });
+    }
+
+    const storage = getObjectStorage();
+
+    for (const key of files) {
+      await storage.deleteFile(key);
+    }
+    for (const folderId of folders) {
+      await deleteStorageFolderRecursive(folderId);
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (err) {
+    console.error("Drive delete error:", err);
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : "Failed to delete" },
+      { status: 500 }
+    );
+  }
+}
+  `
+}
+
+export default writeDriveDelete
