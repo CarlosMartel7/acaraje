@@ -1,12 +1,41 @@
 import * as p from "@clack/prompts";
 import z from "zod";
+import { prismaParser } from "../steps/prisma-parser";
+import { sqlParser, SqlDatabaseType } from "../steps/sql-parser";
+import { createFolderStructure } from "../steps/generate-folders";
+import { generateCRUD } from "../steps/generate-crud";
+import { generateStorage } from "../steps/generate-storage";
+import { generateSeeder } from "../steps/generate-seeder";
+
+// The "prov" prompt only offers lowercase option values, but sqlParser's SqlDatabaseType
+// literals are capitalized — map one onto the other instead of duplicating the prompt options.
+const SQL_DB_TYPES: Record<string, SqlDatabaseType> = {
+  postgresql: "PostgreSql",
+  mysql: "Mysql",
+  sqlite: "Sqlite",
+};
 
 // Skip validation entirely on empty/whitespace input — that case
 // falls back to the default value after the prompt resolves.
 const isBlank = (value: any) => value === undefined || value.trim() === "";
 
-const orDefault = (value: any, fallback: any) =>
+const orDefault = (value: string, fallback: string): string =>
   isBlank(value) ? fallback : value.trim();
+
+// @clack/prompts' group() infers each field's type from its own callback, but a callback that
+// reads a sibling's `results.*` (prov reads results.orm, schemaPath reads results.prov) breaks
+// that inference and collapses to `unknown`/`{}`. Annotate the resolved shape explicitly instead
+// of fighting the inference.
+type PromptAnswers = {
+  name: string;
+  orm: "prisma" | "pure-sql";
+  prov?: "postgresql" | "mysql" | "sqlite";
+  schemaPath: string;
+  storage: "minio" | "gcs";
+  docker: boolean;
+  username: string;
+  password: string;
+};
 
 const prompts = p.group(
   {
@@ -134,22 +163,26 @@ const C = async () => {
   p.intro("Create Acaraje Admin Panel");
 
   let { name, orm, prov, schemaPath, storage, docker, username, password } =
-    await prompts;
+    (await prompts) as PromptAnswers;
 
   name = orDefault(name, "Acaraje");
   schemaPath = orDefault(schemaPath, prov ? "/database" : "/prisma");
   username = orDefault(username, "admin");
   password = orDefault(password, "password");
 
-  //const schema = orm === "prisma" ? await prismaParser(schemaPath) : await sqlParser(schemaPath, orm)
-  // await createFolderStructure(schema)
-  //
-  // await Promise.all([
-  // generateCRUDs(schema)
-  // generateStorage(storage)
-  // generateSeeder(schema)
+  // The "prov" prompt only runs (and is only skipped) in lockstep with "orm" !== "prisma",
+  // so it's always answered by the time we reach the pure-sql branch here.
+  const schema = orm === "prisma"
+    ? prismaParser(schemaPath)
+    : sqlParser(schemaPath, SQL_DB_TYPES[prov!]);
+  createFolderStructure(name, schema)
+
+  generateCRUD(schema, orm)
+  generateStorage(storage)
+  generateSeeder(schema)
+
   // generateRestOfApi(schema)
-  // generateFEComponents(schema, storage)
+  // generateFECoonents(schema, storage)
   // generatePages(schema, storage)
   // ])
   //
