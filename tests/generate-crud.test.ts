@@ -43,7 +43,11 @@ const sqlFiles = Object.fromEntries(
   ]),
 ) as Record<string, { index: string; id: string; options: string }>;
 
-writeLog("generate-crud", { outDir, modelNames, files, sqlOutDirPostgres, sqlFiles });
+writeLog(
+  "generate-crud",
+  { outDir, modelNames, files, sqlOutDirPostgres, sqlFiles },
+  { prisma: outDir, "pure-sql": sqlOutDirPostgres },
+);
 
 afterAll(() => {
   fs.rmSync(outDir, { recursive: true, force: true });

@@ -39,6 +39,7 @@ Thumbs.db
 coverage/
 .nyc_output/
 tests/logs/
+tests/results/
 
 # Misc
 *.log

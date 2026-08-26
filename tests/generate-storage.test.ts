@@ -34,7 +34,7 @@ function generateAndRead(storage: "minio" | "gcs") {
 const minio = generateAndRead("minio");
 const gcs = generateAndRead("gcs");
 
-writeLog("generate-storage", { minio, gcs });
+writeLog("generate-storage", { minio, gcs }, { minio: minio.outDir, gcs: gcs.outDir });
 
 afterAll(() => {
   fs.rmSync(minio.outDir, { recursive: true, force: true });

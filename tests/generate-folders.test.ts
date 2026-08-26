@@ -27,7 +27,11 @@ const outDir = fs.mkdtempSync(path.join(os.tmpdir(), "acaraje-generate-folders-"
 createFolderStructure("Acaraje", schema, outDir);
 const tree = walk(outDir);
 
-writeLog("generate-folders", { baseDir: outDir, projectName: "Acaraje", modelNames, tree });
+writeLog(
+  "generate-folders",
+  { baseDir: outDir, projectName: "Acaraje", modelNames, tree },
+  { output: outDir },
+);
 
 afterAll(() => {
   fs.rmSync(outDir, { recursive: true, force: true });

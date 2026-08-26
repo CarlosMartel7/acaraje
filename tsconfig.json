@@ -18,5 +18,8 @@
     "tests",
     "global.d.ts",
     "templates"
+  ],
+  "exclude": [
+    "tests/results"
   ]
 }

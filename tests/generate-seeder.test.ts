@@ -31,7 +31,7 @@ const files = {
   seedConfigRoute: fs.readFileSync(seedRoutePath(outDir, "config"), "utf-8"),
 };
 
-writeLog("generate-seeder", { outDir, modelNames, files });
+writeLog("generate-seeder", { outDir, modelNames, files }, { output: outDir });
 
 afterAll(() => {
   fs.rmSync(outDir, { recursive: true, force: true });
