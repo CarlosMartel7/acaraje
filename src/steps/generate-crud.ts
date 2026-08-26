@@ -7,11 +7,20 @@ import * as P_Opt from '../../templates/api/crud/[model]/options/prisma'
 import * as S from '../../templates/api/crud/[model]/sql'
 import * as S_id from '../../templates/api/crud/[model]/id/sql'
 import * as S_Opt from '../../templates/api/crud/[model]/options/sql'
+import writeLibCrudFilters from '../../templates/lib/crud/resolve-filters'
+import writeBuildFormSchema from '../../templates/lib/crud/build-form-schema'
 
 export function generateCRUD(schema: PrismaSchema.ParsedSchema, orm: string, baseDir: string = process.cwd()): void {
   if (orm !== "prisma" && orm !== "pure-sql") {
     throw new Error(`CRUD generation for orm "${orm}" is not implemented yet`);
   }
+
+  // Shared by both the prisma.ts and sql.ts route flavors (filtering/sorting, form validation) —
+  // written once, flat under lib/, matching the "@/lib/resolve-filters" import the routes use.
+  const libDir = path.join(baseDir, "lib")
+  fs.mkdirSync(libDir, { recursive: true })
+  fs.writeFileSync(path.join(libDir, "resolve-filters.ts"), writeLibCrudFilters().toString())
+  fs.writeFileSync(path.join(libDir, "build-form-schema.ts"), writeBuildFormSchema().toString())
 
   for (const currModel of schema.models) {
     const modelDir = path.join(baseDir, "app", "api", "crud", currModel.name);

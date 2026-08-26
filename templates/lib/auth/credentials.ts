@@ -1,8 +1,8 @@
 import { code, imp } from "ts-poet";
 
 const timingSafeEqual = imp('timingSafeEqual@crypto')
-const getAdminCredentials = imp('getAdminCredentials@@/config')
-const tryGetAdminCredentials = imp('tryGetAdminCredentials@@/config')
+const getAdminCredentials = imp('getAdminCredentials@@/lib/auth/config')
+const tryGetAdminCredentials = imp('tryGetAdminCredentials@@/lib/auth/config')
 
 const body = code`
 function safeEqualString(a: string, b: string): boolean {

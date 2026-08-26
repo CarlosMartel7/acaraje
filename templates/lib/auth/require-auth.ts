@@ -2,9 +2,9 @@ import { code, imp } from "ts-poet";
 
 const NextResponse = imp("NextResponse@next/server");
 const cookies = imp("cookies@next/headers");
-const SESSION_COOKIE = imp("SESSION_COOKIE@@/session-token");
-const verifySessionToken = imp("verifySessionToken@@/session-token");
-const SessionPayload = imp("SessionPayload@@/session-token");
+const SESSION_COOKIE = imp("SESSION_COOKIE@@/lib/auth/session-token");
+const verifySessionToken = imp("verifySessionToken@@/lib/auth/session-token");
+const SessionPayload = imp("SessionPayload@@/lib/auth/session-token");
 
 const body = code`
 export class AuthError extends Error {

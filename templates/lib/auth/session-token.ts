@@ -1,7 +1,7 @@
 import { code, imp } from "ts-poet";
 
-const tryGetAuthSecret = imp("tryGetAuthSecret@@/config");
-const getAuthSecret = imp("getAuthSecret@@/config");
+const tryGetAuthSecret = imp("tryGetAuthSecret@@/lib/auth/config");
+const getAuthSecret = imp("getAuthSecret@@/lib/auth/config");
 
 const body = code`
 export const SESSION_COOKIE = "acaraje_session";
