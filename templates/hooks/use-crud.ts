@@ -1,56 +1,121 @@
-"use client";
+import { code, imp } from "ts-poet";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { apiGet, apiMutate } from "@/lib/query/api";
-import { queryKeys } from "@/lib/query/keys";
+const useInfiniteQuery = imp("useInfiniteQuery@@tanstack/react-query")
+const useMutation = imp("useMutation@@tanstack/react-query")
+const useQuery = imp("useQuery@@tanstack/react-query")
+const useQueryClient = imp("useQueryClient@@tanstack/react-query")
+const apiGet = imp("apiGet@@/lib/query/api")
+const apiMutate = imp("apiMutate@@/lib/query/api")
+const queryKeys = imp("queryKeys@@/lib/query/keys")
+const CRUD_DELETE_ALL_SENTINEL = imp("CRUD_DELETE_ALL_SENTINEL@@/components/routes/crud/[model]/delete-modal")
 
-export interface RawDriveFolder {
-  id: string;
-  name: string;
-  parents?: string[];
-  webViewLink?: string;
+export const writeUseCrudHook = () => code`
+export interface CrudListParams {
+  page: number;
+  pageSize: number;
+  search: string;
+  filters?: Crud.FilterCondition[];
+  sortField?: string;
+  sortOrder?: Crud.SortOrder;
 }
 
-export function useDriveFolders() {
-  return useQuery({
-    queryKey: queryKeys.drive.folders,
-    queryFn: () => apiGet<{ folders: RawDriveFolder[] }>("/api/acaraje/drive/folders"),
+function crudListUrl(model: string, params: CrudListParams): string {
+  const filtersParam = params.filters?.length ? JSON.stringify(params.filters) : "";
+  const qs = new URLSearchParams({
+    page: String(params.page),
+    pageSize: String(params.pageSize),
+    search: params.search,
+  });
+  if (filtersParam) qs.set("filters", filtersParam);
+  if (params.sortField) {
+    qs.set("sortField", params.sortField);
+    qs.set("sortOrder", params.sortOrder ?? "desc");
+  }
+  return \`/api/acaraje/crud/\${model}?\${qs}\`;
+}
+
+export function useCrudList(model: string, params: CrudListParams) {
+  const filtersParam = params.filters?.length ? JSON.stringify(params.filters) : "";
+  return ${useQuery}({
+    queryKey: ${queryKeys}.crud.list(model, { ...params, filters: filtersParam }),
+    queryFn: () => ${apiGet}<Crud.PageData>(crudListUrl(model, params)),
+    enabled: !!model,
   });
 }
 
-export function useCreateDriveFolder() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (payload: { name: string; parentId?: string }) =>
-      apiMutate<{ id: string; name: string; webViewLink?: string }>("/api/acaraje/drive/folders", {
-        method: "POST",
-        body: payload,
-      }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.drive.folders }),
+export function useCrudRecord(model: string, id: string) {
+  return ${useQuery}({
+    queryKey: ${queryKeys}.crud.detail(model, id),
+    queryFn: () => ${apiGet}<Crud.RecordRow>(\`/api/acaraje/crud/\${model}/\${id}\`),
+    enabled: !!model && !!id,
   });
 }
 
-export function useDeleteDriveFolder() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (folderId: string) =>
-      apiMutate(`/api/acaraje/drive/folders?folderId=${encodeURIComponent(folderId)}`, { method: "DELETE" }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.drive.folders }),
+function crudOptionsUrl(model: string, page: number, search: string): string {
+  const qs = new URLSearchParams({ page: String(page) });
+  if (search) qs.set("search", search);
+  return \`/api/acaraje/crud/\${model}/options?\${qs}\`;
+}
+
+export function useCrudOptions(model: string, enabled = true) {
+  return ${useQuery}({
+    queryKey: ${queryKeys}.crud.options(model),
+    queryFn: () => ${apiGet}<Crud.OptionsPage>(crudOptionsUrl(model, 1, "")),
+    enabled: enabled && !!model,
   });
 }
 
-export function useDriveContents(prefix: string) {
-  return useQuery({
-    queryKey: queryKeys.drive.contents(prefix),
-    queryFn: () => apiGet<Storage.FolderContentsResult>(`/api/acaraje/drive/contents?prefix=${encodeURIComponent(prefix)}`),
+/** Paginated + searchable variant for the relation picker, which lets the user type a term
+ *  (confirmed via a search button or Enter) and infinite-scroll through matching results. */
+export function useCrudOptionsInfinite(model: string, search: string, enabled = true) {
+  return ${useInfiniteQuery}({
+    queryKey: ${queryKeys}.crud.options(model, search),
+    queryFn: ({ pageParam }) => ${apiGet}<Crud.OptionsPage>(crudOptionsUrl(model, pageParam, search)),
+    initialPageParam: 1,
+    getNextPageParam: (lastPage, allPages) => (lastPage.hasMore ? allPages.length + 1 : undefined),
+    enabled: enabled && !!model,
   });
 }
 
-export function useDeleteDriveSelection(prefix: string) {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (payload: { folders: string[]; files: string[] }) =>
-      apiMutate("/api/acaraje/drive/delete", { method: "POST", body: payload }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.drive.contents(prefix) }),
+export function useCrudCreate(model: string) {
+  const queryClient = ${useQueryClient}();
+  return ${useMutation}({
+    mutationFn: (data: Record<string, unknown>) => ${apiMutate}<Crud.RecordRow>(\`/api/acaraje/crud/\${model}\`, { method: "POST", body: data }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ${queryKeys}.crud.all(model) });
+    },
   });
 }
+
+export function useCrudUpdate(model: string, id: string) {
+  const queryClient = ${useQueryClient}();
+  return ${useMutation}({
+    mutationFn: (data: Record<string, unknown>) =>
+      ${apiMutate}<Crud.RecordRow>(\`/api/acaraje/crud/\${model}/\${id}\`, { method: "PUT", body: data }),
+    onSuccess: (updated) => {
+      queryClient.invalidateQueries({ queryKey: ${queryKeys}.crud.all(model) });
+      queryClient.setQueryData(${queryKeys}.crud.detail(model, id), updated);
+    },
+  });
+}
+
+export function useCrudDelete(model: string) {
+  const queryClient = ${useQueryClient}();
+  return ${useMutation}({
+    mutationFn: async (ids: string[]) => {
+      if (ids.length === 1 && ids[0] === ${CRUD_DELETE_ALL_SENTINEL}) {
+        return ${apiMutate}(\`/api/acaraje/crud/\${model}\`, { method: "DELETE", body: { all: true } });
+      }
+      if (ids.length === 1) {
+        return ${apiMutate}(\`/api/acaraje/crud/\${model}/\${ids[0]}\`, { method: "DELETE" });
+      }
+      return ${apiMutate}(\`/api/acaraje/crud/\${model}\`, { method: "DELETE", body: { ids } });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ${queryKeys}.crud.all(model) });
+    },
+  });
+}
+`.toString({ prefix: '"use client";' });
+
+export default writeUseCrudHook;
