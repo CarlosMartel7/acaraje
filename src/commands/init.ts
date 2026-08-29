@@ -1,5 +1,6 @@
 import * as p from "@clack/prompts";
 import z from "zod";
+import { execSync } from "child_process";
 import { prismaParser } from "../steps/prisma-parser";
 import { sqlParser, SqlDatabaseType } from "../steps/sql-parser";
 import { createFolderStructure } from "../steps/generate-folders";
@@ -10,6 +11,8 @@ import { generateRestOfApi } from "../steps/generate-rest-of-api";
 import { generateAuth } from "../steps/generate-auth";
 import { generateComponents } from "../steps/generate-components";
 import { generateFrontEnd } from "../steps/generate-front-end";
+import { generateConfigFiles } from "../steps/generate-config-files";
+import { DbProvider } from "../../templates/config/docker-compose.yml";
 
 // The "prov" prompt only offers lowercase option values, but sqlParser's SqlDatabaseType
 // literals are capitalized — map one onto the other instead of duplicating the prompt options.
@@ -25,6 +28,32 @@ const isBlank = (value: any) => value === undefined || value.trim() === "";
 
 const orDefault = (value: string, fallback: string): string =>
   isBlank(value) ? fallback : value.trim();
+
+// pure-sql already resolves "prov" straight from the prompt (its options match DbProvider
+// exactly). In prisma mode there's no such prompt — the provider comes from whatever the user's
+// own schema.prisma datasource block declares, which is an untyped string, so it's validated here
+// rather than trusted blindly (a provider Prisma supports but this CLI doesn't, e.g. mongodb,
+// would otherwise silently produce a broken docker-compose.yml).
+function resolveDbProvider(
+  orm: "prisma" | "pure-sql",
+  prov: "postgresql" | "mysql" | "sqlite" | undefined,
+  schema: PrismaSchema.ParsedSchema,
+): DbProvider {
+  if (orm !== "prisma") return prov!;
+  const provider = schema.datasource?.provider;
+  if (provider === "postgresql" || provider === "mysql" || provider === "sqlite") return provider;
+  throw new Error(
+    `Unsupported datasource provider "${provider}" in schema.prisma — expected postgresql, mysql, or sqlite`,
+  );
+}
+
+function installNodeModules(baseDir: string = process.cwd()): void {
+  execSync("npm install", { cwd: baseDir, stdio: "inherit" });
+}
+
+function generatePrismaClient(baseDir: string = process.cwd()): void {
+  execSync("npx prisma generate", { cwd: baseDir, stdio: "inherit" });
+}
 
 // @clack/prompts' group() infers each field's type from its own callback, but a callback that
 // reads a sibling's `results.*` (prov reads results.orm, schemaPath reads results.prov) breaks
@@ -188,10 +217,10 @@ const C = async () => {
   generateAuth()
   generateComponents()
   generateFrontEnd(name)
+  generateConfigFiles(resolveDbProvider(orm, prov, schema), storage, docker)
 
-  // writeConfigFiles(docker)
-  // installNodeModules()
-  // generatePrismaClient()
+  installNodeModules()
+  if (orm === "prisma") generatePrismaClient()
 
   p.outro(
     "Acaraje Admin is ready to be used. Read the documentation to see next steps: link"
