@@ -1,13 +1,15 @@
-// @ts-nocheck
-import * as React from "react";
-import { cn } from "@/lib/utils";
+import { code, imp } from "ts-poet";
 
-const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<"input">>(
+const React = imp("React*react")
+const cn = imp("cn@@/lib/utils")
+
+export const writeInputComponent = () => code`
+const Input = ${React}.forwardRef<HTMLInputElement, ${React}.ComponentProps<"input">>(
   ({ className, type, ...props }, ref) => {
     return (
       <input
         type={type}
-        className={cn(
+        className={${cn}(
           "flex h-9 w-full rounded-md border border-border/50 bg-secondary/30 px-3 py-2 text-sm text-foreground shadow-sm transition-colors",
           "placeholder:text-muted-foreground/50",
           "focus:outline-none focus:border-primary-foreground/50 focus:bg-secondary/50 focus:ring-1 focus:ring-primary-foreground/20",
@@ -24,3 +26,6 @@ const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<"input">>(
 Input.displayName = "Input";
 
 export { Input };
+`.toString({ prefix: "// @ts-nocheck" });
+
+export default writeInputComponent;

@@ -1,13 +1,13 @@
-// @ts-nocheck
-"use client";
+import { code, imp } from "ts-poet";
 
-import { Toaster as Sonner } from "sonner";
+const Sonner = imp("Toaster:Sonner@sonner")
 
-type ToasterProps = React.ComponentProps<typeof Sonner>;
+export const writeSonnerComponent = () => code`
+type ToasterProps = React.ComponentProps<typeof ${Sonner}>;
 
 const Toaster = ({ ...props }: ToasterProps) => {
   return (
-    <Sonner
+    <${Sonner}
       theme="dark"
       className="toaster group"
       toastOptions={{
@@ -21,3 +21,6 @@ const Toaster = ({ ...props }: ToasterProps) => {
 };
 
 export { Toaster };
+`.toString({ prefix: '// @ts-nocheck\n"use client";' });
+
+export default writeSonnerComponent;
