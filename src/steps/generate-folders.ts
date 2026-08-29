@@ -17,7 +17,7 @@ function readFolderStructure(): FolderNode[] {
   return JSON.parse(fs.readFileSync(filePath, "utf-8"));
 }
 
-function sanitizeProjectName(name: string): string {
+export function sanitizeProjectName(name: string): string {
   const sanitized = name
     .trim()
     .toLowerCase()

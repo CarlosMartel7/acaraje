@@ -1,3 +1,6 @@
+import { code } from "ts-poet";
+
+export const writeGlobalsCss = () => code`
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -148,3 +151,6 @@
     background: transparent;
   }
 }
+`;
+
+export default writeGlobalsCss;
