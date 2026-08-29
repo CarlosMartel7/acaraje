@@ -6,6 +6,10 @@ import { createFolderStructure } from "../steps/generate-folders";
 import { generateCRUD } from "../steps/generate-crud";
 import { generateStorage } from "../steps/generate-storage";
 import { generateSeeder } from "../steps/generate-seeder";
+import { generateRestOfApi } from "../steps/generate-rest-of-api";
+import { generateAuth } from "../steps/generate-auth";
+import { generateComponents } from "../steps/generate-components";
+import { generateFrontEnd } from "../steps/generate-front-end";
 
 // The "prov" prompt only offers lowercase option values, but sqlParser's SqlDatabaseType
 // literals are capitalized — map one onto the other instead of duplicating the prompt options.
@@ -180,12 +184,11 @@ const C = async () => {
   generateCRUD(schema, orm)
   generateStorage(storage)
   generateSeeder(schema)
+  generateRestOfApi()
+  generateAuth()
+  generateComponents()
+  generateFrontEnd(name)
 
-  // generateRestOfApi(schema)
-  // generateFECoonents(schema, storage)
-  // generatePages(schema, storage)
-  // ])
-  //
   // writeConfigFiles(docker)
   // installNodeModules()
   // generatePrismaClient()
