@@ -11,14 +11,14 @@ export const writeUseSeedHook = () => code`
 export function useSeedCounts() {
   return ${useQuery}({
     queryKey: ${queryKeys}.seed.counts,
-    queryFn: () => ${apiGet}<{ counts: Record<string, number> }>("/api/acaraje/seed"),
+    queryFn: () => ${apiGet}<{ counts: Record<string, number> }>("/api/seed"),
   });
 }
 
 export function useSeederConfig() {
   return ${useQuery}({
     queryKey: ${queryKeys}.seed.config,
-    queryFn: () => ${apiGet}<Seeder.ConfigFile>("/api/acaraje/seed/config"),
+    queryFn: () => ${apiGet}<Seeder.ConfigFile>("/api/seed/config"),
   });
 }
 
@@ -31,7 +31,7 @@ export function useSeedModel() {
   const queryClient = ${useQueryClient}();
   return ${useMutation}({
     mutationFn: (payload: { modelName: string; count: number }) =>
-      ${apiMutate}<SeedResult>("/api/acaraje/seed", { method: "POST", body: payload }),
+      ${apiMutate}<SeedResult>("/api/seed", { method: "POST", body: payload }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ${queryKeys}.seed.counts }),
   });
 }

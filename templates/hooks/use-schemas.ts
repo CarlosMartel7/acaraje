@@ -8,7 +8,7 @@ export const writeUseSchemasHook = () => code`
 export function useSchemas() {
   return ${useQuery}({
     queryKey: ${queryKeys}.schemas,
-    queryFn: () => ${apiGet}<Schema.SchemaData>("/api/acaraje/schemas"),
+    queryFn: () => ${apiGet}<Schema.SchemaData>("/api/schemas"),
   });
 }
 `.toString({ prefix: '"use client";' });

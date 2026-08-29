@@ -1,13 +1,15 @@
-{
-  "name": "acaraje-admin",
-  "version": "0.1.0",
-  "private": true,
-  "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "next lint",
-    "test": "vitest run",
+import { code } from "ts-poet";
+
+const packageJson = {
+  name: "acaraje-admin",
+  version: "0.1.0",
+  private: true,
+  scripts: {
+    dev: "next dev",
+    build: "next build",
+    start: "next start",
+    lint: "next lint",
+    test: "vitest run",
     "test:watch": "vitest",
     "predb:generate": "tsx scripts/select-schema.ts",
     "db:generate": "prisma generate",
@@ -17,11 +19,11 @@
     "predb:studio": "tsx scripts/select-schema.ts",
     "db:studio": "prisma studio",
     "db:use:postgresql": "tsx scripts/select-schema.ts postgresql",
+    "db:use:mysql": "tsx scripts/select-schema.ts mysql",
     "db:use:sqlite": "tsx scripts/select-schema.ts sqlite",
-    "db:use:mongodb": "tsx scripts/select-schema.ts mongodb",
-    "storage:setup": "tsx scripts/setup-storage-bucket.ts"
+    "storage:setup": "tsx scripts/setup-storage-bucket.ts",
   },
-  "dependencies": {
+  dependencies: {
     "@faker-js/faker": "^10.3.0",
     "@google-cloud/storage": "^7.21.0",
     "@lucide/lab": "^0.1.2",
@@ -45,30 +47,34 @@
     "@tanstack/react-query": "^5.101.4",
     "@tanstack/react-table": "^9.1.2",
     "@xyflow/react": "^12.10.1",
-    "autoprefixer": "^10.4.27",
+    autoprefixer: "^10.4.27",
     "class-variance-authority": "^0.7.1",
-    "clsx": "^2.1.1",
-    "dagre": "^0.8.5",
+    clsx: "^2.1.1",
+    dagre: "^0.8.5",
     "lucide-react": "^0.577.0",
-    "minio": "^8.0.7",
-    "next": "15.0.4",
-    "react": "^19.0.0",
+    minio: "^8.0.7",
+    next: "15.0.4",
+    react: "^19.0.0",
     "react-dom": "^19.0.0",
-    "sonner": "^2.0.7",
+    sonner: "^2.0.7",
     "tailwind-merge": "^2.5.5",
     "tailwindcss-animate": "^1.0.7",
-    "zod": "^4.4.3"
+    zod: "^4.4.3",
   },
-  "devDependencies": {
+  devDependencies: {
     "@types/dagre": "^0.7.54",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "postcss": "^8",
-    "prisma": "^5.22.0",
-    "tailwindcss": "^3.4.1",
-    "tsx": "^4.19.2",
-    "typescript": "^5",
-    "vitest": "^4.1.10"
-  }
-}
+    postcss: "^8",
+    prisma: "^5.22.0",
+    tailwindcss: "^3.4.1",
+    tsx: "^4.19.2",
+    typescript: "^5",
+    vitest: "^4.1.10",
+  },
+};
+
+export const writePackageJson = () => code`${JSON.stringify(packageJson, null, 2)}\n`;
+
+export default writePackageJson;

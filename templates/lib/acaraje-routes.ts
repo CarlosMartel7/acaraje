@@ -3,7 +3,7 @@ import { code } from "ts-poet";
 export const writeAcarajeRoutes = () => code`
 /**
  * Base URL segment for all Acaraje UI pages. Must match \`app/acaraje/...\` in the App Router.
- * API routes stay at \`/api/acaraje/...\`.
+ * API routes stay at \`/api/...\` — they aren't nested under \`/acaraje\`.
  */
 export const ACARAJE_BASE = "/acaraje" as const;
 

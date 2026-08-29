@@ -1,7 +1,7 @@
 import { code } from "ts-poet";
 
 export const writeQueryApi = () => code`
-/** Shared fetch helpers for TanStack Query — every /api/acaraje/* route replies { error } with a
+/** Shared fetch helpers for TanStack Query — every /api/* route replies { error } with a
  *  non-2xx status on failure, so a single ok-check covers all of them. */
 export async function apiGet<T>(url: string): Promise<T> {
   const res = await fetch(url, { credentials: "include" });

@@ -8,7 +8,7 @@ export const writeUseRelationsHook = () => code`
 export function useRelations() {
   return ${useQuery}({
     queryKey: ${queryKeys}.relations,
-    queryFn: () => ${apiGet}<{ relations: Relations.Relation[] }>("/api/acaraje/relations"),
+    queryFn: () => ${apiGet}<{ relations: Relations.Relation[] }>("/api/relations"),
   });
 }
 `.toString({ prefix: '"use client";' });

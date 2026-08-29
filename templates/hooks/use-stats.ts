@@ -8,7 +8,7 @@ export const writeUseStatsHook = () => code`
 export function useStats() {
   return ${useQuery}({
     queryKey: ${queryKeys}.stats,
-    queryFn: () => ${apiGet}<Dashboard.DashboardStats>("/api/acaraje/stats"),
+    queryFn: () => ${apiGet}<Dashboard.DashboardStats>("/api/stats"),
   });
 }
 `.toString({ prefix: '"use client";' });

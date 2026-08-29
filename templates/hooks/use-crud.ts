@@ -31,7 +31,7 @@ function crudListUrl(model: string, params: CrudListParams): string {
     qs.set("sortField", params.sortField);
     qs.set("sortOrder", params.sortOrder ?? "desc");
   }
-  return \`/api/acaraje/crud/\${model}?\${qs}\`;
+  return \`/api/crud/\${model}?\${qs}\`;
 }
 
 export function useCrudList(model: string, params: CrudListParams) {
@@ -46,7 +46,7 @@ export function useCrudList(model: string, params: CrudListParams) {
 export function useCrudRecord(model: string, id: string) {
   return ${useQuery}({
     queryKey: ${queryKeys}.crud.detail(model, id),
-    queryFn: () => ${apiGet}<Crud.RecordRow>(\`/api/acaraje/crud/\${model}/\${id}\`),
+    queryFn: () => ${apiGet}<Crud.RecordRow>(\`/api/crud/\${model}/\${id}\`),
     enabled: !!model && !!id,
   });
 }
@@ -54,7 +54,7 @@ export function useCrudRecord(model: string, id: string) {
 function crudOptionsUrl(model: string, page: number, search: string): string {
   const qs = new URLSearchParams({ page: String(page) });
   if (search) qs.set("search", search);
-  return \`/api/acaraje/crud/\${model}/options?\${qs}\`;
+  return \`/api/crud/\${model}/options?\${qs}\`;
 }
 
 export function useCrudOptions(model: string, enabled = true) {
@@ -80,7 +80,7 @@ export function useCrudOptionsInfinite(model: string, search: string, enabled = 
 export function useCrudCreate(model: string) {
   const queryClient = ${useQueryClient}();
   return ${useMutation}({
-    mutationFn: (data: Record<string, unknown>) => ${apiMutate}<Crud.RecordRow>(\`/api/acaraje/crud/\${model}\`, { method: "POST", body: data }),
+    mutationFn: (data: Record<string, unknown>) => ${apiMutate}<Crud.RecordRow>(\`/api/crud/\${model}\`, { method: "POST", body: data }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ${queryKeys}.crud.all(model) });
     },
@@ -91,7 +91,7 @@ export function useCrudUpdate(model: string, id: string) {
   const queryClient = ${useQueryClient}();
   return ${useMutation}({
     mutationFn: (data: Record<string, unknown>) =>
-      ${apiMutate}<Crud.RecordRow>(\`/api/acaraje/crud/\${model}/\${id}\`, { method: "PUT", body: data }),
+      ${apiMutate}<Crud.RecordRow>(\`/api/crud/\${model}/\${id}\`, { method: "PUT", body: data }),
     onSuccess: (updated) => {
       queryClient.invalidateQueries({ queryKey: ${queryKeys}.crud.all(model) });
       queryClient.setQueryData(${queryKeys}.crud.detail(model, id), updated);
@@ -104,12 +104,12 @@ export function useCrudDelete(model: string) {
   return ${useMutation}({
     mutationFn: async (ids: string[]) => {
       if (ids.length === 1 && ids[0] === ${CRUD_DELETE_ALL_SENTINEL}) {
-        return ${apiMutate}(\`/api/acaraje/crud/\${model}\`, { method: "DELETE", body: { all: true } });
+        return ${apiMutate}(\`/api/crud/\${model}\`, { method: "DELETE", body: { all: true } });
       }
       if (ids.length === 1) {
-        return ${apiMutate}(\`/api/acaraje/crud/\${model}/\${ids[0]}\`, { method: "DELETE" });
+        return ${apiMutate}(\`/api/crud/\${model}/\${ids[0]}\`, { method: "DELETE" });
       }
-      return ${apiMutate}(\`/api/acaraje/crud/\${model}\`, { method: "DELETE", body: { ids } });
+      return ${apiMutate}(\`/api/crud/\${model}\`, { method: "DELETE", body: { ids } });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ${queryKeys}.crud.all(model) });

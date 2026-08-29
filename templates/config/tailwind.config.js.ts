@@ -1,3 +1,6 @@
+import { code } from "ts-poet";
+
+export const writeTailwindConfig = () => code`
 /** @type {import('tailwindcss').Config} */
 module.exports = {
   darkMode: ["class"],
@@ -75,3 +78,6 @@ module.exports = {
   },
   plugins: [require("tailwindcss-animate")],
 }
+`;
+
+export default writeTailwindConfig;
