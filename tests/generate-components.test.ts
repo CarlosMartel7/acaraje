@@ -6,6 +6,9 @@ import { generateComponents } from "../src/steps/generate-components";
 import { writeLog } from "./logger";
 
 const COMPONENT_PATHS = [
+  "connection-badge.tsx",
+  "sidebar.tsx",
+
   "providers/query-provider.tsx",
   "routes/dashboard/[[api-calls]].tsx",
   "routes/dashboard/index.tsx",
@@ -50,6 +53,10 @@ function componentPath(outDir: string, relative: string) {
   return path.join(outDir, "components", relative);
 }
 
+function libPath(outDir: string, relative: string) {
+  return path.join(outDir, "lib", relative);
+}
+
 const outDir = fs.mkdtempSync(path.join(os.tmpdir(), "acaraje-generate-components-"));
 generateComponents(outDir);
 
@@ -57,7 +64,10 @@ const files = Object.fromEntries(
   COMPONENT_PATHS.map((relative) => [relative, fs.readFileSync(componentPath(outDir, relative), "utf-8")]),
 ) as Record<string, string>;
 
-writeLog("generate-components", { outDir, files }, { output: outDir });
+const libUtils = fs.readFileSync(libPath(outDir, "utils.ts"), "utf-8");
+const libAcarajeRoutes = fs.readFileSync(libPath(outDir, "acaraje-routes.ts"), "utf-8");
+
+writeLog("generate-components", { outDir, files, libUtils, libAcarajeRoutes }, { output: outDir });
 
 afterAll(() => {
   fs.rmSync(outDir, { recursive: true, force: true });
@@ -69,9 +79,18 @@ test("writes every component file under components/, mirroring templates/compone
   }
 });
 
-test("connection-badge.tsx and sidebar.tsx are not generated (still-empty source templates)", () => {
-  expect(fs.existsSync(componentPath(outDir, "connection-badge.tsx"))).toBe(false);
-  expect(fs.existsSync(componentPath(outDir, "sidebar.tsx"))).toBe(false);
+test("connection-badge.tsx and sidebar.tsx render real content", () => {
+  expect(files["connection-badge.tsx"]).toContain("export function ConnectionBadge()");
+  expect(files["connection-badge.tsx"]).toMatch(/^"use client";/);
+  expect(files["sidebar.tsx"]).toContain("export function Sidebar(");
+  expect(files["sidebar.tsx"]).toMatch(/from "@\/lib\/acaraje-routes"/);
+});
+
+test("writes lib/utils.ts and lib/acaraje-routes.ts, which most components import", () => {
+  expect(libUtils).toContain("export function cn(");
+  expect(libUtils).toContain("export function getFieldTypeColor(");
+  expect(libAcarajeRoutes).toContain('export const ACARAJE_BASE = "/acaraje" as const;');
+  expect(libAcarajeRoutes).toContain("export function acarajePath(");
 });
 
 test("writes real rendered content, not a write function's own JS source", () => {

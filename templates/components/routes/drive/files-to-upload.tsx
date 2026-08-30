@@ -127,7 +127,7 @@ export function FilesToUpload({ files, setFiles, selectedFolder }: FilesToUpload
         formData.append("folderId", selectedFolder.folderId);
         formData.append("displayName", item.displayName);
 
-        const res = await fetch("/api/acaraje/drive/upload", {
+        const res = await fetch("/api/drive/upload", {
           method: "POST",
           body: formData,
         });

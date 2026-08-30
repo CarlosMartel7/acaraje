@@ -379,7 +379,7 @@ export function SeederConfigPanel({
     setSaving(true);
     setError(null);
     try {
-      const res = await fetch("/api/acaraje/seed/config", {
+      const res = await fetch("/api/seed/config", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(draft),

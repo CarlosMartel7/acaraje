@@ -13,7 +13,9 @@ jest.mock("child_process", () => ({ execSync: jest.fn() }));
  * init is meant to be run inside a project that already has a /prisma (or /database, for
  * pure-sql) directory holding the user's real schema — not a bare temp dir. Seed the scratch
  * outDir with that same layout before each run, so the folder actually shows up in the generated
- * output alongside everything init.ts produces.
+ * output alongside everything init.ts produces. Returns the real on-disk file path (for setup/
+ * assertions), separate from the "/prisma"-style folder value the mocked prompt answer uses —
+ * init.ts is responsible for joining that folder with cwd and the schema filename itself.
  */
 function seedPrismaSchema(outDir: string, fixture: string): string {
   const dir = path.join(outDir, "prisma");
@@ -70,14 +72,18 @@ describe("prisma + docker", () => {
   let execSync: jest.Mock;
 
   beforeAll(async () => {
-    const schemaPath = seedPrismaSchema(outDir, PRISMA_SCHEMA_FIXTURE);
+    seedPrismaSchema(outDir, PRISMA_SCHEMA_FIXTURE);
 
+    // "/prisma" is the real prompt's default answer — a project-relative folder, not a file
+    // path. init.ts must join it with cwd + "schema.prisma" itself (this is a regression test
+    // for exactly that: it used to pass schemaPath straight to prismaParser unjoined, which
+    // crashed on every real run with ENOENT: no such file or directory, open '/prisma').
     execSync = await runInit(
       {
         name: "Acaraje",
         orm: "prisma",
         prov: undefined,
-        schemaPath,
+        schemaPath: "/prisma",
         storage: "minio",
         docker: true,
         username: "admin",
@@ -135,14 +141,16 @@ describe("pure-sql + no docker", () => {
   let execSync: jest.Mock;
 
   beforeAll(async () => {
-    const schemaPath = seedSqlSchema(outDir, SQLITE_SCHEMA_FIXTURE);
+    seedSqlSchema(outDir, SQLITE_SCHEMA_FIXTURE);
 
+    // "/database" is the real prompt's default answer for pure-sql mode — see the equivalent
+    // comment in the prisma scenario above for why this must stay unjoined here.
     execSync = await runInit(
       {
         name: "My Cool Panel!",
         orm: "pure-sql",
         prov: "sqlite",
-        schemaPath,
+        schemaPath: "/database",
         storage: "gcs",
         docker: false,
         username: "admin",
@@ -182,10 +190,10 @@ describe("pure-sql + no docker", () => {
 
 test("resolveDbProvider rejects a schema.prisma datasource provider this CLI doesn't support", async () => {
   const outDir = fs.mkdtempSync(path.join(os.tmpdir(), "acaraje-init-badprovider-"));
-  const schemaPath = seedPrismaSchema(outDir, PRISMA_SCHEMA_FIXTURE);
+  const schemaFilePath = seedPrismaSchema(outDir, PRISMA_SCHEMA_FIXTURE);
   fs.writeFileSync(
-    schemaPath,
-    fs.readFileSync(schemaPath, "utf-8").replace('provider = "postgresql"', 'provider = "mongodb"'),
+    schemaFilePath,
+    fs.readFileSync(schemaFilePath, "utf-8").replace('provider = "postgresql"', 'provider = "mongodb"'),
   );
 
   try {
@@ -195,7 +203,7 @@ test("resolveDbProvider rejects a schema.prisma datasource provider this CLI doe
           name: "Acaraje",
           orm: "prisma",
           prov: undefined,
-          schemaPath,
+          schemaPath: "/prisma",
           storage: "minio",
           docker: true,
           username: "admin",

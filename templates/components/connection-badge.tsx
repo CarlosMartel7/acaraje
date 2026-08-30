@@ -8,7 +8,7 @@ export function ConnectionBadge() {
   const [provider, setProvider] = ${useState}("postgresql");
 
   ${useEffect}(() => {
-    fetch("/api/acaraje/schemas")
+    fetch("/api/schemas")
       .then((r) => r.json())
       .then((d) => {
         if (d.datasource?.provider) setProvider(d.datasource.provider);

@@ -1,7 +1,9 @@
 import fs from 'fs'
 import path from 'path'
+import crypto from 'crypto'
 
 import writeDockerCompose, { DbProvider, StorageProvider } from '../../templates/config/docker-compose.yml'
+import writeEnvFile from '../../templates/config/.env'
 import writeEnvExample from '../../templates/config/.env.example'
 import writePackageJson from '../../templates/config/package.json'
 import writeTsconfigJson from '../../templates/config/tsconfig.json'
@@ -33,6 +35,8 @@ export function generateConfigFiles(
   dbProvider: DbProvider,
   storage: StorageProvider,
   docker: boolean,
+  username: string,
+  password: string,
   baseDir: string = process.cwd(),
 ): void {
   fs.mkdirSync(baseDir, { recursive: true })
@@ -40,6 +44,12 @@ export function generateConfigFiles(
   for (const [fileName, write] of Object.entries(STATIC_CONFIG_FILES)) {
     fs.writeFileSync(path.join(baseDir, fileName), write().toString())
   }
+
+  const authSecret = crypto.randomBytes(32).toString("base64")
+  fs.writeFileSync(
+    path.join(baseDir, ".env"),
+    writeEnvFile(dbProvider, storage, username, password, authSecret).toString(),
+  )
 
   // Only write a docker-compose.yml when the user said they'd actually use Docker locally.
   if (docker) {

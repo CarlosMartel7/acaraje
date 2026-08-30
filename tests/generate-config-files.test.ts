@@ -30,16 +30,17 @@ function readAll(outDir: string) {
 }
 
 const dockerOutDir = fs.mkdtempSync(path.join(os.tmpdir(), "acaraje-generate-config-files-docker-"));
-generateConfigFiles("postgresql", "minio", true, dockerOutDir);
+generateConfigFiles("postgresql", "minio", true, "customadmin", "s3cr3t", dockerOutDir);
 const dockerFiles = readAll(dockerOutDir);
 const dockerCompose = fs.readFileSync(filePath(dockerOutDir, "docker-compose.yml"), "utf-8");
+const dockerEnv = fs.readFileSync(filePath(dockerOutDir, ".env"), "utf-8");
 
 const noDockerOutDir = fs.mkdtempSync(path.join(os.tmpdir(), "acaraje-generate-config-files-nodocker-"));
-generateConfigFiles("sqlite", "gcs", false, noDockerOutDir);
+generateConfigFiles("sqlite", "gcs", false, "admin", "password", noDockerOutDir);
 
 writeLog(
   "generate-config-files",
-  { dockerOutDir, dockerFiles, dockerCompose, noDockerOutDir },
+  { dockerOutDir, dockerFiles, dockerCompose, dockerEnv, noDockerOutDir },
   { docker: dockerOutDir, "no-docker": noDockerOutDir },
 );
 
@@ -55,6 +56,39 @@ test("writes every static config file regardless of the docker flag", () => {
   }
 });
 
+test("writes a real .env with the chosen credentials and a generated auth secret", () => {
+  const env = fs.readFileSync(filePath(dockerOutDir, ".env"), "utf-8");
+  expect(env).toContain("ACARAJE_ADMIN_USERNAME=customadmin");
+  expect(env).toContain("ACARAJE_ADMIN_PASSWORD=s3cr3t");
+  expect(env).toMatch(/ACARAJE_AUTH_SECRET=\S+/);
+  expect(env).toContain("DATABASE_PROVIDER=postgresql");
+  expect(env).toContain('DATABASE_URL="postgresql://postgres:password@localhost:5433/acaraje_dev?schema=public"');
+  expect(env).toContain("MINIO_ACCESS_KEY=minioadmin");
+  expect(env).not.toContain("GCS_");
+
+  const sqliteEnv = fs.readFileSync(filePath(noDockerOutDir, ".env"), "utf-8");
+  expect(sqliteEnv).toContain("ACARAJE_ADMIN_USERNAME=admin");
+  expect(sqliteEnv).toContain("ACARAJE_ADMIN_PASSWORD=password");
+  expect(sqliteEnv).toContain("DATABASE_PROVIDER=sqlite");
+  expect(sqliteEnv).toContain('DATABASE_URL="file:./dev.db"');
+  expect(sqliteEnv).toContain("GCS_PROJECT_ID=acaraje-dev");
+  expect(sqliteEnv).not.toContain("MINIO_");
+});
+
+test("each generation gets its own auth secret — never reused across runs", () => {
+  const envA = fs.readFileSync(filePath(dockerOutDir, ".env"), "utf-8");
+  const outDirB = fs.mkdtempSync(path.join(os.tmpdir(), "acaraje-generate-config-files-secret-"));
+  try {
+    generateConfigFiles("postgresql", "minio", true, "customadmin", "s3cr3t", outDirB);
+    const envB = fs.readFileSync(filePath(outDirB, ".env"), "utf-8");
+    const secretOf = (env: string) => env.match(/ACARAJE_AUTH_SECRET=(\S+)/)?.[1];
+    expect(secretOf(envA)).toBeTruthy();
+    expect(secretOf(envA)).not.toBe(secretOf(envB));
+  } finally {
+    fs.rmSync(outDirB, { recursive: true, force: true });
+  }
+});
+
 test("only writes docker-compose.yml when docker is true", () => {
   expect(fs.existsSync(filePath(dockerOutDir, "docker-compose.yml"))).toBe(true);
   expect(fs.existsSync(filePath(noDockerOutDir, "docker-compose.yml"))).toBe(false);
@@ -64,7 +98,7 @@ test("writes real rendered content, not a write function's own JS source", () =>
   // Same regression class as generate-components.ts/generate-front-end.ts once had: storing the
   // write *functions* and calling .toString() on them directly instead of invoking them first
   // silently writes out each function's own bundled source instead of its rendered output.
-  for (const content of [...Object.values(dockerFiles), dockerCompose]) {
+  for (const content of [...Object.values(dockerFiles), dockerCompose, dockerEnv]) {
     expect(content).not.toContain("import_ts_poet");
     expect(content).not.toMatch(/^\(\)\s*=>/);
   }
@@ -103,7 +137,7 @@ test("instrumentation.ts calls ensureBucketReady, matching the lib/storage barre
 });
 
 test("never leaks an unresolved ts-poet import placeholder into the output", () => {
-  for (const content of [...Object.values(dockerFiles), dockerCompose]) {
+  for (const content of [...Object.values(dockerFiles), dockerCompose, dockerEnv]) {
     expect(content).not.toContain("[object Object]");
   }
 });
@@ -128,7 +162,7 @@ describe("docker-compose.yml is built from parts based on the chosen database an
     test(`db=${dbProvider} storage=${storage}`, () => {
       const outDir = fs.mkdtempSync(path.join(os.tmpdir(), `acaraje-docker-compose-${dbProvider}-${storage}-`));
       try {
-        generateConfigFiles(dbProvider, storage, true, outDir);
+        generateConfigFiles(dbProvider, storage, true, "admin", "password", outDir);
         const compose = fs.readFileSync(filePath(outDir, "docker-compose.yml"), "utf-8");
 
         // Only the chosen database gets a service — sqlite is file-based and gets none.
@@ -155,7 +189,7 @@ describe("docker-compose.yml is built from parts based on the chosen database an
 
 test("is idempotent — running twice doesn't throw and produces the same output", () => {
   const before = dockerFiles["middleware.ts"];
-  expect(() => generateConfigFiles("postgresql", "minio", true, dockerOutDir)).not.toThrow();
+  expect(() => generateConfigFiles("postgresql", "minio", true, "customadmin", "s3cr3t", dockerOutDir)).not.toThrow();
   const after = fs.readFileSync(filePath(dockerOutDir, "middleware.ts"), "utf-8");
   expect(after).toBe(before);
 });

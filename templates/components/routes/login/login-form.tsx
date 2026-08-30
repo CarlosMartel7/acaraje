@@ -27,7 +27,7 @@ export function LoginForm() {
     onSubmit: async ({ value }) => {
       setError(null);
       try {
-        const res = await fetch("/api/acaraje/auth/login", {
+        const res = await fetch("/api/auth/login", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(value),

@@ -12,10 +12,6 @@ export const queryKeys = {
     options: (model: string, search: string = "") => ["crud", model, "options", search] as const,
     all: (model: string) => ["crud", model] as const,
   },
-  boards: {
-    pages: ["boards", "pages"] as const,
-    widgetData: (metric: unknown) => ["boards", "widget-data", metric] as const,
-  },
   drive: {
     folders: ["drive", "folders"] as const,
     contents: (prefix: string) => ["drive", "contents", prefix] as const,

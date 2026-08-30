@@ -4,9 +4,7 @@ const FolderOpen = imp("FolderOpen@lucide-react")
 const Trash2 = imp("Trash2@lucide-react")
 const Button = imp("Button@@/components/ui/button")
 const FolderContentsTable = imp("FolderContentsTable@./folder-contents-table")
-// NOTE: preserved verbatim from the original source, which has a typo missing a closing "]" —
-// "./[[api-calls]" instead of "./[[api-calls]]" — this will fail to resolve as-is.
-const AcarajeCalls_drive_view = imp("AcarajeCalls_drive_view=./[[api-calls]")
+const AcarajeCalls_drive_view = imp("AcarajeCalls_drive_view=./[[api-calls]]")
 const DriveFolderBreadcrumbs = imp("DriveFolderBreadcrumbs@./folder-breadcrumbs")
 const parseFolderBreadcrumb = imp("parseFolderBreadcrumb@./folder-breadcrumbs")
 const DriveViewHeader = imp("DriveViewHeader@@/components/routes/skeletons")

@@ -1,7 +1,25 @@
 import fs from 'fs'
 import path from 'path'
 
+import writeUtils from '../../templates/lib/utils'
+import writeAcarajeRoutes from '../../templates/lib/acaraje-routes'
+
+import writeConnectionBadgeComponent from '../../templates/components/connection-badge'
+import writeSidebarComponent from '../../templates/components/sidebar'
+
 import writeQueryProviderComponent from '../../templates/components/providers/query-provider'
+
+import writeCrudOverviewApiCalls from '../../templates/components/routes/crud/[[api-calls]]'
+import writeCrudOverviewContent from '../../templates/components/routes/crud/index'
+import writeDynamicForm from '../../templates/components/routes/crud/dynamic-form'
+import writeCrudListApiCalls from '../../templates/components/routes/crud/[model]/[[api-calls]]'
+import writeCrudListContent from '../../templates/components/routes/crud/[model]/index'
+import writeDeleteModal from '../../templates/components/routes/crud/[model]/delete-modal'
+import writeFilterBar from '../../templates/components/routes/crud/[model]/filter-bar'
+import writeCrudNewApiCalls from '../../templates/components/routes/crud/[model]/new/[[api-calls]]'
+import writeCrudNewContent from '../../templates/components/routes/crud/[model]/new/index'
+import writeCrudEditApiCalls from '../../templates/components/routes/crud/[model]/edit/[[api-calls]]'
+import writeCrudEditContent from '../../templates/components/routes/crud/[model]/edit/index'
 
 import writeDashboardApiCalls from '../../templates/components/routes/dashboard/[[api-calls]]'
 import writeDashboardContent from '../../templates/components/routes/dashboard/index'
@@ -51,7 +69,22 @@ import writeTabsComponent from '../../templates/components/ui/tabs'
 // Relative output path (under components/) -> the write function producing that file's content.
 // Mirrors templates/components/ 1:1, dropping the "templates/" prefix.
 const COMPONENT_FILES: Record<string, () => { toString(): string }> = {
+  'connection-badge.tsx': writeConnectionBadgeComponent,
+  'sidebar.tsx': writeSidebarComponent,
+
   'providers/query-provider.tsx': writeQueryProviderComponent,
+
+  'routes/crud/[[api-calls]].tsx': writeCrudOverviewApiCalls,
+  'routes/crud/index.tsx': writeCrudOverviewContent,
+  'routes/crud/dynamic-form.tsx': writeDynamicForm,
+  'routes/crud/[model]/[[api-calls]].tsx': writeCrudListApiCalls,
+  'routes/crud/[model]/index.tsx': writeCrudListContent,
+  'routes/crud/[model]/delete-modal.tsx': writeDeleteModal,
+  'routes/crud/[model]/filter-bar.tsx': writeFilterBar,
+  'routes/crud/[model]/new/[[api-calls]].tsx': writeCrudNewApiCalls,
+  'routes/crud/[model]/new/index.tsx': writeCrudNewContent,
+  'routes/crud/[model]/edit/[[api-calls]].tsx': writeCrudEditApiCalls,
+  'routes/crud/[model]/edit/index.tsx': writeCrudEditContent,
 
   'routes/dashboard/[[api-calls]].tsx': writeDashboardApiCalls,
   'routes/dashboard/index.tsx': writeDashboardContent,
@@ -107,4 +140,13 @@ export function generateComponents(baseDir: string = process.cwd()): void {
     fs.mkdirSync(path.dirname(outPath), { recursive: true })
     fs.writeFileSync(outPath, write().toString())
   }
+
+  // Nearly every component above imports cn (and some import getFieldTypeColor/
+  // getRelationTypeColor) from "@/lib/utils", and sidebar.tsx/several route components import
+  // acarajePath from "@/lib/acaraje-routes" — write both alongside the components that need them
+  // rather than adding a whole separate step for two files.
+  const libDir = path.join(baseDir, "lib")
+  fs.mkdirSync(libDir, { recursive: true })
+  fs.writeFileSync(path.join(libDir, "utils.ts"), writeUtils().toString())
+  fs.writeFileSync(path.join(libDir, "acaraje-routes.ts"), writeAcarajeRoutes().toString())
 }

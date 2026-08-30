@@ -17,7 +17,7 @@ export async function POST(req: ${NextRequest}) {
     const { modelName, count = 5 } = await req.json();
     const seederConfig = ${readSeederConfig}();
 
-    const modelDef = ${parsedSchema}.models.find((m) => m.name.toLowerCase() === modelName.toLowerCase())?.;
+    const modelDef = ${parsedSchema}.models.find((m) => m.name.toLowerCase() === modelName.toLowerCase());
 
     if (!modelDef) {
       return ${NextResponse}.json({ error: \`Model "\${modelName}" not found\` }, { status: 404 });

@@ -1,5 +1,6 @@
 import fs from "fs";
 import path from "path";
+import folderStructure from "./folder-structure.json";
 
 interface FolderNode {
   name: string;
@@ -12,9 +13,11 @@ const PROJECT_NAME_TOKEN = "[PROJECT_NAME]";
 // that needs the same per-model expansion elsewhere in the tree.
 const MODEL_NAME_TOKENS = new Set(["[MODEL_NAME]", "[QUERY_MODEL]"]);
 
+// A static import (not a runtime fs.readFileSync(__dirname, ...)) so bundlers inline the JSON
+// directly into the output — __dirname doesn't exist in the ESM bundle tsup produces, and even
+// shimming it wouldn't help since tsup never copies loose JSON files into dist/.
 function readFolderStructure(): FolderNode[] {
-  const filePath = path.join(__dirname, "folder-structure.json");
-  return JSON.parse(fs.readFileSync(filePath, "utf-8"));
+  return folderStructure as FolderNode[];
 }
 
 export function sanitizeProjectName(name: string): string {

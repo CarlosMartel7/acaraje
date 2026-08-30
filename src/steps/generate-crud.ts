@@ -9,6 +9,8 @@ import * as S_id from '../../templates/api/crud/[model]/id/sql'
 import * as S_Opt from '../../templates/api/crud/[model]/options/sql'
 import writeLibCrudFilters from '../../templates/lib/crud/resolve-filters'
 import writeBuildFormSchema from '../../templates/lib/crud/build-form-schema'
+import writePrisma from '../../templates/lib/prisma'
+import writeEnumValues from '../../templates/lib/enum-values'
 
 export function generateCRUD(schema: PrismaSchema.ParsedSchema, orm: string, baseDir: string = process.cwd()): void {
   if (orm !== "prisma" && orm !== "pure-sql") {
@@ -21,6 +23,15 @@ export function generateCRUD(schema: PrismaSchema.ParsedSchema, orm: string, bas
   fs.mkdirSync(libDir, { recursive: true })
   fs.writeFileSync(path.join(libDir, "resolve-filters.ts"), writeLibCrudFilters().toString())
   fs.writeFileSync(path.join(libDir, "build-form-schema.ts"), writeBuildFormSchema().toString())
+  // Also needed by the seed route ("@/lib/enum-values") — written here since generate-crud
+  // always runs and always writes lib/ unconditionally, giving it one source of truth.
+  fs.writeFileSync(path.join(libDir, "enum-values.ts"), writeEnumValues().toString())
+
+  // The prisma.ts and sql.ts route flavors each expect a different client singleton
+  // ("@/lib/prisma" vs "@/lib/db") — only write the one that matches what was actually picked.
+  if (orm === "prisma") {
+    fs.writeFileSync(path.join(libDir, "prisma.ts"), writePrisma().toString())
+  }
 
   for (const currModel of schema.models) {
     const modelDir = path.join(baseDir, "app", "api", "crud", currModel.name);

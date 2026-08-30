@@ -1,5 +1,6 @@
 import * as p from "@clack/prompts";
 import z from "zod";
+import path from "path";
 import { execSync } from "child_process";
 import { prismaParser } from "../steps/prisma-parser";
 import { sqlParser, SqlDatabaseType } from "../steps/sql-parser";
@@ -11,6 +12,7 @@ import { generateRestOfApi } from "../steps/generate-rest-of-api";
 import { generateAuth } from "../steps/generate-auth";
 import { generateComponents } from "../steps/generate-components";
 import { generateFrontEnd } from "../steps/generate-front-end";
+import { generateQuery } from "../steps/generate-query";
 import { generateConfigFiles } from "../steps/generate-config-files";
 import { DbProvider } from "../../templates/config/docker-compose.yml";
 
@@ -203,11 +205,17 @@ const C = async () => {
   username = orDefault(username, "admin");
   password = orDefault(password, "password");
 
+  // schemaPath is a project-relative folder (e.g. "/prisma"), not a file path — join it with
+  // cwd and the expected filename before handing it to the parsers, which just read whatever
+  // path they're given.
+  const schemaFileName = prov ? "schema.sql" : "schema.prisma";
+  const resolvedSchemaPath = path.join(process.cwd(), schemaPath, schemaFileName);
+
   // The "prov" prompt only runs (and is only skipped) in lockstep with "orm" !== "prisma",
   // so it's always answered by the time we reach the pure-sql branch here.
   const schema = orm === "prisma"
-    ? prismaParser(schemaPath)
-    : sqlParser(schemaPath, SQL_DB_TYPES[prov!]);
+    ? prismaParser(resolvedSchemaPath)
+    : sqlParser(resolvedSchemaPath, SQL_DB_TYPES[prov!]);
   createFolderStructure(name, schema)
 
   generateCRUD(schema, orm)
@@ -217,7 +225,8 @@ const C = async () => {
   generateAuth()
   generateComponents()
   generateFrontEnd(name)
-  generateConfigFiles(resolveDbProvider(orm, prov, schema), storage, docker)
+  generateQuery()
+  generateConfigFiles(resolveDbProvider(orm, prov, schema), storage, docker, username, password)
 
   installNodeModules()
   if (orm === "prisma") generatePrismaClient()
