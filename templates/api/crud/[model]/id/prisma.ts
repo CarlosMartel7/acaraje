@@ -2,7 +2,7 @@ import { code, imp } from "ts-poet";
 
 const NextRequest = imp("NextRequest@next/server");
 const NextResponse = imp("NextResponse@next/server");
-const sanitizeInput = imp("sanitizeInput@@/lib/resolve-filters");
+const sanitizeInput = imp("sanitizeInput@@/lib/crud/resolve-filters");
 
 export const writeReadFoo = (prisma: string) => {
 

@@ -12,6 +12,12 @@ const getEnumValues = imp("getEnumValues@@/lib/enum-values")
 const writeSeedRoute = () => {
 
   return code`
+/** Prisma Client exposes each model's delegate under its lowerCamel name (e.g. \`prisma.user\`
+ *  for model \`User\`) regardless of the PascalCase model name used everywhere else. */
+function delegateKey(modelName: string): string {
+  return modelName.charAt(0).toLowerCase() + modelName.slice(1);
+}
+
 export async function POST(req: ${NextRequest}) {
   try {
     const { modelName, count = 5 } = await req.json();
@@ -23,7 +29,7 @@ export async function POST(req: ${NextRequest}) {
       return ${NextResponse}.json({ error: \`Model "\${modelName}" not found\` }, { status: 404 });
     }
 
-    const delegate = ${prisma}[modelName];
+    const delegate = ${prisma}[delegateKey(modelDef.name)];
     if (!delegate) {
       return ${NextResponse}.json({ error: \`Prisma delegate not found for "\${modelName}"\` }, { status: 404 });
     }
@@ -43,7 +49,7 @@ export async function POST(req: ${NextRequest}) {
 
         if (field.isRelation && field.relationFields && field.relationFields.length > 0) {
           try {
-            const relDelegate = ${prisma}[field.type];
+            const relDelegate = ${prisma}[delegateKey(field.type)];
             if (relDelegate) {
               const relRecords = await relDelegate.findMany({ take: 10 });
               if (relRecords.length > 0) {
@@ -94,7 +100,7 @@ export async function GET() {
 
   for (const model of ${parsedSchema}.models) {
     try {
-      const delegate = ${prisma}[model.name];
+      const delegate = ${prisma}[delegateKey(model.name)];
       if (delegate) {
         counts[model.name] = await delegate.count();
       }

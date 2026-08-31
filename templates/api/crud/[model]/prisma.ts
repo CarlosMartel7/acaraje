@@ -3,12 +3,12 @@ import { code, imp, joinCode } from "ts-poet";
 // Ts-poet imports
 const NextRequest = imp("NextRequest@next/server");
 const NextResponse = imp("NextResponse@next/server");
-const getFieldKind = imp("getFieldKind@@/lib/resolve-filters");
-const isFilterableField = imp("isFilterableField@@/lib/resolve-filters");
-const isOperatorValidForKind = imp("isOperatorValidForKind@@/lib/resolve-filters");
-const parseFilterValue = imp("parseFilterValue@@/lib/resolve-filters");
-const buildPrismaFilterCondition = imp("buildPrismaFilterCondition@@/lib/resolve-filters");
-const sanitizeInput = imp("sanitizeInput@@/lib/resolve-filters");
+const getFieldKind = imp("getFieldKind@@/lib/crud/resolve-filters");
+const isFilterableField = imp("isFilterableField@@/lib/crud/resolve-filters");
+const isOperatorValidForKind = imp("isOperatorValidForKind@@/lib/crud/resolve-filters");
+const parseFilterValue = imp("parseFilterValue@@/lib/crud/resolve-filters");
+const buildPrismaFilterCondition = imp("buildPrismaFilterCondition@@/lib/crud/resolve-filters");
+const sanitizeInput = imp("sanitizeInput@@/lib/crud/resolve-filters");
 
 export function writeReadFoo(
   model: PrismaSchema.PrismaModel,

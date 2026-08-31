@@ -41,15 +41,15 @@ test("creates the top-level Next.js scaffold folders", () => {
   expect(tree).toEqual(expect.arrayContaining(["app", "components", "lib", "query"]));
 });
 
-test("substitutes [PROJECT_NAME] with the given name", () => {
-  expect(tree).toContain(path.join("app", "Acaraje"));
-  expect(tree).toContain(path.join("app", "Acaraje", "dashboard"));
-  expect(tree).toContain(path.join("app", "Acaraje", "crud", "[model]"));
+test("substitutes [PROJECT_NAME] with the given name, sanitized to lowercase-kebab", () => {
+  expect(tree).toContain(path.join("app", "acaraje"));
+  expect(tree).toContain(path.join("app", "acaraje", "dashboard"));
+  expect(tree).toContain(path.join("app", "acaraje", "crud", "[model]"));
 });
 
 test("leaves the page-level crud dynamic-route segment literal", () => {
-  expect(tree).toContain(path.join("app", "Acaraje", "crud", "[model]", "[id]"));
-  expect(tree).toContain(path.join("app", "Acaraje", "crud", "[model]", "[new]"));
+  expect(tree).toContain(path.join("app", "acaraje", "crud", "[model]", "[id]"));
+  expect(tree).toContain(path.join("app", "acaraje", "crud", "[model]", "[new]"));
 });
 
 test("expands [MODEL_NAME] in the api crud routes into one folder per schema model", () => {

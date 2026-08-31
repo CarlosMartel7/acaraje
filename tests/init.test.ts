@@ -86,6 +86,7 @@ describe("prisma + docker", () => {
         schemaPath: "/prisma",
         storage: "minio",
         docker: true,
+        initDb: true,
         username: "admin",
         password: "password",
       },
@@ -133,6 +134,43 @@ describe("prisma + docker", () => {
   test("runs npm install and, since orm is prisma, prisma generate", () => {
     expect(execSync).toHaveBeenCalledWith("npm install", expect.objectContaining({ cwd: outDir }));
     expect(execSync).toHaveBeenCalledWith("npx prisma generate", expect.objectContaining({ cwd: outDir }));
+  });
+
+  test("runs prisma db push, since initDb was true", () => {
+    expect(execSync).toHaveBeenCalledWith("npx prisma db push", expect.objectContaining({ cwd: outDir }));
+  });
+});
+
+describe("prisma + initDb false", () => {
+  const outDir = fs.mkdtempSync(path.join(os.tmpdir(), "acaraje-init-prisma-no-initdb-"));
+  let execSync: jest.Mock;
+
+  beforeAll(async () => {
+    seedPrismaSchema(outDir, PRISMA_SCHEMA_FIXTURE);
+
+    execSync = await runInit(
+      {
+        name: "Acaraje",
+        orm: "prisma",
+        prov: undefined,
+        schemaPath: "/prisma",
+        storage: "minio",
+        docker: true,
+        initDb: false,
+        username: "admin",
+        password: "password",
+      },
+      outDir,
+    );
+  });
+
+  afterAll(() => {
+    fs.rmSync(outDir, { recursive: true, force: true });
+  });
+
+  test("still runs prisma generate but skips prisma db push, since initDb was false", () => {
+    expect(execSync).toHaveBeenCalledWith("npx prisma generate", expect.objectContaining({ cwd: outDir }));
+    expect(execSync).not.toHaveBeenCalledWith("npx prisma db push", expect.anything());
   });
 });
 
@@ -182,9 +220,10 @@ describe("pure-sql + no docker", () => {
     expect(exists(outDir, "docker-compose.yml")).toBe(false);
   });
 
-  test("runs npm install but not prisma generate, since orm is pure-sql", () => {
+  test("runs npm install but not prisma generate or db push, since orm is pure-sql", () => {
     expect(execSync).toHaveBeenCalledWith("npm install", expect.objectContaining({ cwd: outDir }));
     expect(execSync).not.toHaveBeenCalledWith("npx prisma generate", expect.anything());
+    expect(execSync).not.toHaveBeenCalledWith("npx prisma db push", expect.anything());
   });
 });
 

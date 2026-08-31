@@ -18,11 +18,13 @@ export function generateCRUD(schema: PrismaSchema.ParsedSchema, orm: string, bas
   }
 
   // Shared by both the prisma.ts and sql.ts route flavors (filtering/sorting, form validation) —
-  // written once, flat under lib/, matching the "@/lib/resolve-filters" import the routes use.
+  // written once under lib/crud/, matching the "@/lib/crud/resolve-filters" and
+  // "@/lib/crud/build-form-schema" imports both the API routes and crud components use.
   const libDir = path.join(baseDir, "lib")
-  fs.mkdirSync(libDir, { recursive: true })
-  fs.writeFileSync(path.join(libDir, "resolve-filters.ts"), writeLibCrudFilters().toString())
-  fs.writeFileSync(path.join(libDir, "build-form-schema.ts"), writeBuildFormSchema().toString())
+  const libCrudDir = path.join(libDir, "crud")
+  fs.mkdirSync(libCrudDir, { recursive: true })
+  fs.writeFileSync(path.join(libCrudDir, "resolve-filters.ts"), writeLibCrudFilters().toString())
+  fs.writeFileSync(path.join(libCrudDir, "build-form-schema.ts"), writeBuildFormSchema().toString())
   // Also needed by the seed route ("@/lib/enum-values") — written here since generate-crud
   // always runs and always writes lib/ unconditionally, giving it one source of truth.
   fs.writeFileSync(path.join(libDir, "enum-values.ts"), writeEnumValues().toString())

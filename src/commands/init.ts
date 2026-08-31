@@ -57,6 +57,10 @@ function generatePrismaClient(baseDir: string = process.cwd()): void {
   execSync("npx prisma generate", { cwd: baseDir, stdio: "inherit" });
 }
 
+function pushPrismaDb(baseDir: string = process.cwd()): void {
+  execSync("npx prisma db push", { cwd: baseDir, stdio: "inherit" });
+}
+
 // @clack/prompts' group() infers each field's type from its own callback, but a callback that
 // reads a sibling's `results.*` (prov reads results.orm, schemaPath reads results.prov) breaks
 // that inference and collapses to `unknown`/`{}`. Annotate the resolved shape explicitly instead
@@ -68,6 +72,7 @@ type PromptAnswers = {
   schemaPath: string;
   storage: "minio" | "gcs";
   docker: boolean;
+  initDb?: boolean;
   username: string;
   password: string;
 };
@@ -153,6 +158,18 @@ const prompts = p.group(
         ],
       }),
 
+    initDb: ({ results }) => {
+      if (results.orm !== "prisma") return;
+      return p.select({
+        message: "Do you want to initialize the database now? (runs `npx prisma db push`)",
+        initialValue: true,
+        options: [
+          { value: true, label: "Yes" },
+          { value: false, label: "No" },
+        ],
+      });
+    },
+
     username: () =>
       p.text({
         message: "Username",
@@ -197,7 +214,7 @@ const prompts = p.group(
 const C = async () => {
   p.intro("Create Acaraje Admin Panel");
 
-  let { name, orm, prov, schemaPath, storage, docker, username, password } =
+  let { name, orm, prov, schemaPath, storage, docker, initDb, username, password } =
     (await prompts) as PromptAnswers;
 
   name = orDefault(name, "Acaraje");
@@ -229,7 +246,10 @@ const C = async () => {
   generateConfigFiles(resolveDbProvider(orm, prov, schema), storage, docker, username, password)
 
   installNodeModules()
-  if (orm === "prisma") generatePrismaClient()
+  if (orm === "prisma") {
+    generatePrismaClient()
+    if (initDb) pushPrismaDb()
+  }
 
   p.outro(
     "Acaraje Admin is ready to be used. Read the documentation to see next steps: link"

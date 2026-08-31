@@ -7,6 +7,12 @@ const prisma = imp("prisma@@/lib/prisma")
 const writeStatsRoute = () => {
 
   return code`
+/** Prisma Client exposes each model's delegate under its lowerCamel name (e.g. \`prisma.user\`
+ *  for model \`User\`) regardless of the PascalCase model name used everywhere else. */
+function delegateKey(modelName: string): string {
+  return modelName.charAt(0).toLowerCase() + modelName.slice(1);
+}
+
 export async function GET() {
   try {
 
@@ -37,7 +43,7 @@ export async function GET() {
     const recordCounts: Record<string, number> = {};
     for (const model of ${parsedSchema}.models) {
       try {
-        const delegate = ${prisma}[model.name];
+        const delegate = ${prisma}[delegateKey(model.name)];
         recordCounts[model.name] = delegate ? await delegate.count() : 0;
       } catch {
         recordCounts[model.name] = 0;

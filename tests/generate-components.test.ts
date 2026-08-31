@@ -144,11 +144,9 @@ test("dprint successfully formats every generated file (double-quoted imports, n
   }
 });
 
-// KNOWN BUG (pre-existing in templates/components/routes/drive/select-drive.tsx): the source file
-// is byte-for-byte identical to target-folder.tsx — not a real SelectDrive component. This test
-// pins that regression; it'll pass once the source template is fixed.
 test("select-drive.tsx is a distinct component from target-folder.tsx", () => {
   expect(files["routes/drive/select-drive.tsx"]).not.toBe(files["routes/drive/target-folder.tsx"]);
+  expect(files["routes/drive/select-drive.tsx"]).toContain("export function SelectDrive(");
 });
 
 // KNOWN BUG (pre-existing in templates/components/routes/drive/view/index.tsx): the relative

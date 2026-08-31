@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "",
   "bin": {
-    "create-acaraje": "./dist/index.js"
+    "create-acaraje": "./dist/index.mjs"
   },
   "files": [
     "dist",

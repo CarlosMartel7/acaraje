@@ -3,10 +3,10 @@ import { code, imp, joinCode } from "ts-poet";
 // Ts-poet imports
 const NextRequest = imp("NextRequest@next/server");
 const NextResponse = imp("NextResponse@next/server");
-const isOperatorValidForKind = imp("isOperatorValidForKind@@/lib/resolve-filters");
-const parseFilterValue = imp("parseFilterValue@@/lib/resolve-filters");
-const buildKyselyFilterCondition = imp("buildKyselyFilterCondition@@/lib/resolve-filters");
-const sanitizeInput = imp("sanitizeInput@@/lib/resolve-filters");
+const isOperatorValidForKind = imp("isOperatorValidForKind@@/lib/crud/resolve-filters");
+const parseFilterValue = imp("parseFilterValue@@/lib/crud/resolve-filters");
+const buildKyselyFilterCondition = imp("buildKyselyFilterCondition@@/lib/crud/resolve-filters");
+const sanitizeInput = imp("sanitizeInput@@/lib/crud/resolve-filters");
 
 // Prisma-schema-style scalar type names.
 const PRISMA_NUMBER_TYPES = new Set(["Int", "Float", "Decimal", "BigInt"]);
