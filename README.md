@@ -5,6 +5,9 @@ point it at a `schema.prisma` (or a raw `schema.sql`) and it generates CRUD scre
 and relations viewer, a fake-data seeder, a file storage browser, and env-based auth, wired end
 to end and ready to run.
 
+> Attention
+> Read [Warnings and Considerations](#warnings-and-considerations) before generating the admin panel.
+
 ## Introduction
 
 Most admin panels start the same way: you have a database, and you need CRUD screens, basic
@@ -32,6 +35,26 @@ The generated app comes with:
 - Single-account **auth** (env-configured username/password, signed session cookie) — no user
   table, no external auth provider.
 
+## Warnings and Considerations
+
+**Acaraje generates a starting point, not a finished product.** What comes out of
+`create-acaraje` is an editable source code meant to be a one-click tool for database manipulation in local development, and later to be adapted to your project's needs — not something to publish as-is.
+
+A few specific things worth knowing:
+
+- **Auth is env-based on purpose, and it's minimal.** There's no user table and no external auth   provider — a single admin account, configured entirely through `ACARAJE_ADMIN_USERNAME` /  `ACARAJE_ADMIN_PASSWORD` / `ACARAJE_AUTH_SECRET` in `.env`. That was a deliberate choice: it keeps you in full control of your own database and credentials instead of wiring a third-party identity provider into your schema for you.  **We
+  strongly recommend**  replacing the current method of saving credentials with proper auth before any
+  real use before exposing the panel to anyone but yourself.
+- **Default/local credentials everywhere else, too.** The generated `docker-compose.yml` uses
+  fixed, well-known credentials and ports for Postgres/MySQL/MinIO — fine for a local dev loop,
+  not for anything shared or reachable outside your machine.
+- **No authorization model beyond "logged in or not."** The CRUD, drive, and seeder routes trust
+  any authenticated session completely. If your real project needs per-model permissions, field-
+  level restrictions, audit logging, or soft deletes, that's on you to add — it isn't generated.
+
+In short: use Acaraje to skip the boring part of standing up an admin panel, then treat the
+result as your own codebase to secure and extend, not a managed product.
+
 ## Quickstart
 
 ### Prerequisites
@@ -40,27 +63,14 @@ The generated app comes with:
 - A project directory that already has your schema in place:
   - Prisma mode: `<project>/prisma/schema.prisma`
   - Pure SQL mode: `<project>/database/schema.sql`
-- Docker (optional — only needed if you want the generated `docker-compose.yml` for local
-  Postgres/MySQL/MinIO/GCS-emulator services)
+- Docker (optional — only needed if you want the generated `docker-compose.yml` for a local development environment)
 
 ### Install the CLI
 
-Acaraje isn't published to npm yet, so build and link it locally:
+In your directory that has your schemas in place run:
 
 ```bash
-git clone git@github.com:CarlosMartel7/acaraje.git
-cd acaraje
-npm install
-npm run build
-npm link          # exposes the `create-acaraje` command globally
-```
-
-### Generate a panel
-
-`cd` into your project (the one with `/prisma` or `/database` already in it) and run:
-
-```bash
-create-acaraje
+npx acaraje init
 ```
 
 You'll be asked:
@@ -73,20 +83,21 @@ You'll be asked:
 | Schema location | Folder holding `schema.prisma` / `schema.sql` | `/prisma` or `/database` |
 | Storage | `minio` or `gcs` | — |
 | Use Docker locally? | Whether to also write `docker-compose.yml` | — |
-| Initialize the database now? *(prisma only)* | Runs `npx prisma db push` after generation | Yes |
 | Username / Password | Admin login for the generated panel | `admin` / `password` |
 
 Acaraje then generates the app in place, runs `npm install` for you and, in Prisma mode,
-`prisma generate` (and `prisma db push`, if you said yes above).
+`prisma generate`
+
+**Note:** `Username` and `Password` are stored in the generated `.env` file rather than in the database, so they don't require fields that may be unnecessary for your database schema.
 
 ### Run it
 
 ```bash
+docker compose up -d # If you opted to use docker for development
 npm run dev
 ```
 
-Visit `http://localhost:3000/acaraje` (or `/<your-panel-name>`, see
-[Known limitations](#known-limitations)) and log in with the username/password you chose.
+Visit `http://localhost:3000/login` and log in with the username/password you chose.
 
 ## Dashboard Technologies
 
@@ -110,38 +121,11 @@ The CLI itself is a small Node/TypeScript tool built on `commander` (argument pa
 `@clack/prompts` (interactive prompts), `ts-poet` (typed code generation), and `zod`
 (prompt-answer validation), bundled with `tsup`.
 
-## Project Structure
-
-```
-src/
-  commands/init.ts       interactive prompt flow, orchestrates every generation step
-  steps/                 one generate-*.ts per concern (folders, CRUD, auth, storage, ...)
-  steps/prisma-parser.ts parses schema.prisma into a ParsedSchema
-  steps/sql-parser.ts    parses raw schema.sql into the same ParsedSchema shape
-templates/                every generated file, as a ts-poet template (mirrors the output tree)
-tests/                    one test file per generate-*.ts step, run against real rendered output
-```
-
-Each `templates/**` file exports a `write*()` function that returns rendered source; each
-`src/steps/generate-*.ts` calls the write functions for its area and writes real files to disk.
-`src/commands/init.ts` runs every step in sequence after collecting the prompt answers.
-
 ## Environment Variables
 
 See [`.env.example`](.env.example) at the repo root — most of those variables belong to the
 *generated* project (copy them into its own `.env`, which `create-acaraje` also generates for
-you pre-filled with the credentials and storage settings you chose). The one CLI-development
-variable is `TEST_LOG_TYPE`, which controls how `tests/logger.ts` records generator test output
-(`json` | `folder` | `no-logs`).
-
-## Testing
-
-```bash
-npm test
-```
-
-Runs the Jest suite: every `generate-*.ts` step is rendered to a temp directory and the real
-output is asserted against (content, not just file existence).
+you pre-filled with the credentials and storage settings you chose).
 
 ## Known Limitations
 

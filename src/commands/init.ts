@@ -72,7 +72,6 @@ type PromptAnswers = {
   schemaPath: string;
   storage: "minio" | "gcs";
   docker: boolean;
-  initDb?: boolean;
   username: string;
   password: string;
 };
@@ -158,18 +157,6 @@ const prompts = p.group(
         ],
       }),
 
-    initDb: ({ results }) => {
-      if (results.orm !== "prisma") return;
-      return p.select({
-        message: "Do you want to initialize the database now? (runs `npx prisma db push`)",
-        initialValue: true,
-        options: [
-          { value: true, label: "Yes" },
-          { value: false, label: "No" },
-        ],
-      });
-    },
-
     username: () =>
       p.text({
         message: "Username",
@@ -214,7 +201,7 @@ const prompts = p.group(
 const C = async () => {
   p.intro("Create Acaraje Admin Panel");
 
-  let { name, orm, prov, schemaPath, storage, docker, initDb, username, password } =
+  let { name, orm, prov, schemaPath, storage, docker, username, password } =
     (await prompts) as PromptAnswers;
 
   name = orDefault(name, "Acaraje");
@@ -248,7 +235,7 @@ const C = async () => {
   installNodeModules()
   if (orm === "prisma") {
     generatePrismaClient()
-    if (initDb) pushPrismaDb()
+    pushPrismaDb()
   }
 
   p.outro(
