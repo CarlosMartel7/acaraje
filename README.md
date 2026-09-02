@@ -5,7 +5,7 @@ point it at a `schema.prisma` (or a raw `schema.sql`) and it generates CRUD scre
 and relations viewer, a fake-data seeder, a file storage browser, and env-based auth, wired end
 to end and ready to run.
 
-> [!Attention]
+> [!IMPORTANT]
 > Read [Warnings and Considerations](#warnings-and-considerations) before generating the admin panel.
 
 ## Introduction
