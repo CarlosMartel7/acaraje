@@ -1,5 +1,7 @@
 # Acaraje
 
+[![npm](https://img.shields.io/npm/v/acaraje.svg)](https://www.npmjs.com/package/acaraje)
+
 A CLI that scaffolds a full **Next.js admin panel** from a database schema you already have —
 point it at a `schema.prisma` (or a raw `schema.sql`) and it generates CRUD screens, a schema
 and relations viewer, a fake-data seeder, a file storage browser, and env-based auth, wired end
@@ -67,7 +69,8 @@ result as your own codebase to secure and extend, not a managed product.
 
 ### Install the CLI
 
-In your directory that has your schemas in place run:
+Acaraje is published on [npm](https://www.npmjs.com/package/acaraje). In your directory that has
+your schemas in place run:
 
 ```bash
 npx acaraje init
