@@ -1,4 +1,20 @@
 import { code } from "ts-poet";
+import { DbProvider } from "./docker-compose.yml";
+
+// kysely itself is dependency-free and lightweight enough to ship unconditionally (matching how
+// @prisma/client/prisma below are also always included regardless of the ORM actually chosen);
+// only the provider-specific driver differs, so that part is picked per dbProvider.
+const KYSELY_DRIVER_DEPS: Record<DbProvider, Record<string, string>> = {
+  postgresql: { pg: "^8.16.3" },
+  mysql: { mysql2: "^3.15.3" },
+  sqlite: { "better-sqlite3": "^12.6.0" },
+};
+
+const KYSELY_DRIVER_DEV_DEPS: Record<DbProvider, Record<string, string>> = {
+  postgresql: { "@types/pg": "^8.15.6" },
+  mysql: {},
+  sqlite: { "@types/better-sqlite3": "^7.6.13" },
+};
 
 const packageJson = {
   name: "acaraje-admin",
@@ -8,20 +24,9 @@ const packageJson = {
     dev: "next dev",
     build: "next build",
     start: "next start",
-    lint: "next lint",
-    test: "vitest run",
-    "test:watch": "vitest",
-    "predb:generate": "tsx scripts/select-schema.ts",
     "db:generate": "prisma generate",
-    "predb:push": "tsx scripts/select-schema.ts",
     "db:push": "prisma db push",
     "db:seed": "tsx prisma/seed.ts",
-    "predb:studio": "tsx scripts/select-schema.ts",
-    "db:studio": "prisma studio",
-    "db:use:postgresql": "tsx scripts/select-schema.ts postgresql",
-    "db:use:mysql": "tsx scripts/select-schema.ts mysql",
-    "db:use:sqlite": "tsx scripts/select-schema.ts sqlite",
-    "storage:setup": "tsx scripts/setup-storage-bucket.ts",
   },
   dependencies: {
     "@faker-js/faker": "^10.3.0",
@@ -51,6 +56,7 @@ const packageJson = {
     "class-variance-authority": "^0.7.1",
     clsx: "^2.1.1",
     dagre: "^0.8.5",
+    kysely: "^0.28.9",
     "lucide-react": "^0.577.0",
     minio: "^8.0.7",
     next: "15.0.4",
@@ -75,6 +81,20 @@ const packageJson = {
   },
 };
 
-export const writePackageJson = () => code`${JSON.stringify(packageJson, null, 2)}\n`;
+export const writePackageJson = (dbProvider: DbProvider) => {
+  const withDriver = {
+    ...packageJson,
+    dependencies: {
+      ...packageJson.dependencies,
+      ...KYSELY_DRIVER_DEPS[dbProvider],
+    },
+    devDependencies: {
+      ...packageJson.devDependencies,
+      ...KYSELY_DRIVER_DEV_DEPS[dbProvider],
+    },
+  };
+
+  return code`${JSON.stringify(withDriver, null, 2)}\n`;
+};
 
 export default writePackageJson;

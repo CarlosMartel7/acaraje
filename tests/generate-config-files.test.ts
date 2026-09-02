@@ -30,13 +30,13 @@ function readAll(outDir: string) {
 }
 
 const dockerOutDir = fs.mkdtempSync(path.join(os.tmpdir(), "acaraje-generate-config-files-docker-"));
-generateConfigFiles("postgresql", "minio", true, "customadmin", "s3cr3t", dockerOutDir);
+generateConfigFiles("Acaraje", "postgresql", "minio", true, "customadmin", "s3cr3t", dockerOutDir);
 const dockerFiles = readAll(dockerOutDir);
 const dockerCompose = fs.readFileSync(filePath(dockerOutDir, "docker-compose.yml"), "utf-8");
 const dockerEnv = fs.readFileSync(filePath(dockerOutDir, ".env"), "utf-8");
 
 const noDockerOutDir = fs.mkdtempSync(path.join(os.tmpdir(), "acaraje-generate-config-files-nodocker-"));
-generateConfigFiles("sqlite", "gcs", false, "admin", "password", noDockerOutDir);
+generateConfigFiles("Acaraje", "sqlite", "gcs", false, "admin", "password", noDockerOutDir);
 
 writeLog(
   "generate-config-files",
@@ -79,7 +79,7 @@ test("each generation gets its own auth secret — never reused across runs", ()
   const envA = fs.readFileSync(filePath(dockerOutDir, ".env"), "utf-8");
   const outDirB = fs.mkdtempSync(path.join(os.tmpdir(), "acaraje-generate-config-files-secret-"));
   try {
-    generateConfigFiles("postgresql", "minio", true, "customadmin", "s3cr3t", outDirB);
+    generateConfigFiles("Acaraje", "postgresql", "minio", true, "customadmin", "s3cr3t", outDirB);
     const envB = fs.readFileSync(filePath(outDirB, ".env"), "utf-8");
     const secretOf = (env: string) => env.match(/ACARAJE_AUTH_SECRET=(\S+)/)?.[1];
     expect(secretOf(envA)).toBeTruthy();
@@ -111,6 +111,34 @@ test("package.json and tsconfig.json are valid, parseable JSON", () => {
   expect(JSON.parse(dockerFiles["tsconfig.json"]).compilerOptions.jsx).toBe("preserve");
 });
 
+test("package.json depends on kysely plus exactly the driver matching the chosen database provider", () => {
+  const pg = JSON.parse(dockerFiles["package.json"]); // dockerOutDir was generated with "postgresql"
+  expect(pg.dependencies.kysely).toBeTruthy();
+  expect(pg.dependencies.pg).toBeTruthy();
+  expect(pg.devDependencies["@types/pg"]).toBeTruthy();
+  expect(pg.dependencies.mysql2).toBeUndefined();
+  expect(pg.dependencies["better-sqlite3"]).toBeUndefined();
+
+  const sqlite = JSON.parse(fs.readFileSync(filePath(noDockerOutDir, "package.json"), "utf-8")); // "sqlite"
+  expect(sqlite.dependencies.kysely).toBeTruthy();
+  expect(sqlite.dependencies["better-sqlite3"]).toBeTruthy();
+  expect(sqlite.devDependencies["@types/better-sqlite3"]).toBeTruthy();
+  expect(sqlite.dependencies.pg).toBeUndefined();
+  expect(sqlite.dependencies.mysql2).toBeUndefined();
+
+  const mysqlOutDir = fs.mkdtempSync(path.join(os.tmpdir(), "acaraje-generate-config-files-mysql-"));
+  try {
+    generateConfigFiles("Acaraje", "mysql", "minio", false, "admin", "password", mysqlOutDir);
+    const mysql = JSON.parse(fs.readFileSync(filePath(mysqlOutDir, "package.json"), "utf-8"));
+    expect(mysql.dependencies.kysely).toBeTruthy();
+    expect(mysql.dependencies.mysql2).toBeTruthy();
+    expect(mysql.dependencies.pg).toBeUndefined();
+    expect(mysql.dependencies["better-sqlite3"]).toBeUndefined();
+  } finally {
+    fs.rmSync(mysqlOutDir, { recursive: true, force: true });
+  }
+});
+
 test("postcss.config.js references tailwindcss/autoprefixer, not next.config.js's content", () => {
   // Regression pin: the original source file was byte-for-byte identical to next.config.js.
   expect(dockerFiles["postcss.config.js"]).toContain("tailwindcss");
@@ -126,6 +154,26 @@ test("middleware.ts guards /api/* and /acaraje/* — not the mismatched /api/aca
   expect(mw).toContain('startsWith("/api/")');
   expect(mw).toContain('"/api/:path*"');
   expect(mw).not.toContain("/api/acaraje");
+});
+
+test("middleware.ts's protected-route base matches the sanitized panel name, not a hardcoded 'acaraje'", () => {
+  // Regression pin: the base path (isProtectedPage, the login redirect target, and the matcher)
+  // used to be hardcoded to "/acaraje" regardless of the panel name, so a custom name broke auth
+  // protection for every page (they'd never match "/acaraje/..." at all).
+  const mw = dockerFiles["middleware.ts"]; // dockerOutDir was generated with name "Acaraje"
+  expect(mw).toContain('const ACARAJE_BASE = "/acaraje"');
+  expect(mw).toContain('"/acaraje/:path*"');
+
+  const customOutDir = fs.mkdtempSync(path.join(os.tmpdir(), "acaraje-generate-config-files-custom-name-"));
+  try {
+    generateConfigFiles("My Cool Panel!", "postgresql", "minio", false, "admin", "password", customOutDir);
+    const customMw = fs.readFileSync(filePath(customOutDir, "middleware.ts"), "utf-8");
+    expect(customMw).toContain('const ACARAJE_BASE = "/my-cool-panel"');
+    expect(customMw).toContain('"/my-cool-panel/:path*"');
+    expect(customMw).not.toContain("/acaraje");
+  } finally {
+    fs.rmSync(customOutDir, { recursive: true, force: true });
+  }
 });
 
 test("instrumentation.ts calls ensureBucketReady, matching the lib/storage barrel's real export", () => {
@@ -162,7 +210,7 @@ describe("docker-compose.yml is built from parts based on the chosen database an
     test(`db=${dbProvider} storage=${storage}`, () => {
       const outDir = fs.mkdtempSync(path.join(os.tmpdir(), `acaraje-docker-compose-${dbProvider}-${storage}-`));
       try {
-        generateConfigFiles(dbProvider, storage, true, "admin", "password", outDir);
+        generateConfigFiles("Acaraje", dbProvider, storage, true, "admin", "password", outDir);
         const compose = fs.readFileSync(filePath(outDir, "docker-compose.yml"), "utf-8");
 
         // Only the chosen database gets a service — sqlite is file-based and gets none.
@@ -189,7 +237,7 @@ describe("docker-compose.yml is built from parts based on the chosen database an
 
 test("is idempotent — running twice doesn't throw and produces the same output", () => {
   const before = dockerFiles["middleware.ts"];
-  expect(() => generateConfigFiles("postgresql", "minio", true, "customadmin", "s3cr3t", dockerOutDir)).not.toThrow();
+  expect(() => generateConfigFiles("Acaraje", "postgresql", "minio", true, "customadmin", "s3cr3t", dockerOutDir)).not.toThrow();
   const after = fs.readFileSync(filePath(dockerOutDir, "middleware.ts"), "utf-8");
   expect(after).toBe(before);
 });

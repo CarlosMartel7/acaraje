@@ -6,8 +6,10 @@ const SESSION_COOKIE = imp("SESSION_COOKIE@@/lib/auth/session-token")
 const verifySessionToken = imp("verifySessionToken@@/lib/auth/session-token")
 const tryGetAuthSecret = imp("tryGetAuthSecret@@/lib/auth/config")
 
-export const writeMiddleware = () => code`
+/** @param projectName the sanitized project name — see `templates/lib/acaraje-routes.ts`. */
+export const writeMiddleware = (projectName: string) => code`
 const LOGIN_PATH = "/login";
+const ACARAJE_BASE = "/${projectName}";
 
 function isAuthApi(pathname: string): boolean {
   return (
@@ -19,7 +21,7 @@ function isAuthApi(pathname: string): boolean {
 }
 
 function isProtectedPage(pathname: string): boolean {
-  return pathname === "/acaraje" || pathname.startsWith("/acaraje/");
+  return pathname === ACARAJE_BASE || pathname.startsWith(\`\${ACARAJE_BASE}/\`);
 }
 
 function isProtectedApi(pathname: string): boolean {
@@ -34,7 +36,7 @@ export async function middleware(request: ${NextRequest}) {
 
   if (pathname === LOGIN_PATH) {
     if (session) {
-      return ${NextResponse}.redirect(new URL("/acaraje/dashboard", request.url));
+      return ${NextResponse}.redirect(new URL(\`\${ACARAJE_BASE}/dashboard\`, request.url));
     }
     return ${NextResponse}.next();
   }
@@ -58,8 +60,10 @@ export async function middleware(request: ${NextRequest}) {
   return ${NextResponse}.next();
 }
 
+// Next.js requires this matcher array to be statically analyzable string literals — it can't
+// reference the ACARAJE_BASE const above, so the project name is inlined directly here too.
 export const config = {
-  matcher: ["/login", "/acaraje/:path*", "/api/:path*"],
+  matcher: ["/login", "/${projectName}/:path*", "/api/:path*"],
 }
 `;
 

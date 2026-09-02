@@ -30,10 +30,10 @@ import writeCrudNewPage from '../../templates/app/project_name/crud/[model]/new/
 import writeCrudNewLoading from '../../templates/app/project_name/crud/[model]/new/loading'
 
 // Relative output path (under app/) -> the write function producing that file's content.
-// Mirrors templates/app/'s top-level, project-agnostic files 1:1.
+// Mirrors templates/app/'s top-level, project-agnostic files 1:1. "page.tsx" is excluded — its
+// redirect target depends on the sanitized project name, so it's written separately below.
 const APP_ROOT_FILES: Record<string, () => { toString(): string }> = {
   'layout.tsx': writeRootLayout,
-  'page.tsx': writeRootPage,
   'globals.css': writeGlobalsCss,
   'login/page.tsx': writeLoginPage,
 }
@@ -88,6 +88,7 @@ const ICON_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32"
 
 export function generateFrontEnd(name: string, baseDir: string = process.cwd()): void {
   const appDir = path.join(baseDir, "app")
+  const projectName = sanitizeProjectName(name)
 
   for (const [relativePath, write] of Object.entries(APP_ROOT_FILES)) {
     const outPath = path.join(appDir, relativePath)
@@ -95,9 +96,12 @@ export function generateFrontEnd(name: string, baseDir: string = process.cwd()):
     fs.writeFileSync(outPath, write().toString())
   }
 
+  // The root "/" redirect target must match app/<projectName>/... — never hardcoded to "acaraje".
+  fs.writeFileSync(path.join(appDir, "page.tsx"), writeRootPage(projectName).toString())
+
   fs.writeFileSync(path.join(appDir, "icon.svg"), ICON_SVG)
 
-  const projectDir = path.join(appDir, sanitizeProjectName(name))
+  const projectDir = path.join(appDir, projectName)
 
   for (const [relativePath, write] of Object.entries(PROJECT_FILES)) {
     const outPath = path.join(projectDir, relativePath)

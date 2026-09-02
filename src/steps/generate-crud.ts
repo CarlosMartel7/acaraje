@@ -10,6 +10,7 @@ import * as S_Opt from '../../templates/api/crud/[model]/options/sql'
 import writeLibCrudFilters from '../../templates/lib/crud/resolve-filters'
 import writeBuildFormSchema from '../../templates/lib/crud/build-form-schema'
 import writePrisma from '../../templates/lib/prisma'
+import writeDbClient from '../../templates/lib/db'
 import writeEnumValues from '../../templates/lib/enum-values'
 
 export function generateCRUD(schema: PrismaSchema.ParsedSchema, orm: string, baseDir: string = process.cwd()): void {
@@ -33,6 +34,11 @@ export function generateCRUD(schema: PrismaSchema.ParsedSchema, orm: string, bas
   // ("@/lib/prisma" vs "@/lib/db") — only write the one that matches what was actually picked.
   if (orm === "prisma") {
     fs.writeFileSync(path.join(libDir, "prisma.ts"), writePrisma().toString())
+  } else {
+    // sql-parser.ts only ever sets datasource.provider to one of postgresql/mysql/sqlite
+    // (it comes straight from the validated "prov" prompt), so this cast is safe.
+    const dbProvider = schema.datasource!.provider as "postgresql" | "mysql" | "sqlite"
+    fs.writeFileSync(path.join(libDir, "db.ts"), writeDbClient(dbProvider).toString())
   }
 
   for (const currModel of schema.models) {

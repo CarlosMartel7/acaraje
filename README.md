@@ -132,18 +132,9 @@ you pre-filled with the credentials and storage settings you chose).
 This is an actively developed project — a few gaps are worth knowing about before you rely on
 generated output:
 
-- **Custom panel names break in-app navigation.** Pages are generated under `app/<sanitized
-  name>/...`, but the client-side route helper (`lib/acaraje-routes.ts`) always links to
-  `/acaraje/...`. Keep the default panel name ("Acaraje") until this is fixed, or the sidebar
-  links will 404.
-- **Pure SQL / Kysely mode is incomplete.** Generated CRUD routes import a `@/lib/db` Kysely
-  client that isn't generated yet, and `kysely` isn't added to the generated `package.json`'s
-  dependencies.
 - **A few `package.json` scripts reference files that aren't generated yet**: `db:seed`
   (`prisma/seed.ts`), and the `predb:*` / `storage:setup` scripts (`scripts/select-schema.ts`,
   `scripts/setup-storage-bucket.ts`).
-- **`app/<panel>/boards/` is scaffolded but unused** — reserved for a future dashboard-widgets
-  feature, not wired up yet.
 
 ## License
 

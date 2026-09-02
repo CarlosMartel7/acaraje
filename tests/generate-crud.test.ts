@@ -210,6 +210,49 @@ test("pure-sql: uses ilike for postgresql and plain like for sqlite", () => {
   }
 });
 
+test("prisma: writes lib/prisma.ts as the client singleton, not lib/db.ts", () => {
+  expect(fs.existsSync(path.join(outDir, "lib", "prisma.ts"))).toBe(true);
+  expect(fs.existsSync(path.join(outDir, "lib", "db.ts"))).toBe(false);
+});
+
+test("pure-sql: writes lib/db.ts as the Kysely client singleton, not lib/prisma.ts", () => {
+  expect(fs.existsSync(path.join(sqlOutDirPostgres, "lib", "db.ts"))).toBe(true);
+  expect(fs.existsSync(path.join(sqlOutDirPostgres, "lib", "prisma.ts"))).toBe(false);
+
+  // schema.prisma's datasource provider is postgresql (see the sqlFiles setup above), so the
+  // Kysely client must be wired against the pg driver, not mysql2/better-sqlite3.
+  const db = fs.readFileSync(path.join(sqlOutDirPostgres, "lib", "db.ts"), "utf-8");
+  expect(db).toContain("PostgresDialect");
+  expect(db).toContain('from "pg"');
+  expect(db).not.toContain("MysqlDialect");
+  expect(db).not.toContain("SqliteDialect");
+});
+
+test("pure-sql: lib/db.ts picks the Kysely dialect matching each database provider", () => {
+  const mysqlSchema = sqlParser(path.join(__dirname, "sampleDBs", "schema.mysql.sql"), "Mysql");
+  const sqliteSchema = sqlParser(path.join(__dirname, "sampleDBs", "schema.sqlite.sql"), "Sqlite");
+
+  const mysqlOutDir = fs.mkdtempSync(path.join(os.tmpdir(), "acaraje-generate-crud-db-mysql-"));
+  const sqliteOutDir = fs.mkdtempSync(path.join(os.tmpdir(), "acaraje-generate-crud-db-sqlite-"));
+
+  try {
+    generateCRUD(mysqlSchema, "pure-sql", mysqlOutDir);
+    const mysqlDb = fs.readFileSync(path.join(mysqlOutDir, "lib", "db.ts"), "utf-8");
+    expect(mysqlDb).toContain("MysqlDialect");
+    expect(mysqlDb).toContain('from "mysql2"');
+
+    generateCRUD(sqliteSchema, "pure-sql", sqliteOutDir);
+    const sqliteDb = fs.readFileSync(path.join(sqliteOutDir, "lib", "db.ts"), "utf-8");
+    expect(sqliteDb).toContain("SqliteDialect");
+    expect(sqliteDb).toContain('from "better-sqlite3"');
+    // sqlite's DATABASE_URL is a "file:" URL — the client must strip that prefix itself.
+    expect(sqliteDb).toContain("sqliteFilePath");
+  } finally {
+    fs.rmSync(mysqlOutDir, { recursive: true, force: true });
+    fs.rmSync(sqliteOutDir, { recursive: true, force: true });
+  }
+});
+
 test("is idempotent — running twice doesn't throw and produces the same output", () => {
   const before = files.User.index;
   expect(() => generateCRUD(schema, "prisma", outDir)).not.toThrow();

@@ -87,6 +87,21 @@ test("sanitizes the project name the same way createFolderStructure does", () =>
   }
 });
 
+test("root page redirects into the sanitized project name, not a hardcoded 'acaraje'", () => {
+  // Regression pin: the redirect target used to be hardcoded to "/acaraje/dashboard" regardless
+  // of the panel name, so a custom name landed the user on a route that was never generated.
+  expect(root["page.tsx"]).toContain('redirect("/acaraje/dashboard")');
+
+  const messyOutDir = fs.mkdtempSync(path.join(os.tmpdir(), "acaraje-generate-front-end-redirect-"));
+  try {
+    generateFrontEnd("My Cool Panel!", messyOutDir);
+    const page = fs.readFileSync(rootPath(messyOutDir, "page.tsx"), "utf-8");
+    expect(page).toContain('redirect("/my-cool-panel/dashboard")');
+  } finally {
+    fs.rmSync(messyOutDir, { recursive: true, force: true });
+  }
+});
+
 test("writes real rendered content, not a write function's own JS source", () => {
   // Same regression class as generate-components.ts once had: storing the write *functions* and
   // calling .toString() on them directly instead of invoking them first silently writes out each

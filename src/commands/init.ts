@@ -227,10 +227,10 @@ const C = async () => {
   generateSeeder(schema)
   generateRestOfApi()
   generateAuth()
-  generateComponents()
+  generateComponents(name)
   generateFrontEnd(name)
   generateQuery()
-  generateConfigFiles(resolveDbProvider(orm, prov, schema), storage, docker, username, password)
+  generateConfigFiles(name, resolveDbProvider(orm, prov, schema), storage, docker, username, password)
 
   installNodeModules()
   if (orm === "prisma") {

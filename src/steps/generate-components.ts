@@ -1,5 +1,6 @@
 import fs from 'fs'
 import path from 'path'
+import { sanitizeProjectName } from './generate-folders'
 
 import writeUtils from '../../templates/lib/utils'
 import writeAcarajeRoutes from '../../templates/lib/acaraje-routes'
@@ -132,7 +133,7 @@ const COMPONENT_FILES: Record<string, () => { toString(): string }> = {
   'ui/tabs.tsx': writeTabsComponent,
 }
 
-export function generateComponents(baseDir: string = process.cwd()): void {
+export function generateComponents(name: string, baseDir: string = process.cwd()): void {
   const componentsDir = path.join(baseDir, "components")
 
   for (const [relativePath, write] of Object.entries(COMPONENT_FILES)) {
@@ -148,5 +149,7 @@ export function generateComponents(baseDir: string = process.cwd()): void {
   const libDir = path.join(baseDir, "lib")
   fs.mkdirSync(libDir, { recursive: true })
   fs.writeFileSync(path.join(libDir, "utils.ts"), writeUtils().toString())
-  fs.writeFileSync(path.join(libDir, "acaraje-routes.ts"), writeAcarajeRoutes().toString())
+  // acarajePath must resolve under the same app/<projectName>/... folder the pages actually get
+  // generated under (see generate-front-end.ts) — never hardcoded to "acaraje".
+  fs.writeFileSync(path.join(libDir, "acaraje-routes.ts"), writeAcarajeRoutes(sanitizeProjectName(name)).toString())
 }

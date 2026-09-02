@@ -1,6 +1,7 @@
 import fs from 'fs'
 import path from 'path'
 import crypto from 'crypto'
+import { sanitizeProjectName } from './generate-folders'
 
 import writeDockerCompose, { DbProvider, StorageProvider } from '../../templates/config/docker-compose.yml'
 import writeEnvFile from '../../templates/config/.env'
@@ -16,14 +17,13 @@ import writeInstrumentation from '../../templates/config/instrumentation'
 import writeGlobalTypes from '../../templates/config/global.d'
 
 // Relative output path (project root) -> the write function producing that file's content.
-// Every config file is project-agnostic except docker-compose.yml, which is built separately
-// below since it depends on the database/storage the user actually picked.
+// Every config file is project-agnostic except docker-compose.yml, package.json (its kysely
+// driver dependency), and middleware.ts (its protected-route base path), which are built
+// separately below since they depend on choices the user actually made.
 const STATIC_CONFIG_FILES: Record<string, () => { toString(): string }> = {
   '.env.example': writeEnvExample,
-  'package.json': writePackageJson,
   'tsconfig.json': writeTsconfigJson,
   'tailwind.config.js': writeTailwindConfig,
-  'middleware.ts': writeMiddleware,
   'next.config.js': writeNextConfig,
   'postcss.config.js': writePostcssConfig,
   'vitest.config.mts': writeVitestConfig,
@@ -32,6 +32,7 @@ const STATIC_CONFIG_FILES: Record<string, () => { toString(): string }> = {
 }
 
 export function generateConfigFiles(
+  name: string,
   dbProvider: DbProvider,
   storage: StorageProvider,
   docker: boolean,
@@ -44,6 +45,11 @@ export function generateConfigFiles(
   for (const [fileName, write] of Object.entries(STATIC_CONFIG_FILES)) {
     fs.writeFileSync(path.join(baseDir, fileName), write().toString())
   }
+
+  fs.writeFileSync(path.join(baseDir, "package.json"), writePackageJson(dbProvider).toString())
+
+  // The protected-route base path must match app/<projectName>/... — never hardcoded to "acaraje".
+  fs.writeFileSync(path.join(baseDir, "middleware.ts"), writeMiddleware(sanitizeProjectName(name)).toString())
 
   const authSecret = crypto.randomBytes(32).toString("base64")
   fs.writeFileSync(
