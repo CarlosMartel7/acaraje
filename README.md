@@ -126,7 +126,3 @@ The CLI itself is a small Node/TypeScript tool built on `commander` (argument pa
 See [`.env.example`](.env.example) at the repo root — most of those variables belong to the
 *generated* project (copy them into its own `.env`, which `create-acaraje` also generates for
 you pre-filled with the credentials and storage settings you chose).
-
-## License
-
-ISC — see the `license` field in [`package.json`](package.json).
