@@ -127,15 +127,6 @@ See [`.env.example`](.env.example) at the repo root — most of those variables 
 *generated* project (copy them into its own `.env`, which `create-acaraje` also generates for
 you pre-filled with the credentials and storage settings you chose).
 
-## Known Limitations
-
-This is an actively developed project — a few gaps are worth knowing about before you rely on
-generated output:
-
-- **A few `package.json` scripts reference files that aren't generated yet**: `db:seed`
-  (`prisma/seed.ts`), and the `predb:*` / `storage:setup` scripts (`scripts/select-schema.ts`,
-  `scripts/setup-storage-bucket.ts`).
-
 ## License
 
 ISC — see the `license` field in [`package.json`](package.json).
