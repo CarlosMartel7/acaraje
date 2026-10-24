@@ -15,6 +15,7 @@ import writePostcssConfig from '../../templates/config/postcss.config.js'
 import writeVitestConfig from '../../templates/config/vitest.config.mts'
 import writeInstrumentation from '../../templates/config/instrumentation'
 import writeGlobalTypes from '../../templates/config/global.d'
+import { ApiLayer } from '../shared/api-layer'
 
 // Relative output path (project root) -> the write function producing that file's content.
 // Every config file is project-agnostic except docker-compose.yml, package.json (its kysely
@@ -38,6 +39,7 @@ export function generateConfigFiles(
   docker: boolean,
   username: string,
   password: string,
+  api: ApiLayer = "rest",
   baseDir: string = process.cwd(),
 ): void {
   fs.mkdirSync(baseDir, { recursive: true })
@@ -46,7 +48,7 @@ export function generateConfigFiles(
     fs.writeFileSync(path.join(baseDir, fileName), write().toString())
   }
 
-  fs.writeFileSync(path.join(baseDir, "package.json"), writePackageJson(dbProvider).toString())
+  fs.writeFileSync(path.join(baseDir, "package.json"), writePackageJson(dbProvider, api).toString())
 
   // The protected-route base path must match app/<projectName>/... — never hardcoded to "acaraje".
   fs.writeFileSync(path.join(baseDir, "middleware.ts"), writeMiddleware(sanitizeProjectName(name)).toString())

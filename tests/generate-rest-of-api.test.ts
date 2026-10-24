@@ -12,7 +12,7 @@ function routePath(outDir: string, route: string) {
 }
 
 const outDir = fs.mkdtempSync(path.join(os.tmpdir(), "acaraje-generate-rest-of-api-"));
-generateRestOfApi(outDir);
+generateRestOfApi("rest", outDir);
 
 const files = Object.fromEntries(
   ROUTES.map((route) => [route, fs.readFileSync(routePath(outDir, route), "utf-8")]),
@@ -75,7 +75,7 @@ test("dprint successfully formats every generated file (double-quoted imports, n
 
 test("is idempotent — running twice doesn't throw and produces the same output", () => {
   const before = files.stats;
-  expect(() => generateRestOfApi(outDir)).not.toThrow();
+  expect(() => generateRestOfApi("rest", outDir)).not.toThrow();
   const after = fs.readFileSync(routePath(outDir, "stats"), "utf-8");
   expect(after).toBe(before);
 });
