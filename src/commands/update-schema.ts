@@ -12,6 +12,7 @@ import {
   buildSchemaSourcePrompts,
   SchemaSourceAnswers,
 } from "../shared/schema-prompts";
+import { readAcarajeConfig } from "../shared/api-layer";
 
 function generatePrismaClient(baseDir: string = process.cwd()): void {
   execSync("npx prisma generate", { cwd: baseDir, stdio: "inherit" });
@@ -41,9 +42,13 @@ const C = async () => {
   // the parsed schema into lib/parsed-schema.ts). Storage, auth, components, front-end pages, and
   // config files (.env, docker-compose.yml, package.json) don't read from `schema`, so they're
   // left untouched here — re-running them would risk clobbering credentials already in place.
-  createFolderStructure(name, schema);
-  generateCRUD(schema, orm);
-  generateSeeder(schema);
+  //
+  // The API layer (rest/trpc) isn't re-asked — it comes from the acaraje.config.json init wrote,
+  // so the regenerated CRUD handlers/routes match what the rest of the panel was built with.
+  const { api } = readAcarajeConfig();
+  createFolderStructure(name, schema, api);
+  generateCRUD(schema, orm, api);
+  generateSeeder(schema, api);
 
   // Regenerating the Prisma client from the updated schema is safe (it doesn't touch the actual
   // database) — unlike `prisma db push`, which can alter or drop real data, so that's left for

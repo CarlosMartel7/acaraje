@@ -22,6 +22,7 @@ import {
   buildSchemaSourcePrompts,
   SchemaSourceAnswers,
 } from "../shared/schema-prompts";
+import { ApiLayer, apiLayerPrompt, writeAcarajeConfig } from "../shared/api-layer";
 
 function installNodeModules(baseDir: string = process.cwd()): void {
   execSync("npm install", { cwd: baseDir, stdio: "inherit" });
@@ -40,6 +41,7 @@ function pushPrismaDb(baseDir: string = process.cwd()): void {
 // Annotate the resolved shape explicitly instead of fighting the inference.
 type RestOfPromptAnswers = {
   storage: "minio" | "gcs";
+  api?: ApiLayer;
   docker: boolean;
   username: string;
   password: string;
@@ -50,8 +52,9 @@ type RestOfPromptAnswers = {
 // src/index.ts, so constructing it at module scope used to kick off a live prompt session even
 // for `--help` or an unrecognized command, before commander ever decided whether to run init.
 // name/orm/prov/schemaPath are asked first via buildSchemaSourcePrompts() (shared with
-// `acaraje update schema`); this covers everything init needs beyond that.
-function buildPrompts() {
+// `acaraje update schema`); this covers everything init needs beyond that. `apiPreset` is the
+// `--api` flag's value, if passed — the API layer prompt is skipped when it's set.
+function buildPrompts(apiPreset?: ApiLayer) {
   return p.group(
     {
       storage: () =>
@@ -62,6 +65,8 @@ function buildPrompts() {
             { value: "gcs", label: "Google Cloud Storage" },
           ],
         }),
+
+      api: apiLayerPrompt(apiPreset),
 
       docker: () =>
         p.select({
@@ -115,13 +120,18 @@ function buildPrompts() {
   );
 }
 
-const C = async () => {
+export type InitOptions = {
+  api?: ApiLayer;
+};
+
+const C = async (opts: InitOptions = {}) => {
   p.intro("Create Acaraje Admin Panel");
 
   let { name, orm, prov, schemaPath } =
     (await buildSchemaSourcePrompts()) as SchemaSourceAnswers;
-  let { storage, docker, username, password } =
-    (await buildPrompts()) as RestOfPromptAnswers;
+  let { storage, api: promptedApi, docker, username, password } =
+    (await buildPrompts(opts.api)) as RestOfPromptAnswers;
+  const api: ApiLayer = opts.api ?? promptedApi ?? "rest";
 
   name = orDefault(name, "Acaraje");
   schemaPath = orDefault(schemaPath, prov ? "/database" : "/prisma");
@@ -139,17 +149,18 @@ const C = async () => {
   const schema = orm === "prisma"
     ? prismaParser(resolvedSchemaPath)
     : sqlParser(resolvedSchemaPath, SQL_DB_TYPES[prov!]);
-  createFolderStructure(name, schema)
+  createFolderStructure(name, schema, api)
 
-  generateCRUD(schema, orm)
-  generateStorage(storage)
-  generateSeeder(schema)
-  generateRestOfApi()
+  generateCRUD(schema, orm, api)
+  generateStorage(storage, api)
+  generateSeeder(schema, api)
+  generateRestOfApi(api)
   generateAuth()
-  generateComponents(name)
+  generateComponents(name, api)
   generateFrontEnd(name)
-  generateQuery()
-  generateConfigFiles(name, resolveDbProvider(orm, prov, schema), storage, docker, username, password)
+  generateQuery(api)
+  generateConfigFiles(name, resolveDbProvider(orm, prov, schema), storage, docker, username, password, api)
+  writeAcarajeConfig({ api })
 
   installNodeModules()
   if (orm === "prisma") {
