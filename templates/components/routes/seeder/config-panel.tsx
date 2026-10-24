@@ -27,6 +27,7 @@ const isSeedableField = imp("isSeedableField@@/lib/seeder/field-generators")
 const isValidFieldRule = imp("isValidFieldRule@@/lib/seeder/field-generators")
 const OVERRIDE_TYPE_OPTIONS = imp("OVERRIDE_TYPE_OPTIONS@@/lib/seeder/field-generators")
 const sanitizeFieldRule = imp("sanitizeFieldRule@@/lib/seeder/field-generators")
+const useSaveSeederConfig = imp("useSaveSeederConfig@@/query/hooks/use-seed")
 
 export const writeSeederConfigPanelComponent = () => code`
 function GeneratorKindSelect({
@@ -342,6 +343,7 @@ export function SeederConfigPanel({
   const [draft, setDraft] = ${useState}<Seeder.ConfigFile>(config);
   const [saving, setSaving] = ${useState}(false);
   const [error, setError] = ${useState}<string | null>(null);
+  const saveConfig = ${useSaveSeederConfig}();
 
   ${useEffect}(() => setMounted(true), []);
 
@@ -379,14 +381,7 @@ export function SeederConfigPanel({
     setSaving(true);
     setError(null);
     try {
-      const res = await fetch("/api/seed/config", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(draft),
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error ?? "Failed to save");
-      onSaved(json);
+      onSaved(await saveConfig.mutateAsync(draft));
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {

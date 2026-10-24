@@ -60,7 +60,7 @@ export default function AcarajeCalls_crud() {
     deleteIds,
     selectedIds,
     deleteLoading: deleteMutation.isPending,
-    error: listError ? (listError as Error).message : null,
+    error: listError ? listError.message : null,
     setSearch,
     setDebouncedSearch,
     setSelectedIds,
