@@ -7,57 +7,45 @@ export const writeGlobalsCss = () => code`
 
 @layer base {
   :root {
+    /* Direction F — dark + orange */
     --scrollbar-thumb: 0 0% 100%;
-    --background: 24 19.2308% 10.1961%;
-    --foreground: 34.2857 28% 90.1961%;
-    --card: 24 16.129% 12.1569%;
-    --card-foreground: 34.2857 28% 90.1961%;
-    --popover: 24 16.129% 12.1569%;
-    --popover-foreground: 34.2857 28% 90.1961%;
-    --primary: 4.8387 48.4375% 25.098%;
-    --primary-foreground: 1.5789 61.7886% 48.2353%;
-    --secondary: 30 12.5% 15.6863%;
-    --secondary-foreground: 34.2857 28% 90.1961%;
-    --muted: 30 12.5% 15.6863%;
-    --muted-foreground: 30 3.5398% 44.3137%;
-    --accent: 27.2727 11.5789% 18.6275%;
-    --accent-foreground: 34.2857 28% 90.1961%;
-    --destructive: 351.3253 79.0476% 41.1765%;
-    --destructive-foreground: 0 0% 98.8235%;
-    --border: 27.2727 11.5789% 18.6275%;
-    --input: 27.2727 11.5789% 18.6275%;
-    --ring: 4.8387 48.4375% 25.098%;
-    --chart-1: 40.3571 75.6757% 56.4706%;
-    --chart-2: 32.3333 75.6303% 53.3333%;
-    --chart-3: 32.8571 19.4444% 57.6471%;
-    --chart-4: 132.4528 24.6512% 42.1569%;
-    --chart-5: 256.5 41.2371% 61.9608%;
-    --sidebar: 0 0% 0%;
-    --sidebar-foreground: 0 0% 100%;
-    --sidebar-primary: 3.8849 62.8959% 56.6667%;
+    --background: 0 0% 8.2353%;
+    --foreground: 0 0% 94.902%;
+    --card: 0 0% 10.9804%;
+    --card-foreground: 0 0% 94.902%;
+    --popover: 0 0% 10.9804%;
+    --popover-foreground: 0 0% 94.902%;
+    --primary: 15.8 100% 56.0784%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 0 0% 14.1176%;
+    --secondary-foreground: 0 0% 94.902%;
+    --muted: 0 0% 13.3333%;
+    --muted-foreground: 0 0% 60.3922%;
+    --accent: 0 0% 14.902%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 84.2365% 60.1961%;
+    --destructive-foreground: 0 0% 100%;
+    --success: 147.0968 69.5067% 55.098%;
+    --warning: 44.3836 88.0383% 62.9412%;
+    --info: 220 100% 78.0392%;
+    --border: 0 0% 16.4706%;
+    --input: 0 0% 20%;
+    --ring: 15.8 100% 56.0784%;
+    --chart-1: 44.3836 88.0383% 62.9412%;
+    --chart-2: 15.8 100% 56.0784%;
+    --chart-3: 256 100% 80.5882%;
+    --chart-4: 147.0968 69.5067% 55.098%;
+    --chart-5: 220 100% 78.0392%;
+    --sidebar: 0 0% 9.8039%;
+    --sidebar-foreground: 0 0% 94.902%;
+    --sidebar-primary: 15.8 100% 56.0784%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 3.8849 62.8959% 56.6667%;
-    --sidebar-accent-foreground: 0 0% 0%;
-    --sidebar-border: 0 0% 0%;
-    --sidebar-ring: 3.8849 62.8959% 56.6667%;
-    --font-sans: Chakra Petch, ui-sans-serif, sans-serif, system-ui;
+    --sidebar-accent: 0 0% 14.902%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 0 0% 14.902%;
+    --sidebar-ring: 15.8 100% 56.0784%;
     --font-serif: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
-    --font-mono: IBM Plex Mono, ui-monospace, monospace;
-    --radius: 0rem;
-    --shadow-x: 0;
-    --shadow-y: 1px;
-    --shadow-blur: 3px;
-    --shadow-spread: 0px;
-    --shadow-opacity: 0.1;
-    --shadow-color: oklch(0 0 0);
-    --shadow-2xs: 0 1px 3px 0px hsl(0 0% 0% / 0.05);
-    --shadow-xs: 0 1px 3px 0px hsl(0 0% 0% / 0.05);
-    --shadow-sm: 0 1px 3px 0px hsl(0 0% 0% / 0.1), 0 1px 2px -1px hsl(0 0% 0% / 0.1);
-    --shadow: 0 1px 3px 0px hsl(0 0% 0% / 0.1), 0 1px 2px -1px hsl(0 0% 0% / 0.1);
-    --shadow-md: 0 1px 3px 0px hsl(0 0% 0% / 0.1), 0 2px 4px -1px hsl(0 0% 0% / 0.1);
-    --shadow-lg: 0 1px 3px 0px hsl(0 0% 0% / 0.1), 0 4px 6px -1px hsl(0 0% 0% / 0.1);
-    --shadow-xl: 0 1px 3px 0px hsl(0 0% 0% / 0.1), 0 8px 10px -1px hsl(0 0% 0% / 0.1);
-    --shadow-2xl: 0 1px 3px 0px hsl(0 0% 0% / 0.25);
+    --radius: 0.625rem;
   }
 }
 
@@ -69,21 +57,21 @@ export const writeGlobalsCss = () => code`
     @apply bg-background text-foreground;
   }
   ::-webkit-scrollbar {
-    width: 4px;
-    height: 4px;
+    width: 6px;
+    height: 6px;
   }
   ::-webkit-scrollbar-track {
     background: transparent;
   }
   ::-webkit-scrollbar-thumb {
-    background: hsl(var(--scrollbar-thumb) / 0.3);
-    border-radius: 2px;
+    background: hsl(var(--scrollbar-thumb) / 0.15);
+    border-radius: 9999px;
   }
 
   /* Firefox */
   * {
     scrollbar-width: thin;
-    scrollbar-color: hsl(var(--scrollbar-thumb) / 0.3) transparent;
+    scrollbar-color: hsl(var(--scrollbar-thumb) / 0.15) transparent;
   }
 }
 
@@ -93,14 +81,6 @@ export const writeGlobalsCss = () => code`
   }
   .font-sans {
     font-family: var(--font-sans);
-  }
-  .glow-primary-foreground {
-    box-shadow:
-      0 0 24px oklch(var(--primary-foreground) / 0.18),
-      0 0 60px oklch(var(--primary-foreground) / 0.04);
-  }
-  .glow-primary-foreground-sm {
-    box-shadow: 0 0 10px oklch(var(--primary-foreground) / 0.25);
   }
   .text-rose-custom {
     color: oklch(var(--dusty-rose));
@@ -118,22 +98,11 @@ export const writeGlobalsCss = () => code`
       transform: translateY(0);
     }
   }
-  .scan-line {
-    position: relative;
-  }
-  .scan-line::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    background: radial-gradient(ellipse at 50% 0%, oklch(var(--primary-foreground) / 0.07) 0%, transparent 70%);
-    pointer-events: none;
-    border-radius: inherit;
-  }
 
   /* Sidebar — thin; transparent track */
   .sidebar-scroll {
     scrollbar-width: thin;
-    scrollbar-color: hsl(var(--scrollbar-thumb) / 0.3) transparent;
+    scrollbar-color: hsl(var(--scrollbar-thumb) / 0.15) transparent;
   }
   .sidebar-scroll::-webkit-scrollbar {
     width: 3px;
@@ -144,7 +113,7 @@ export const writeGlobalsCss = () => code`
     margin-block: 4px;
   }
   .sidebar-scroll::-webkit-scrollbar-thumb {
-    background: hsl(var(--scrollbar-thumb) / 0.3);
+    background: hsl(var(--scrollbar-thumb) / 0.15);
     border-radius: 9999px;
   }
   .sidebar-scroll::-webkit-scrollbar-corner {

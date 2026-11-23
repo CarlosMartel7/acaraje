@@ -2,22 +2,17 @@ import { code, imp } from "ts-poet";
 
 const useState = imp("useState@react")
 const useCallback = imp("useCallback@react")
-const Upload = imp("Upload@lucide-react")
+const ArrowUp = imp("ArrowUp@lucide-react")
 const FileIcon = imp("File@lucide-react")
 const X = imp("X@lucide-react")
 const Loader2 = imp("Loader2@lucide-react")
 const CheckCircle = imp("CheckCircle@lucide-react")
 const AlertCircle = imp("AlertCircle@lucide-react")
 const Pencil = imp("Pencil@lucide-react")
-const FolderOpen = imp("FolderOpen@lucide-react")
 const cn = imp("cn@@/lib/utils")
 const Button = imp("Button@@/components/ui/button")
 const Input = imp("Input@@/components/ui/input")
 const Card = imp("Card@@/components/ui/card")
-const CardContent = imp("CardContent@@/components/ui/card")
-const CardDescription = imp("CardDescription@@/components/ui/card")
-const CardHeader = imp("CardHeader@@/components/ui/card")
-const CardTitle = imp("CardTitle@@/components/ui/card")
 
 export const writeFilesToUpload = () => code`
 function formatFileSize(bytes: number): string {
@@ -154,135 +149,120 @@ export function FilesToUpload({ files, setFiles, selectedFolder }: FilesToUpload
   const canUpload = Boolean(selectedFolder?.folderId?.trim()) && files.length > 0 && !isUploading;
   const pendingCount = files.filter((f) => f.status === "pending").length;
 
+  const uploadCount = pendingCount || files.length;
+  const destination = selectedFolder ? selectedFolder.name || selectedFolder.folderId : null;
+
   return (
-    <${Card}>
-      <${CardHeader} className="flex flex-row items-center justify-between">
-        <div>
-          <${CardTitle} className="text-base flex items-center gap-2">
-            <${Upload} className="w-4 h-4" />
-            Files to Upload
-          </${CardTitle}>
-          <${CardDescription}>Drag and drop files or click to browse</${CardDescription}>
-        </div>
-
-        {selectedFolder && (
-          <div className="flex items-center gap-3 rounded-lg">
-            <${FolderOpen} className="w-5 h-5 text-primary-foreground/80 flex-shrink-0" />
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium text-primary-foreground">Upload destination</p>
-              <p className="text-xs font-mono text-primary-foreground/70 truncate mt-0.5">
-                {selectedFolder.name || selectedFolder.folderId.slice(0, 10)}
-                {selectedFolder.name && <span className="text-muted-foreground/60 ml-1">· {selectedFolder.folderId.slice(0, 10)}</span>}
-              </p>
-            </div>
-          </div>
+    <div className="space-y-4">
+      <${Card}
+        onDrop={handleDrop}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        className={${cn}(
+          "border-dashed px-6 py-[52px] text-center transition-colors",
+          isDragging ? "border-primary bg-primary/10" : "border-primary/60",
         )}
-      </${CardHeader}>
-      <${CardContent}>
-        <div
-          onDrop={handleDrop}
-          onDragOver={handleDragOver}
-          onDragLeave={handleDragLeave}
-          className={${cn}(
-            "border-2 border-dashed rounded-lg p-12 text-center transition-colors",
-            isDragging ? "border-primary-foreground/50 bg-primary/10" : "border-border/50 hover:border-border",
-          )}
+      >
+        <input type="file" multiple onChange={handleFileInput} className="peer sr-only" id="drive-file-input" />
+        <label
+          htmlFor="drive-file-input"
+          className="mx-auto flex max-w-sm cursor-pointer flex-col items-center rounded-xl p-2 peer-focus-visible:ring-2 peer-focus-visible:ring-primary/50"
         >
-          <input type="file" multiple onChange={handleFileInput} className="hidden" id="drive-file-input" />
-          <label htmlFor="drive-file-input" className="cursor-pointer flex flex-col items-center gap-3">
-            <div className="w-14 h-14 rounded-full bg-secondary/50 flex items-center justify-center">
-              <${Upload} className="w-7 h-7 text-muted-foreground" />
-            </div>
-            <div>
-              <p className="font-medium text-sm">{isDragging ? "Drop files here" : "Drop files or click to select"}</p>
-              <p className="text-xs text-muted-foreground mt-1">Any file type · Multiple files supported</p>
-            </div>
-          </label>
-        </div>
+          <span className="mb-3.5 flex h-[54px] w-[54px] items-center justify-center rounded-[14px] bg-primary/15 text-primary">
+            <${ArrowUp} className="h-6 w-6" />
+          </span>
+          <span className="text-sm font-semibold">{isDragging ? "Drop files here" : "Drop files here or click to browse"}</span>
+          <span className="mt-1 text-xs text-muted-foreground">Any file type · multiple files supported</span>
+        </label>
 
-        {files.length > 0 && (
-          <div className="mt-4 space-y-2">
-            <p className="text-xs font-mono text-muted-foreground">
-              {files.length} file{files.length !== 1 ? "s" : ""} selected
-            </p>
-            <div className="max-h-48 overflow-y-auto space-y-1.5 rounded border border-border/50 p-2">
-              {files.map((item) => {
-                const isEditing = editingId === item.id;
-                return (
-                  <div key={item.id} className="flex items-center gap-3 px-3 py-2 rounded bg-secondary/30 text-sm">
-                    <${FileIcon} className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                    <div className="flex-1 min-w-0 flex items-center gap-1.5">
-                      {isEditing ? (
-                        <${Input}
-                          value={editingValue}
-                          onChange={(e) => setEditingValue(e.target.value)}
-                          onBlur={commitRename}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") commitRename();
-                            if (e.key === "Escape") cancelRename();
-                          }}
-                          className="h-7 text-xs font-mono flex-1 min-w-0"
-                          autoFocus
-                        />
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => (item.status === "pending" || item.status === "error") && startRename(item)}
-                          className={${cn}(
-                            "truncate font-mono text-xs text-left w-full",
-                            (item.status === "pending" || item.status === "error") && "hover:text-primary-foreground cursor-pointer",
-                          )}
-                        >
-                          {item.displayName}
-                        </button>
-                      )}
-                      {(item.status === "pending" || item.status === "error") && !isEditing && (
-                        <${Button}
-                          variant="ghost"
-                          size="icon-sm"
-                          className="h-6 w-6 text-muted-foreground hover:text-primary-foreground flex-shrink-0"
-                          onClick={() => startRename(item)}
-                          title="Rename file"
-                        >
-                          <${Pencil} className="w-3.5 h-3.5" />
-                        </${Button}>
-                      )}
-                    </div>
-                    <span className="text-[10px] font-mono text-muted-foreground flex-shrink-0">{formatFileSize(item.file.size)}</span>
-                    {item.status === "uploading" && <${Loader2} className="w-4 h-4 animate-spin text-primary-foreground flex-shrink-0" />}
-                    {item.status === "success" && <${CheckCircle} className="w-4 h-4 text-emerald-400 flex-shrink-0" />}
-                    {item.status === "error" && <${AlertCircle} className="w-4 h-4 text-destructive flex-shrink-0" />}
-                    {(item.status === "pending" || item.status === "success" || item.status === "error") && (
-                      <${Button}
-                        variant="ghost"
-                        size="icon-sm"
-                        className="h-6 w-6 text-muted-foreground hover:text-destructive flex-shrink-0"
-                        onClick={() => removeFile(item.id)}
-                      >
-                        <${X} className="w-3.5 h-3.5" />
-                      </${Button}>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
+        <p className={${cn}("mt-4 text-xs", destination ? "text-muted-foreground" : "text-warning")}>
+          {destination ? (
+            <>
+              Uploading to <span className="font-mono text-foreground">{destination}</span>
+            </>
+          ) : (
+            "Select a target folder above before uploading"
+          )}
+        </p>
 
-        <div className="mt-4 flex items-center gap-3">
-          <${Button} onClick={handleUpload} disabled={!canUpload} className="bg-primary text-primary-foreground hover:bg-primary/90">
-            {isUploading ? <${Loader2} className="w-4 h-4 animate-spin" /> : <${Upload} className="w-4 h-4" />}
-            {isUploading ? "Uploading…" : \`Upload \${pendingCount || files.length} file\${(pendingCount || files.length) !== 1 ? "s" : ""}\`}
+        <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
+          <${Button} size="lg" onClick={handleUpload} disabled={!canUpload} className="h-10 px-6 text-xs">
+            {isUploading && <${Loader2} className="h-4 w-4 animate-spin" />}
+            {isUploading ? "Uploading…" : \`Upload \${uploadCount} file\${uploadCount !== 1 ? "s" : ""}\`}
           </${Button}>
-          {uploadComplete && files.every((f) => f.status === "success") && (
-            <span className="text-sm text-emerald-400 flex items-center gap-1.5">
-              <${CheckCircle} className="w-4 h-4" />
+          {uploadComplete && files.length > 0 && files.every((f) => f.status === "success") && (
+            <span className="flex items-center gap-1.5 text-xs text-success">
+              <${CheckCircle} className="h-4 w-4" />
               Upload complete
             </span>
           )}
         </div>
-      </${CardContent}>
-    </${Card}>
+      </${Card}>
+
+      {files.length > 0 && (
+        <${Card} className="p-[18px]">
+          <h2 className="mb-3 text-sm font-semibold">
+            {files.length} file{files.length !== 1 ? "s" : ""} selected
+          </h2>
+          <ul className="max-h-64 divide-y divide-border overflow-y-auto">
+            {files.map((item) => {
+              const isEditing = editingId === item.id;
+              const editable = item.status === "pending" || item.status === "error";
+              return (
+                <li key={item.id} className="flex items-center gap-3 py-2.5 text-xs">
+                  <${FileIcon} className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
+                  <div className="flex min-w-0 flex-1 items-center gap-1.5">
+                    {isEditing ? (
+                      <${Input}
+                        value={editingValue}
+                        onChange={(e) => setEditingValue(e.target.value)}
+                        onBlur={commitRename}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") commitRename();
+                          if (e.key === "Escape") cancelRename();
+                        }}
+                        aria-label="File name"
+                        className="h-8 min-w-0 flex-1 font-mono text-xs"
+                        autoFocus
+                      />
+                    ) : (
+                      <span className="truncate font-mono">{item.displayName}</span>
+                    )}
+                    {editable && !isEditing && (
+                      <${Button}
+                        variant="ghost"
+                        size="icon-sm"
+                        className="h-7 w-7 flex-shrink-0"
+                        onClick={() => startRename(item)}
+                        aria-label={\`Rename \${item.displayName}\`}
+                        title="Rename file"
+                      >
+                        <${Pencil} className="h-3.5 w-3.5" />
+                      </${Button}>
+                    )}
+                  </div>
+                  <span className="flex-shrink-0 font-mono text-[10px] text-muted-foreground">{formatFileSize(item.file.size)}</span>
+                  {item.status === "uploading" && <${Loader2} className="h-4 w-4 flex-shrink-0 animate-spin text-primary" aria-label="Uploading" />}
+                  {item.status === "success" && <${CheckCircle} className="h-4 w-4 flex-shrink-0 text-success" aria-label="Uploaded" />}
+                  {item.status === "error" && <${AlertCircle} className="h-4 w-4 flex-shrink-0 text-destructive" aria-label="Upload failed" />}
+                  {item.status !== "uploading" && (
+                    <${Button}
+                      variant="ghost"
+                      size="icon-sm"
+                      className="h-7 w-7 flex-shrink-0 hover:text-destructive"
+                      onClick={() => removeFile(item.id)}
+                      aria-label={\`Remove \${item.displayName}\`}
+                    >
+                      <${X} className="h-3.5 w-3.5" />
+                    </${Button}>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        </${Card}>
+      )}
+    </div>
   );
 }
 `.toString({ prefix: '"use client";' });

@@ -193,7 +193,7 @@ export default function CrudListContent() {
         <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
           <${Link}
             href={${acarajePath}(\`/crud/\${model}/\${row.original.id}\`)}
-            className="p-1.5 rounded hover:bg-primary-foreground/10 text-muted-foreground hover:text-primary-foreground transition-colors"
+            className="p-1.5 rounded hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors"
           >
             <${Pencil} className="w-3.5 h-3.5" />
           </${Link}>
@@ -241,7 +241,7 @@ export default function CrudListContent() {
           <div className="flex items-center gap-2 text-xs font-mono text-muted-foreground mb-1">
             <span>CRUD</span>
             <span>/</span>
-            <span className="text-primary-foreground">{model}</span>
+            <span className="text-primary">{model}</span>
           </div>
           <h1 className="text-2xl font-bold tracking-tight">{model}</h1>
           {data && <p className="text-muted-foreground text-sm mt-1">{data.total.toLocaleString()} total records</p>}
@@ -345,7 +345,7 @@ export default function CrudListContent() {
                         data-state={row.getIsSelected() ? "selected" : undefined}
                         className={${cn}(
                           "border-b border-border/20 hover:bg-accent/20 transition-colors group",
-                          row.getIsSelected() && "bg-primary/30",
+                          row.getIsSelected() && "bg-primary/15",
                         )}
                       >
                         {row.getAllCells().map((cell) => (
@@ -380,7 +380,7 @@ export default function CrudListContent() {
                         className={${cn}(
                           "h-7 w-7 text-xs font-mono",
                           p === page &&
-                          "bg-primary-foreground/10 border border-primary-foreground/40 text-primary-foreground hover:bg-primary-foreground/20",
+                          "bg-primary/10 border border-primary/40 text-primary hover:bg-primary/20",
                         )}
                       >
                         {p}

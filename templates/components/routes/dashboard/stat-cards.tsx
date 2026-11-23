@@ -67,7 +67,7 @@ export function DashboardStatCards({ stats }: { stats: Dashboard.DashboardStats 
         label="Models"
         value={stats.totalModels}
         icon={${Table2}}
-        color="text-primary-foreground"
+        color="text-primary"
         href={\`\${${acarajePath}("/schemas")}?tab=models\`}
         sub={\`\${stats.modelsWithMap} with @map\`}
       />

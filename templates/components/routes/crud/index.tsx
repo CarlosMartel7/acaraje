@@ -5,8 +5,6 @@ const Link = imp("Link=next/link")
 const Search = imp("Search@lucide-react")
 const Table2 = imp("Table2@lucide-react")
 const Braces = imp("Braces@lucide-react")
-const Database = imp("Database@lucide-react")
-const GitBranch = imp("GitBranch@lucide-react")
 const acarajePath = imp("acarajePath@@/lib/acaraje-routes")
 const Input = imp("Input@@/components/ui/input")
 const Card = imp("Card@@/components/ui/card")
@@ -24,67 +22,60 @@ export function CrudOverviewContent() {
   const filteredModels = (models ?? []).filter((m) => m.name.toLowerCase().includes(search.toLowerCase()));
 
   return (
-    <div className="p-8 space-y-6 animate-in">
-      <${CrudOverviewHeader} />
+    <div className="space-y-5 p-6 animate-in">
+      <${CrudOverviewHeader}
+        actions={
+          !loading && (
+            <div className="relative w-full sm:w-64">
+              <${Search} className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+              <${Input}
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Filter models…"
+                aria-label="Filter models"
+                className="h-[38px] pl-9 text-xs"
+              />
+            </div>
+          )
+        }
+      />
 
       {loading ? (
         <${CrudOverviewBodySkeleton} />
       ) : (
-        <>
-          <div className="relative max-w-sm">
-            <${Search} className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
-            <${Input}
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search models..."
-              className="pl-9 font-mono"
-            />
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
-            {filteredModels.map((model) => (
-              <${Card} key={model.name} className="p-4 space-y-3 border-border/50 bg-card/40 hover:border-border transition-colors">
-                <div className="flex items-start justify-between gap-2">
-                  <span className="text-sm font-bold font-mono truncate">{model.name}</span>
-                  <div className="flex items-center gap-1.5 shrink-0 text-[11px] font-mono text-muted-foreground">
-                    <${Database} className="w-3 h-3 text-muted-foreground/40" />
-                    {model.recordCount.toLocaleString()} entries
-                  </div>
+        <div className="grid gap-4 [grid-template-columns:repeat(auto-fill,minmax(min(250px,100%),1fr))]">
+          {filteredModels.map((model) => (
+            <${Card} key={model.name} className="p-[18px] transition-colors hover:border-primary/40">
+              <div className="mb-[18px] flex items-center gap-3">
+                <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-secondary text-foreground/90">
+                  <${Table2} className="h-4 w-4" />
+                </span>
+                <div className="min-w-0">
+                  <h2 className="truncate text-sm font-semibold">{model.name}</h2>
+                  <p className="text-[11px] text-muted-foreground">
+                    {model.recordCount.toLocaleString()} {model.recordCount === 1 ? "entry" : "entries"} · {model.fieldCount} fields
+                  </p>
                 </div>
-
-                <div className="flex items-center gap-3 text-[11px] font-mono text-muted-foreground/70">
-                  <span>{model.fieldCount} fields</span>
-                  {model.relationCount > 0 && <span>{model.relationCount} relations</span>}
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <${Button} variant="outline" size="sm" asChild className="flex-1">
-                    <${Link} href={${acarajePath}(\`/crud/\${model.name}\`)} className="flex items-center justify-center gap-1.5">
-                      <${Table2} className="w-3.5 h-3.5" />
-                      View table
-                    </${Link}>
-                  </${Button}>
-                  <${Button} variant="outline" size="sm" asChild className="flex-1">
-                    <${Link}
-                      href={\`\${${acarajePath}("/schemas")}?model=\${model.name}\`}
-                      className="flex items-center justify-center gap-1.5"
-                    >
-                      <${GitBranch} className="w-3.5 h-3.5" />
-                      View schema
-                    </${Link}>
-                  </${Button}>
-                </div>
-              </${Card}>
-            ))}
-
-            {filteredModels.length === 0 && (
-              <div className="col-span-full flex items-center gap-2 px-4 py-12 justify-center text-muted-foreground text-sm">
-                <${Braces} className="w-4 h-4" />
-                No models match &quot;{search}&quot;
               </div>
-            )}
-          </div>
-        </>
+
+              <div className="flex flex-wrap gap-2">
+                <${Button} size="sm" asChild>
+                  <${Link} href={${acarajePath}(\`/crud/\${model.name}\`)}>View table</${Link}>
+                </${Button}>
+                <${Button} size="sm" variant="outline" asChild>
+                  <${Link} href={\`\${${acarajePath}("/schemas")}?model=\${model.name}\`}>View schema</${Link}>
+                </${Button}>
+              </div>
+            </${Card}>
+          ))}
+
+          {filteredModels.length === 0 && (
+            <div className="col-span-full flex items-center justify-center gap-2 px-4 py-12 text-sm text-muted-foreground">
+              <${Braces} className="h-4 w-4" />
+              No models match &quot;{search}&quot;
+            </div>
+          )}
+        </div>
       )}
     </div>
   );
