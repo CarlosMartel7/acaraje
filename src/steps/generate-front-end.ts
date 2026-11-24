@@ -75,8 +75,8 @@ const PROJECT_FILES: Record<string, () => { toString(): string }> = {
 // in a ts-poet template. NOT read via fs + __dirname/import.meta.url at runtime — that path
 // doesn't survive tsup's ESM bundling (see generate-folders.ts's folder-structure.json fix).
 const ICON_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" fill="none">
-  <rect width="32" height="32" rx="6" fill="hsl(4.8387 48.4375% 25.098%)" />
-  <g transform="translate(4 4)" stroke="hsl(1.5789 61.7886% 48.2353%)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <rect width="32" height="32" rx="8" fill="#FF5A1F" />
+  <g transform="translate(4 4)" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
     <path d="M11 12h.01" />
     <path d="M13 22c.5-.5 1.12-1 2.5-1-1.38 0-2-.5-2.5-1" />
     <path d="M14 2a3.28 3.28 0 0 1-3.227 1.798l-6.17-.561A2.387 2.387 0 1 0 4.387 8H15.5a1 1 0 0 1 0 13 1 1 0 0 0 0-5H12a7 7 0 0 1-7-7V8" />

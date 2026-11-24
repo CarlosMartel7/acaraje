@@ -2,259 +2,179 @@ import { code, imp } from "ts-poet";
 
 const Link = imp("Link=next/link")
 const usePathname = imp("usePathname@next/navigation")
-const useRouter = imp("useRouter@next/navigation")
-const GitBranch = imp("GitBranch@lucide-react")
+const useState = imp("useState@react")
 const LayoutDashboard = imp("LayoutDashboard@lucide-react")
 const Table2 = imp("Table2@lucide-react")
-const Layers = imp("Layers@lucide-react")
-const ListTree = imp("ListTree@lucide-react")
+const GitBranch = imp("GitBranch@lucide-react")
+const Wrench = imp("Wrench@lucide-react")
 const Sprout = imp("Sprout@lucide-react")
-const PencilRuler = imp("PencilRuler@lucide-react")
+const Cloud = imp("Cloud@lucide-react")
+const Upload = imp("Upload@lucide-react")
+const FolderOpen = imp("FolderOpen@lucide-react")
 const ChevronDown = imp("ChevronDown@lucide-react")
 const Shrimp = imp("Shrimp@lucide-react")
-const Cloud = imp("Cloud@lucide-react")
-const FolderOpen = imp("FolderOpen@lucide-react")
-const Upload = imp("Upload@lucide-react")
-const LogOut = imp("LogOut@lucide-react")
+const LucideIcon = imp("t:LucideIcon@lucide-react")
 const cn = imp("cn@@/lib/utils")
 const acarajePath = imp("acarajePath@@/lib/acaraje-routes")
-const Button = imp("Button@@/components/ui/button")
-const useState = imp("useState@react")
 const useSchemas = imp("useSchemas@@/query/hooks/use-schemas")
+const useRelations = imp("useRelations@@/query/hooks/use-relations")
+const useStats = imp("useStats@@/query/hooks/use-stats")
 
 export const writeSidebarComponent = () => code`
-interface SidebarProps {
-  username?: string;
+const navItemClassName = (isActive: boolean) =>
+  ${cn}(
+    "group flex h-[38px] items-center gap-3 rounded-lg px-3 text-[13px] transition-colors",
+    isActive ? "bg-accent text-foreground" : "text-muted-foreground hover:bg-accent/60 hover:text-foreground",
+  );
+
+function isWithin(pathname: string, href: string) {
+  return pathname === href || pathname.startsWith(href + "/");
 }
 
-const topNavItems = [
-  { href: ${acarajePath}("/dashboard"), label: "Overview", icon: ${LayoutDashboard}, description: "Schema summary" },
-  { href: ${acarajePath}("/schemas"), label: "Models", icon: ${Table2}, description: "All Prisma models" },
-  { href: ${acarajePath}("/relations"), label: "Relations", icon: ${GitBranch}, description: "Model relationships" },
-];
+function CountBadge({ count }: { count: number | undefined }) {
+  if (count === undefined) return null;
+  return (
+    <span className="ml-auto flex h-5 min-w-6 items-center justify-center rounded-full bg-primary/20 px-[7px] text-[10px] font-semibold text-primary">
+      {count}
+    </span>
+  );
+}
 
-const dataNavItems = [{ href: ${acarajePath}("/seeder"), label: "Seeder", icon: ${Sprout}, description: "Generate fake data" }];
+function NavLink({ href, label, icon: Icon, count, pathname }: { href: string; label: string; icon: ${LucideIcon}; count?: number; pathname: string }) {
+  const isActive = isWithin(pathname, href);
+  return (
+    <${Link} href={href} className={navItemClassName(isActive)} aria-current={isActive ? "page" : undefined}>
+      <Icon className="h-4 w-4 flex-shrink-0" />
+      <span className="flex-1 truncate">{label}</span>
+      <CountBadge count={count} />
+    </${Link}>
+  );
+}
 
-const driveSubItems = [
-  { href: ${acarajePath}("/drive"), label: "Upload", icon: ${Upload} },
-  { href: ${acarajePath}("/drive/view"), label: "View", icon: ${FolderOpen} },
-];
+/** A top-level nav item whose children (CRUD models, Drive pages) expand underneath it. */
+function NavGroup({
+  href,
+  label,
+  icon: Icon,
+  pathname,
+  children,
+}: {
+  href: string;
+  label: string;
+  icon: ${LucideIcon};
+  pathname: string;
+  children: React.ReactNode;
+}) {
+  const isActive = isWithin(pathname, href);
+  const [open, setOpen] = ${useState}(isActive);
+  return (
+    <div>
+      <div className={${cn}(navItemClassName(isActive), "pr-1")}>
+        <${Link} href={href} className="flex h-full flex-1 items-center gap-3" aria-current={pathname === href ? "page" : undefined}>
+          <Icon className="h-4 w-4 flex-shrink-0" />
+          <span className="flex-1 truncate">{label}</span>
+        </${Link}>
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          aria-expanded={open}
+          aria-label={\`\${open ? "Collapse" : "Expand"} \${label}\`}
+          className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+        >
+          <${ChevronDown} className={${cn}("h-3.5 w-3.5 transition-transform duration-200", open && "rotate-180")} />
+        </button>
+      </div>
+      {open && <div className="my-1 ml-[22px] space-y-0.5 border-l border-sidebar-border pl-3">{children}</div>}
+    </div>
+  );
+}
 
-export function Sidebar({ username }: SidebarProps) {
-  const pathname = ${usePathname}();
-  const router = ${useRouter}();
-  const [crudOpen, setCrudOpen] = ${useState}(false);
-  const [driveOpen, setDriveOpen] = ${useState}(false);
+function SubLink({ href, label, icon: Icon, isActive }: { href: string; label: string; icon?: ${LucideIcon}; isActive: boolean }) {
+  return (
+    <${Link}
+      href={href}
+      aria-current={isActive ? "page" : undefined}
+      className={${cn}(
+        "flex h-8 items-center gap-2 rounded-md px-2.5 text-xs transition-colors",
+        isActive ? "bg-accent text-foreground" : "text-muted-foreground hover:bg-accent/60 hover:text-foreground",
+      )}
+    >
+      {Icon ? (
+        <Icon className="h-3.5 w-3.5 flex-shrink-0" />
+      ) : (
+        <span className={${cn}("h-1.5 w-1.5 flex-shrink-0 rounded-full", isActive ? "bg-primary" : "bg-muted-foreground/40")} />
+      )}
+      <span className="truncate">{label}</span>
+    </${Link}>
+  );
+}
 
-  const { data: schemaData } = ${useSchemas}();
-  const models = schemaData?.models?.map((m) => m.name) ?? [];
-  const provider = schemaData?.datasource?.provider ?? "postgresql";
+function ConnectionCard({ provider }: { provider: string }) {
+  const { isSuccess, isError } = ${useStats}();
+  const status = isSuccess
+    ? { label: "Database connected", dot: "bg-success" }
+    : isError
+      ? { label: "Database unreachable", dot: "bg-destructive" }
+      : { label: "Connecting…", dot: "bg-muted-foreground animate-pulse" };
 
   return (
-    <aside className="w-64 flex-shrink-0 flex flex-col min-h-0 border-r border-border/60 bg-transparent">
-      {/* Logo */}
-      <div className="px-6 py-6 border-b border-border/60">
-        <div className="flex items-center gap-3">
-          <div className="flex items-center justify-center w-8 h-8 rounded-md bg-primary border border-primary-foreground glow-primary-foreground-sm">
-            <${Shrimp} className="w-4 h-4 text-primary-foreground" />
-          </div>
-          <div>
-            <div className="text-base font-semibold tracking-tight text-foreground">Acaraje</div>
-            <div className="text-[10px] font-mono text-muted-foreground/60 tracking-widest uppercase">schema explorer</div>
-          </div>
-        </div>
+    <div className="mt-auto rounded-xl border border-border bg-card p-3.5 text-xs">
+      <div className="flex items-center gap-2 font-semibold">
+        <span className={${cn}("h-2 w-2 flex-shrink-0 rounded-full", status.dot)} />
+        {status.label}
       </div>
+      <p className="mt-1 font-mono text-[11px] leading-relaxed text-muted-foreground">
+        {provider} · dev
+        <br />
+        prisma/schema.prisma
+      </p>
+    </div>
+  );
+}
 
-      {/* Nav */}
-      <nav className="sidebar-scroll flex-1 min-h-0 px-3 py-5 space-y-0.5 overflow-y-auto overflow-x-hidden">
-        <p className="px-3 mb-3 text-[10px] font-mono tracking-[0.12em] uppercase text-muted-foreground/40">Explore</p>
+export function Sidebar() {
+  const pathname = ${usePathname}();
+  const { data: schemaData } = ${useSchemas}();
+  const { data: relationsData } = ${useRelations}();
 
-        {topNavItems.map((item) => {
-          const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
-          return (
-            <${Link}
-              key={item.href}
-              href={item.href}
-              className={${cn}(
-                "group flex items-center gap-3 rounded-md px-3 py-2.5 text-sm transition-all duration-150",
-                isActive
-                  ? "bg-primary border border-primary-foreground/25 text-primary-foreground "
-                  : "text-muted-foreground hover:text-foreground hover:bg-accent border border-transparent",
-              )}
-            >
-              <item.icon
-                className={${cn}(
-                  "w-4 h-4 flex-shrink-0",
-                  isActive ? "text-primary-foreground" : "text-muted-foreground/60 group-hover:text-muted-foreground",
-                )}
-              />
-              <span className="flex-1 font-medium">{item.label}</span>
-              {isActive && <span className="w-1.5 h-1.5 rounded-full bg-primary-foreground opacity-80" />}
-            </${Link}>
-          );
-        })}
+  const models = schemaData?.models?.map((m) => m.name) ?? [];
+  const provider = schemaData?.datasource?.provider ?? "postgresql";
+  const driveHref = ${acarajePath}("/drive");
+  const driveViewHref = ${acarajePath}("/drive/view");
 
-        {/* Data section: Seeder, Drive, CRUD */}
-        <div className="pt-4">
-          <p className="px-3 mb-2 text-[10px] font-mono tracking-[0.12em] uppercase text-muted-foreground/40">Data</p>
-          {/* CRUD accordion */}
-          <div className="flex items-center gap-1 mt-0.5">
-            <${Link}
-              href={${acarajePath}("/crud")}
-              className={${cn}(
-                "flex-1 flex items-center gap-3 rounded-md px-3 py-2.5 h-auto font-medium text-sm",
-                pathname.startsWith(${acarajePath}("/crud"))
-                  ? "bg-primary border border-primary-foreground/25 text-primary-foreground"
-                  : "text-muted-foreground hover:text-foreground hover:bg-accent border border-transparent",
-              )}
-            >
-              <${PencilRuler} className="w-4 h-4 flex-shrink-0 text-muted-foreground/60" />
-              <span className="flex-1 text-left">CRUD</span>
-            </${Link}>
-            <${Button}
-              variant="ghost"
-              size="icon-sm"
-              className="flex-shrink-0 text-muted-foreground/60 hover:text-foreground"
-              onClick={() => setCrudOpen((v) => !v)}
-              aria-label="Toggle CRUD submenu"
-            >
-              <${ChevronDown} className={${cn}("w-3.5 h-3.5 transition-transform duration-200", crudOpen && "rotate-180")} />
-            </${Button}>
-          </div>
+  return (
+    <aside className="flex min-h-0 w-64 flex-shrink-0 flex-col border-r border-sidebar-border bg-sidebar px-3.5 py-4 text-sidebar-foreground">
+      <${Link} href={${acarajePath}("/dashboard")} className="mb-5 flex items-center gap-2.5 px-1 text-[17px] font-semibold">
+        <span className="flex h-[30px] w-[30px] items-center justify-center rounded-lg bg-primary text-primary-foreground">
+          <${Shrimp} className="h-[17px] w-[17px]" />
+        </span>
+        Acaraje
+      </${Link}>
 
-          {crudOpen && (
-            <div className="mt-1 ml-4 pl-3 border-l border-border/50 space-y-0.5">
-              {models.map((model) => {
-                const href = ${acarajePath}(\`/crud/\${model}\`);
-                const isActive = pathname.startsWith(href);
-                return (
-                  <${Link}
-                    key={model}
-                    href={href}
-                    className={${cn}(
-                      "flex items-center gap-2 rounded px-2.5 py-1.5 text-xs font-mono transition-all",
-                      isActive ? "text-primary-foreground bg-primary" : "text-muted-foreground/70 hover:text-foreground hover:bg-accent",
-                    )}
-                  >
-                    <span className={${cn}("w-1 h-1 rounded-full flex-shrink-0", isActive ? "bg-primary-foreground" : "bg-border")} />
-                    {model}
-                  </${Link}>
-                );
-              })}
-            </div>
-          )}
+      <nav className="sidebar-scroll -mx-1 flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden px-1 pb-4" aria-label="Main">
+        <div className="space-y-0.5">
+          <NavLink href={${acarajePath}("/dashboard")} label="Overview" icon={${LayoutDashboard}} pathname={pathname} />
+          <NavLink href={${acarajePath}("/schemas")} label="Models" icon={${Table2}} count={schemaData?.models?.length} pathname={pathname} />
+          <NavLink href={${acarajePath}("/relations")} label="Relations" icon={${GitBranch}} count={relationsData?.relations?.length} pathname={pathname} />
+        </div>
 
-
-          {dataNavItems.map((item) => {
-            const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
-            return (
-              <${Link}
-                key={item.href}
-                href={item.href}
-                className={${cn}(
-                  "group flex items-center gap-3 rounded-md px-3 py-2.5 text-sm transition-all duration-150",
-                  isActive
-                    ? "bg-primary border border-primary-foreground/25 text-primary-foreground "
-                    : "text-muted-foreground hover:text-foreground hover:bg-accent border border-transparent",
-                )}
-              >
-                <item.icon
-                  className={${cn}(
-                    "w-4 h-4 flex-shrink-0",
-                    isActive ? "text-primary-foreground" : "text-muted-foreground/60 group-hover:text-muted-foreground",
-                  )}
-                />
-                <span className="flex-1 font-medium">{item.label}</span>
-                {isActive && <span className="w-1.5 h-1.5 rounded-full bg-primary-foreground opacity-80" />}
-              </${Link}>
-            );
-          })}
-
-          {/* Drive accordion */}
-          <div className="flex items-center gap-1 mt-0.5">
-            <${Link}
-              href={${acarajePath}("/drive")}
-              className={${cn}(
-                "flex-1 flex items-center gap-3 rounded-md px-3 py-2.5 h-auto font-medium text-sm",
-                pathname.startsWith(${acarajePath}("/drive"))
-                  ? "bg-primary border border-primary-foreground/25 text-primary-foreground"
-                  : "text-muted-foreground hover:text-foreground hover:bg-accent border border-transparent",
-              )}
-            >
-              <${Cloud} className="w-4 h-4 flex-shrink-0 text-muted-foreground/60" />
-              <span className="flex-1 text-left">Drive</span>
-            </${Link}>
-            <${Button}
-              variant="ghost"
-              size="icon-sm"
-              className="flex-shrink-0 text-muted-foreground/60 hover:text-foreground"
-              onClick={() => setDriveOpen((v) => !v)}
-              aria-label="Toggle Drive submenu"
-            >
-              <${ChevronDown} className={${cn}("w-3.5 h-3.5 transition-transform duration-200", driveOpen && "rotate-180")} />
-            </${Button}>
-          </div>
-
-          {driveOpen && (
-            <div className="mt-1 ml-4 pl-3 border-l border-border/50 space-y-0.5">
-              {driveSubItems.map((item) => {
-                const isActive = pathname === item.href;
-                return (
-                  <${Link}
-                    key={item.href}
-                    href={item.href}
-                    className={${cn}(
-                      "flex items-center gap-2 rounded px-2.5 py-1.5 text-xs transition-all",
-                      isActive
-                        ? "text-primary-foreground bg-primary font-medium"
-                        : "text-muted-foreground/70 hover:text-foreground hover:bg-accent",
-                    )}
-                  >
-                    <item.icon className="w-3 h-3 flex-shrink-0" />
-                    {item.label}
-                  </${Link}>
-                );
-              })}
-            </div>
-          )}
-
+        <p className="mx-3 mb-2 mt-[18px] text-[10px] font-semibold tracking-[0.14em] text-muted-foreground">DATA</p>
+        <div className="space-y-0.5">
+          <NavGroup href={${acarajePath}("/crud")} label="CRUD" icon={${Wrench}} pathname={pathname}>
+            {models.map((model) => {
+              const href = ${acarajePath}(\`/crud/\${model}\`);
+              return <SubLink key={model} href={href} label={model} isActive={isWithin(pathname, href)} />;
+            })}
+          </NavGroup>
+          <NavLink href={${acarajePath}("/seeder")} label="Seeder" icon={${Sprout}} pathname={pathname} />
+          <NavGroup href={driveHref} label="Drive" icon={${Cloud}} pathname={pathname}>
+            <SubLink href={driveHref} label="Upload" icon={${Upload}} isActive={pathname === driveHref} />
+            <SubLink href={driveViewHref} label="View" icon={${FolderOpen}} isActive={isWithin(pathname, driveViewHref)} />
+          </NavGroup>
         </div>
       </nav>
 
-      {/* Footer */}
-      <div className="px-5 py-4 border-t border-border/60 space-y-3">
-        {username && (
-          <div className="flex items-center justify-between gap-2">
-            <span className="text-xs text-muted-foreground truncate" title={username}>
-              {username}
-            </span>
-            <${Button}
-              type="button"
-              variant="ghost"
-              size="icon-sm"
-              className="flex-shrink-0 text-muted-foreground hover:text-foreground"
-              title="Sign out"
-              onClick={async () => {
-                await fetch("/api/auth/logout", { method: "POST" });
-                router.replace("/login");
-                router.refresh();
-              }}
-            >
-              <${LogOut} className="w-3.5 h-3.5" />
-            </${Button}>
-          </div>
-        )}
-        <div className="text-[10px] font-mono text-muted-foreground/35 space-y-1">
-          <div className="flex items-center gap-2">
-            <${Layers} className="w-3 h-3" />
-            <span>prisma/schema.prisma</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <${ListTree} className="w-3 h-3" />
-            <span>{provider} · dev</span>
-          </div>
-        </div>
-      </div>
+      <ConnectionCard provider={provider} />
     </aside>
   );
 }

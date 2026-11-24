@@ -128,12 +128,44 @@ test("globals.css renders as real, unmangled CSS", () => {
   expect(css).not.toContain("import_ts_poet");
 });
 
+test("globals.css uses the Direction F palette: orange primary with white text on it", () => {
+  const css = root["globals.css"];
+  // --primary is the accent fill and --primary-foreground the text drawn on it (shadcn convention).
+  expect(css).toContain("--primary: 15.8 100% 56.0784%;");
+  expect(css).toContain("--primary-foreground: 0 0% 100%;");
+  expect(css).toContain("--background: 0 0% 8.2353%;");
+  expect(css).toMatch(/--success: /);
+  expect(css).toMatch(/--warning: /);
+  expect(css).toMatch(/--info: /);
+  expect(css).not.toContain("glow-primary");
+  expect(css).not.toContain("scan-line");
+});
+
+test("root layout loads Inter as the sans font and DM Mono as the mono font", () => {
+  const layout = root["layout.tsx"];
+  expect(layout).toMatch(/import \{[^}]*\bInter\b[^}]*\} from "next\/font\/google"/);
+  expect(layout).toMatch(/import \{[^}]*\bDM_Mono\b[^}]*\} from "next\/font\/google"/);
+  expect(layout).not.toContain("Geist");
+});
+
+test("app icon uses the orange brand tile", () => {
+  const icon = fs.readFileSync(rootPath(outDir, "icon.svg"), "utf-8");
+  expect(icon).toContain('fill="#FF5A1F"');
+});
+
 test("project pages import their matching route content and skeleton components", () => {
   expect(project["dashboard/page.tsx"]).toMatch(/from "@\/components\/routes\/dashboard"/);
   expect(project["dashboard/loading.tsx"]).toMatch(/from "@\/components\/routes\/skeletons"/);
   expect(project["crud/[model]/[id]/page.tsx"]).toMatch(/from "@\/components\/routes\/crud\/\[model\]\/edit"/);
   expect(project["layout.tsx"]).toMatch(/from "@\/components\/sidebar"/);
   expect(project["layout.tsx"]).toMatch(/from "@\/lib\/auth"/);
+});
+
+test("admin layout renders the sidebar and passes the session user to the top bar", () => {
+  const layout = project["layout.tsx"];
+  expect(layout).toMatch(/from "@\/components\/topbar"/);
+  expect(layout).toContain("<Sidebar />");
+  expect(layout).toContain("<Topbar username={session?.username} />");
 });
 
 test('only the pages rendered behind a Suspense boundary get "use client"', () => {
