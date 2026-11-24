@@ -13,6 +13,11 @@ const cn = imp("cn@@/lib/utils")
 const Button = imp("Button@@/components/ui/button")
 const Input = imp("Input@@/components/ui/input")
 const Card = imp("Card@@/components/ui/card")
+const CardContent = imp("CardContent@@/components/ui/card")
+const CardDescription = imp("CardDescription@@/components/ui/card")
+const CardHeader = imp("CardHeader@@/components/ui/card")
+const CardTitle = imp("CardTitle@@/components/ui/card")
+const useDriveUpload = imp("useDriveUpload@@/query/hooks/use-drive")
 
 export const writeFilesToUpload = () => code`
 function formatFileSize(bytes: number): string {
@@ -33,6 +38,7 @@ export function FilesToUpload({ files, setFiles, selectedFolder }: FilesToUpload
   const [uploadComplete, setUploadComplete] = ${useState}(false);
   const [editingId, setEditingId] = ${useState}<string | null>(null);
   const [editingValue, setEditingValue] = ${useState}("");
+  const uploadMutation = ${useDriveUpload}();
 
   const addFiles = ${useCallback}(
     (newFiles: FileList | File[]) => {
@@ -122,15 +128,7 @@ export function FilesToUpload({ files, setFiles, selectedFolder }: FilesToUpload
         formData.append("folderId", selectedFolder.folderId);
         formData.append("displayName", item.displayName);
 
-        const res = await fetch("/api/drive/upload", {
-          method: "POST",
-          body: formData,
-        });
-
-        if (!res.ok) {
-          const err = await res.json().catch(() => ({}));
-          throw new Error(err.error || \`Upload failed: \${res.status}\`);
-        }
+        await uploadMutation.mutateAsync(formData);
 
         setFiles([]);
       } catch (err) {

@@ -1,6 +1,7 @@
 import fs from 'fs'
 import path from 'path'
 import { sanitizeProjectName } from './generate-folders'
+import { ApiLayer } from '../shared/api-layer'
 
 import writeUtils from '../../templates/lib/utils'
 import writeAcarajeRoutes from '../../templates/lib/acaraje-routes'
@@ -10,6 +11,7 @@ import writeSidebarComponent from '../../templates/components/sidebar'
 import writeTopbarComponent from '../../templates/components/topbar'
 
 import writeQueryProviderComponent from '../../templates/components/providers/query-provider'
+import writeTrpcQueryProviderComponent from '../../templates/trpc/providers/query-provider'
 
 import writeCrudOverviewApiCalls from '../../templates/components/routes/crud/[[api-calls]]'
 import writeCrudOverviewContent from '../../templates/components/routes/crud/index'
@@ -75,7 +77,6 @@ const COMPONENT_FILES: Record<string, () => { toString(): string }> = {
   'sidebar.tsx': writeSidebarComponent,
   'topbar.tsx': writeTopbarComponent,
 
-  'providers/query-provider.tsx': writeQueryProviderComponent,
 
   'routes/crud/[[api-calls]].tsx': writeCrudOverviewApiCalls,
   'routes/crud/index.tsx': writeCrudOverviewContent,
@@ -135,10 +136,18 @@ const COMPONENT_FILES: Record<string, () => { toString(): string }> = {
   'ui/tabs.tsx': writeTabsComponent,
 }
 
-export function generateComponents(name: string, baseDir: string = process.cwd()): void {
+// Same output path and export name (QueryProvider) in both flavors, so app/layout.tsx is shared.
+// The tRPC one also mounts TRPCProvider on top of the shared QueryClient.
+const QUERY_PROVIDER_FILES: Record<ApiLayer, () => { toString(): string }> = {
+  rest: writeQueryProviderComponent,
+  trpc: writeTrpcQueryProviderComponent,
+}
+
+export function generateComponents(name: string, api: ApiLayer = "rest", baseDir: string = process.cwd()): void {
   const componentsDir = path.join(baseDir, "components")
 
-  for (const [relativePath, write] of Object.entries(COMPONENT_FILES)) {
+  const componentFiles = { ...COMPONENT_FILES, 'providers/query-provider.tsx': QUERY_PROVIDER_FILES[api] }
+  for (const [relativePath, write] of Object.entries(componentFiles)) {
     const outPath = path.join(componentsDir, relativePath)
     fs.mkdirSync(path.dirname(outPath), { recursive: true })
     fs.writeFileSync(outPath, write().toString())

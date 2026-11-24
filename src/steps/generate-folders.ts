@@ -1,6 +1,7 @@
 import fs from "fs";
 import path from "path";
 import folderStructure from "./folder-structure.json";
+import { ApiLayer } from "../shared/api-layer";
 
 interface FolderNode {
   name: string;
@@ -34,6 +35,25 @@ export function sanitizeProjectName(name: string): string {
   return sanitized;
 }
 
+// app/api/* folders whose REST routes become server/trpc/routers/* in the tRPC flavor — skipped
+// there so the project doesn't ship empty REST route folders. auth always stays REST.
+const REST_ONLY_API_FOLDERS = new Set(["crud", "drive", "relations", "schemas", "seed", "stats"]);
+
+function withoutRestDataFolders(structure: FolderNode[]): FolderNode[] {
+  return structure.map((root) =>
+    root.name !== "app"
+      ? root
+      : {
+        ...root,
+        subfolders: root.subfolders?.map((child) =>
+          child.name !== "api"
+            ? child
+            : { ...child, subfolders: child.subfolders?.filter((f) => !REST_ONLY_API_FOLDERS.has(f.name)) },
+        ),
+      },
+  );
+}
+
 function resolveNames(nodeName: string, projectName: string, modelNames: string[]): string[] {
   if (nodeName === PROJECT_NAME_TOKEN) return [projectName];
   if (MODEL_NAME_TOKENS.has(nodeName)) return modelNames;
@@ -59,11 +79,12 @@ function buildNode(
 export function createFolderStructure(
   name: string,
   schema: PrismaSchema.ParsedSchema,
+  api: ApiLayer = "rest",
   baseDir: string = process.cwd(),
 ): void {
   const projectName = sanitizeProjectName(name);
   const modelNames = schema.models.map((m) => m.name);
-  const structure = readFolderStructure();
+  const structure = api === "trpc" ? withoutRestDataFolders(readFolderStructure()) : readFolderStructure();
 
   for (const node of structure) {
     buildNode(node, baseDir, projectName, modelNames);

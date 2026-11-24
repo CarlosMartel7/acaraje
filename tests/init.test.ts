@@ -39,10 +39,16 @@ function seedSqlSchema(outDir: string, fixture: string): string {
  * directory before invoking it. `prompts` (the p.group(...) call) is also created once at module
  * load time, so each scenario needs a fully fresh module instance via resetModules()+require().
  */
-async function runInit(answers: Record<string, unknown>, outDir: string) {
+// The p.group mock from the most recent runInit(), so a test can inspect the prompt fields init
+// passed in (e.g. that the API layer prompt is skipped when --api was given).
+let lastGroupMock: jest.Mock;
+
+async function runInit(answers: Record<string, unknown>, outDir: string, opts: Record<string, unknown> = {}) {
   jest.resetModules();
+  lastGroupMock = jest.fn(() => Promise.resolve(answers));
   jest.doMock("@clack/prompts", () => ({
-    group: jest.fn(() => Promise.resolve(answers)),
+    group: lastGroupMock,
+    select: jest.fn(() => "prompted"),
     intro: jest.fn(),
     outro: jest.fn(),
     cancel: jest.fn(),
@@ -55,7 +61,7 @@ async function runInit(answers: Record<string, unknown>, outDir: string) {
   process.chdir(outDir);
   try {
     const initModule = require("../src/commands/init");
-    await initModule.default();
+    await initModule.default(opts);
   } finally {
     process.chdir(originalCwd);
   }
@@ -65,6 +71,10 @@ async function runInit(answers: Record<string, unknown>, outDir: string) {
 
 function exists(outDir: string, ...segments: string[]) {
   return fs.existsSync(path.join(outDir, ...segments));
+}
+
+function readJson(outDir: string, ...segments: string[]) {
+  return JSON.parse(fs.readFileSync(path.join(outDir, ...segments), "utf-8"));
 }
 
 describe("prisma + docker", () => {
@@ -137,6 +147,111 @@ describe("prisma + docker", () => {
 
   test("runs prisma db push unconditionally, since orm is prisma", () => {
     expect(execSync).toHaveBeenCalledWith("npx prisma db push", expect.objectContaining({ cwd: outDir }));
+  });
+
+  test("defaults to the REST API layer when neither --api nor an api answer is given", () => {
+    expect(readJson(outDir, "acaraje.config.json")).toEqual({ api: "rest" });
+    expect(exists(outDir, "server", "trpc")).toBe(false);
+    expect(exists(outDir, "app", "api", "trpc")).toBe(false);
+    expect(readJson(outDir, "package.json").dependencies["@trpc/server"]).toBeUndefined();
+  });
+});
+
+describe("prisma + trpc (via the --api flag)", () => {
+  const outDir = fs.mkdtempSync(path.join(os.tmpdir(), "acaraje-init-prisma-trpc-"));
+
+  beforeAll(async () => {
+    seedPrismaSchema(outDir, PRISMA_SCHEMA_FIXTURE);
+    await runInit(
+      {
+        name: "Acaraje",
+        orm: "prisma",
+        prov: undefined,
+        schemaPath: "/prisma",
+        storage: "minio",
+        docker: true,
+        username: "admin",
+        password: "password",
+      },
+      outDir,
+      { api: "trpc" },
+    );
+
+    writeLog("init-prisma-trpc", { outDir, files: fs.readdirSync(outDir) }, { output: outDir });
+  });
+
+  afterAll(() => {
+    fs.rmSync(outDir, { recursive: true, force: true });
+  });
+
+  test("skips the API layer prompt, since --api already answered it", () => {
+    // Second p.group() call is init's own buildPrompts(); its api field returns undefined (= skip).
+    const restOfPrompts = lastGroupMock.mock.calls[1][0] as Record<string, () => unknown>;
+    expect(restOfPrompts.api()).toBeUndefined();
+  });
+
+  test("persists the choice to acaraje.config.json", () => {
+    expect(readJson(outDir, "acaraje.config.json")).toEqual({ api: "trpc" });
+  });
+
+  test("writes the tRPC server, the single /api/trpc route, and per-model crud handlers", () => {
+    expect(exists(outDir, "server", "trpc", "init.ts")).toBe(true);
+    expect(exists(outDir, "server", "trpc", "root.ts")).toBe(true);
+    expect(exists(outDir, "app", "api", "trpc", "[trpc]", "route.ts")).toBe(true);
+    expect(exists(outDir, "lib", "trpc", "client.ts")).toBe(true);
+    expect(exists(outDir, "server", "trpc", "routers", "crud", "models", "User.ts")).toBe(true);
+    for (const router of ["schemas", "relations", "stats", "seed", "drive"]) {
+      expect(exists(outDir, "server", "trpc", "routers", `${router}.ts`)).toBe(true);
+    }
+  });
+
+  test("writes no REST data routes — only auth stays REST", () => {
+    expect(fs.readdirSync(path.join(outDir, "app", "api")).sort()).toEqual(["auth", "trpc"]);
+  });
+
+  test("adds the tRPC packages to package.json", () => {
+    const deps = readJson(outDir, "package.json").dependencies;
+    expect(deps["@trpc/server"]).toBeDefined();
+    expect(deps["@trpc/client"]).toBeDefined();
+    expect(deps["@trpc/tanstack-react-query"]).toBeDefined();
+  });
+});
+
+describe("pure-sql + trpc (via the prompt)", () => {
+  const outDir = fs.mkdtempSync(path.join(os.tmpdir(), "acaraje-init-sql-trpc-"));
+
+  beforeAll(async () => {
+    seedSqlSchema(outDir, SQLITE_SCHEMA_FIXTURE);
+    await runInit(
+      {
+        name: "Acaraje",
+        orm: "pure-sql",
+        prov: "sqlite",
+        schemaPath: "/database",
+        storage: "gcs",
+        api: "trpc",
+        docker: false,
+        username: "admin",
+        password: "password",
+      },
+      outDir,
+    );
+  });
+
+  afterAll(() => {
+    fs.rmSync(outDir, { recursive: true, force: true });
+  });
+
+  test("asks the API layer prompt when no --api flag was given", () => {
+    const restOfPrompts = lastGroupMock.mock.calls[1][0] as Record<string, () => unknown>;
+    expect(restOfPrompts.api()).toBe("prompted");
+  });
+
+  test("uses the prompted answer and generates Kysely-flavored crud handlers", () => {
+    expect(readJson(outDir, "acaraje.config.json")).toEqual({ api: "trpc" });
+    const handlers = fs.readFileSync(path.join(outDir, "server", "trpc", "routers", "crud", "models", "User.ts"), "utf-8");
+    expect(handlers).toContain('db.selectFrom("User" as any)');
+    expect(exists(outDir, "app", "api", "crud")).toBe(false);
   });
 });
 

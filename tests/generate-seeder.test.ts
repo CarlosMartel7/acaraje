@@ -19,7 +19,7 @@ function seedRoutePath(outDir: string, ...segments: string[]) {
 }
 
 const outDir = fs.mkdtempSync(path.join(os.tmpdir(), "acaraje-generate-seeder-"));
-generateSeeder(schema, outDir);
+generateSeeder(schema, "rest", outDir);
 
 const files = {
   parsedSchema: fs.readFileSync(libPath(outDir, "parsed-schema.ts"), "utf-8"),
@@ -111,7 +111,7 @@ test("dprint successfully formats every generated file (double-quoted imports, n
 
 test("is idempotent — running twice doesn't throw and produces the same output", () => {
   const before = files.seedConfigRoute;
-  expect(() => generateSeeder(schema, outDir)).not.toThrow();
+  expect(() => generateSeeder(schema, "rest", outDir)).not.toThrow();
   const after = fs.readFileSync(seedRoutePath(outDir, "config"), "utf-8");
   expect(after).toBe(before);
 });

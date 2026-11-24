@@ -59,7 +59,7 @@ function libPath(outDir: string, relative: string) {
 }
 
 const outDir = fs.mkdtempSync(path.join(os.tmpdir(), "acaraje-generate-components-"));
-generateComponents("Acaraje", outDir);
+generateComponents("Acaraje", "rest", outDir);
 
 const files = Object.fromEntries(
   COMPONENT_PATHS.map((relative) => [relative, fs.readFileSync(componentPath(outDir, relative), "utf-8")]),
@@ -129,7 +129,7 @@ test("acaraje-routes.ts's base path matches the sanitized panel name, not a hard
   // so a custom name broke every in-app link (they'd point at a route that was never generated).
   const customOutDir = fs.mkdtempSync(path.join(os.tmpdir(), "acaraje-generate-components-custom-"));
   try {
-    generateComponents("My Cool Panel!", customOutDir);
+    generateComponents("My Cool Panel!", "rest", customOutDir);
     const routes = fs.readFileSync(libPath(customOutDir, "acaraje-routes.ts"), "utf-8");
     expect(routes).toContain('export const ACARAJE_BASE = "/my-cool-panel" as const;');
   } finally {
@@ -243,7 +243,7 @@ test("drive/view/index.tsx imports its [[api-calls]] sibling with a resolvable p
 
 test("is idempotent — running twice doesn't throw and produces the same output", () => {
   const before = files["ui/button.tsx"];
-  expect(() => generateComponents("Acaraje", outDir)).not.toThrow();
+  expect(() => generateComponents("Acaraje", "rest", outDir)).not.toThrow();
   const after = fs.readFileSync(componentPath(outDir, "ui/button.tsx"), "utf-8");
   expect(after).toBe(before);
 });

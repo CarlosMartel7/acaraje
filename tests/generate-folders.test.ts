@@ -24,7 +24,7 @@ function walk(dir: string, base = dir): string[] {
 }
 
 const outDir = fs.mkdtempSync(path.join(os.tmpdir(), "acaraje-generate-folders-"));
-createFolderStructure("Acaraje", schema, outDir);
+createFolderStructure("Acaraje", schema, "rest", outDir);
 const tree = walk(outDir);
 
 writeLog(
@@ -75,7 +75,7 @@ test("expands [QUERY_MODEL] into one folder per schema model, alongside the stat
 });
 
 test("is idempotent — running twice doesn't throw or duplicate entries", () => {
-  expect(() => createFolderStructure("Acaraje", schema, outDir)).not.toThrow();
+  expect(() => createFolderStructure("Acaraje", schema, "rest", outDir)).not.toThrow();
   expect(walk(outDir)).toEqual(tree);
 });
 
@@ -84,7 +84,7 @@ test("also works from a sql-parser ParsedSchema (SQLite dialect)", () => {
   const sqlOutDir = fs.mkdtempSync(path.join(os.tmpdir(), "acaraje-generate-folders-sql-"));
 
   try {
-    createFolderStructure("Acaraje", sqliteSchema, sqlOutDir);
+    createFolderStructure("Acaraje", sqliteSchema, "rest", sqlOutDir);
     const sqlTree = walk(sqlOutDir);
 
     for (const model of sqliteSchema.models) {

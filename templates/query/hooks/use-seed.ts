@@ -1,5 +1,6 @@
 import { code, imp } from "ts-poet";
 
+const useCallback = imp("useCallback@react")
 const useMutation = imp("useMutation@@tanstack/react-query")
 const useQuery = imp("useQuery@@tanstack/react-query")
 const useQueryClient = imp("useQueryClient@@tanstack/react-query")
@@ -33,6 +34,24 @@ export function useSeedModel() {
     mutationFn: (payload: { modelName: string; count: number }) =>
       ${apiMutate}<SeedResult>("/api/seed", { method: "POST", body: payload }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ${queryKeys}.seed.counts }),
+  });
+}
+
+/** Writes a freshly saved config straight into the useSeederConfig() cache. */
+export function useSetSeederConfigCache() {
+  const queryClient = ${useQueryClient}();
+  return ${useCallback}(
+    (config: Seeder.ConfigFile) => {
+      queryClient.setQueryData(${queryKeys}.seed.config, config);
+    },
+    [queryClient],
+  );
+}
+
+export function useSaveSeederConfig() {
+  return ${useMutation}({
+    mutationFn: (config: Partial<Seeder.ConfigFile>) =>
+      ${apiMutate}<Seeder.ConfigFile>("/api/seed/config", { method: "PUT", body: config }),
   });
 }
 `.toString({ prefix: '"use client";' });

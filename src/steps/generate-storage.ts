@@ -15,8 +15,10 @@ import writeDriveDelete from '../../templates/api/drive/delete/route'
 import writeDriveFolders from '../../templates/api/drive/folders/route'
 import writeDriveStorageConfig from '../../templates/api/drive/storage-config/route'
 import writeDriveUpload from '../../templates/api/drive/upload/route'
+import writeDriveRouter from '../../templates/trpc/routers/drive'
+import { ApiLayer } from '../shared/api-layer'
 
-export function generateStorage(storage: "minio" | "gcs", baseDir: string = process.cwd()): void {
+export function generateStorage(storage: "minio" | "gcs", api: ApiLayer = "rest", baseDir: string = process.cwd()): void {
   const libDir = path.join(baseDir, "lib", "storage")
   const driveDir = path.join(baseDir, "app", "api", "drive")
 
@@ -41,6 +43,15 @@ export function generateStorage(storage: "minio" | "gcs", baseDir: string = proc
   fs.writeFileSync(path.join(libDir, "paths.ts"), writeStoragePaths().toString())
   for (const [fileName, code] of Object.entries(driverFiles)) {
     fs.writeFileSync(path.join(libDir, fileName), code.toString())
+  }
+
+  // Every drive endpoint (upload included — it takes FormData as its input) lives in one tRPC
+  // "drive" router in that flavor.
+  if (api === "trpc") {
+    const routersDir = path.join(baseDir, "server", "trpc", "routers")
+    fs.mkdirSync(routersDir, { recursive: true })
+    fs.writeFileSync(path.join(routersDir, "drive.ts"), writeDriveRouter(storage).toString())
+    return
   }
 
   const routeFiles: Record<string, ReturnType<typeof writeDriveContents>> = {

@@ -1,5 +1,6 @@
 import { code } from "ts-poet";
 import { DbProvider } from "./docker-compose.yml";
+import { ApiLayer } from "../../src/shared/api-layer";
 
 // kysely itself is dependency-free and lightweight enough to ship unconditionally (matching how
 // @prisma/client/prisma below are also always included regardless of the ORM actually chosen);
@@ -14,6 +15,16 @@ const KYSELY_DRIVER_DEV_DEPS: Record<DbProvider, Record<string, string>> = {
   postgresql: { "@types/pg": "^8.15.6" },
   mysql: {},
   sqlite: { "@types/better-sqlite3": "^7.6.13" },
+};
+
+// Only the tRPC flavor needs these; @tanstack/react-query (below) is shared by both.
+const API_LAYER_DEPS: Record<ApiLayer, Record<string, string>> = {
+  rest: {},
+  trpc: {
+    "@trpc/client": "^11.19.0",
+    "@trpc/server": "^11.19.0",
+    "@trpc/tanstack-react-query": "^11.19.0",
+  },
 };
 
 const packageJson = {
@@ -81,12 +92,13 @@ const packageJson = {
   },
 };
 
-export const writePackageJson = (dbProvider: DbProvider) => {
+export const writePackageJson = (dbProvider: DbProvider, api: ApiLayer = "rest") => {
   const withDriver = {
     ...packageJson,
     dependencies: {
       ...packageJson.dependencies,
       ...KYSELY_DRIVER_DEPS[dbProvider],
+      ...API_LAYER_DEPS[api],
     },
     devDependencies: {
       ...packageJson.devDependencies,

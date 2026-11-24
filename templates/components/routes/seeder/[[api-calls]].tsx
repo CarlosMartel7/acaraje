@@ -4,12 +4,11 @@ const useCallback = imp("useCallback@react")
 const useEffect = imp("useEffect@react")
 const useMemo = imp("useMemo@react")
 const useState = imp("useState@react")
-const useQueryClient = imp("useQueryClient@@tanstack/react-query")
 const useSchemas = imp("useSchemas@@/query/hooks/use-schemas")
 const useSeedCounts = imp("useSeedCounts@@/query/hooks/use-seed")
 const useSeederConfig = imp("useSeederConfig@@/query/hooks/use-seed")
 const useSeedModel = imp("useSeedModel@@/query/hooks/use-seed")
-const queryKeys = imp("queryKeys@@/lib/query/keys")
+const useSetSeederConfigCache = imp("useSetSeederConfigCache@@/query/hooks/use-seed")
 
 export const writeSeederApiCallsComponent = () => code`
 export interface ModelInfo {
@@ -54,7 +53,6 @@ const SEED_ORDER = [
 ];
 
 export default function AcarajeCalls_seeder() {
-  const queryClient = ${useQueryClient}();
   const { data: schema, isLoading: schemaLoading } = ${useSchemas}();
   const { data: seedData, isLoading: countsLoading } = ${useSeedCounts}();
   const { data: seederConfig, isLoading: configLoading } = ${useSeederConfig}();
@@ -97,12 +95,7 @@ export default function AcarajeCalls_seeder() {
     setStates((prev) => ({ ...prev, [model]: { ...prev[model], ...patch } }));
   }, []);
 
-  const setSeederConfig = ${useCallback}(
-    (config: Seeder.ConfigFile) => {
-      queryClient.setQueryData(${queryKeys}.seed.config, config);
-    },
-    [queryClient],
-  );
+  const setSeederConfig = ${useSetSeederConfigCache}();
 
   const seedModel = ${useCallback}(
     async (modelName: string) => {

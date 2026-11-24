@@ -39,11 +39,11 @@ export default function AcarajeCalls_crud_edit() {
     id,
     router,
     schemaData: schemaData ?? null,
-    record: record ?? (recordIsError ? { error: (recordError as Error)?.message ?? "Record not found" } : null),
+    record: record ?? (recordIsError ? { error: recordError?.message ?? "Record not found" } : null),
     modelDef,
     saving: updateMutation.isPending,
     success: transientSuccess,
-    error: updateMutation.error ? (updateMutation.error as Error).message : null,
+    error: updateMutation.error ? updateMutation.error.message : null,
     handleSubmit,
   };
 }
