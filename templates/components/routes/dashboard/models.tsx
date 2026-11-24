@@ -23,7 +23,7 @@ export function DashboardModelsSection({ stats }: { stats: Dashboard.DashboardSt
         <${Tabs} defaultValue="fields" className="w-full">
           <div className="flex items-center justify-between mb-5">
             <div className="flex items-center gap-2">
-              <${TrendingUp} className="w-4 h-4 text-primary-foreground" />
+              <${TrendingUp} className="w-4 h-4 text-primary" />
               <h2 className="text-sm font-semibold">Models</h2>
             </div>
             <${TabsList} className="h-8">
@@ -46,7 +46,7 @@ export function DashboardModelsSection({ stats }: { stats: Dashboard.DashboardSt
                     <div className="flex items-center justify-between mb-0.5">
                       <${Link}
                         href={\`\${${acarajePath}("/schemas")}?model=\${model.name}\`}
-                        className="text-xs font-mono text-muted-foreground hover:text-primary-foreground transition-colors"
+                        className="text-xs font-mono text-muted-foreground hover:text-primary transition-colors"
                       >
                         {model.name}
                       </${Link}>
@@ -54,7 +54,7 @@ export function DashboardModelsSection({ stats }: { stats: Dashboard.DashboardSt
                     </div>
                     <div className="h-1.5 rounded-full bg-secondary overflow-hidden">
                       <div
-                        className="h-full rounded-full bg-gradient-to-r from-primary-foreground to-chart-5 transition-all duration-700"
+                        className="h-full rounded-full bg-gradient-to-r from-primary to-chart-5 transition-all duration-700"
                         style={{ width: \`\${(value / max) * 100}%\` }}
                       />
                     </div>
@@ -73,7 +73,7 @@ export function DashboardModelsSection({ stats }: { stats: Dashboard.DashboardSt
                     <div className="flex items-center justify-between mb-0.5">
                       <${Link}
                         href={\`\${${acarajePath}("/schemas")}?model=\${model.name}\`}
-                        className="text-xs font-mono text-muted-foreground hover:text-primary-foreground transition-colors"
+                        className="text-xs font-mono text-muted-foreground hover:text-primary transition-colors"
                       >
                         {model.name}
                       </${Link}>
@@ -81,7 +81,7 @@ export function DashboardModelsSection({ stats }: { stats: Dashboard.DashboardSt
                     </div>
                     <div className="h-1.5 rounded-full bg-secondary overflow-hidden">
                       <div
-                        className="h-full rounded-full bg-gradient-to-r from-primary-foreground to-chart-5 transition-all duration-700"
+                        className="h-full rounded-full bg-gradient-to-r from-primary to-chart-5 transition-all duration-700"
                         style={{ width: \`\${(value / max) * 100}%\` }}
                       />
                     </div>
@@ -101,7 +101,7 @@ export function DashboardModelsSection({ stats }: { stats: Dashboard.DashboardSt
           <div className="space-y-3">
             {(
               [
-                { label: "One to Many", key: "one-to-many" as const, color: "bg-primary-foreground" },
+                { label: "One to Many", key: "one-to-many" as const, color: "bg-primary" },
                 { label: "Many to One", key: "many-to-one" as const, color: "bg-emerald-500" },
                 { label: "One to One", key: "one-to-one" as const, color: "bg-violet-500" },
                 { label: "Many to Many", key: "many-to-many" as const, color: "bg-amber-400" },

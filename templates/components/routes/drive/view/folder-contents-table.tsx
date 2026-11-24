@@ -127,7 +127,7 @@ export function FolderContentsTable({
               </${TableCell}>
               <${TableCell} className="font-medium">
                 <div className="flex items-center gap-2">
-                  <${Folder} className="w-4 h-4 text-primary-foreground/80 flex-shrink-0" />
+                  <${Folder} className="w-4 h-4 text-primary/80 flex-shrink-0" />
                   <span>{folder.name}</span>
                 </div>
               </${TableCell}>

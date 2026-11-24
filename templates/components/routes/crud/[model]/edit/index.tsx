@@ -18,7 +18,7 @@ export function CrudEditContent() {
   return (
     <div className="p-8 space-y-6 animate-in max-w-4xl">
       <div className="flex items-center gap-2 text-xs font-mono text-muted-foreground">
-        <${Link} href={${acarajePath}(\`/crud/\${model}\`)} className="flex items-center gap-1 hover:text-primary-foreground transition-colors">
+        <${Link} href={${acarajePath}(\`/crud/\${model}\`)} className="flex items-center gap-1 hover:text-primary transition-colors">
           <${ChevronLeft} className="w-3.5 h-3.5" />
           {model}
         </${Link}>
@@ -28,7 +28,7 @@ export function CrudEditContent() {
 
       <div>
         <h1 className="text-2xl font-bold tracking-tight">
-          Edit <span className="text-primary-foreground">{model}</span>
+          Edit <span className="text-primary">{model}</span>
         </h1>
         <p className="text-muted-foreground text-sm font-mono mt-1 truncate">{id}</p>
       </div>
