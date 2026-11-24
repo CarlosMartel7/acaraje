@@ -15,7 +15,7 @@ export const writeGlobalsCss = () => code`
     --card-foreground: 0 0% 94.902%;
     --popover: 0 0% 10.9804%;
     --popover-foreground: 0 0% 94.902%;
-    --primary: 15.8 100% 56.0784%;
+    --primary: 15.8 90% 43.5%;
     --primary-foreground: 0 0% 100%;
     --secondary: 0 0% 14.1176%;
     --secondary-foreground: 0 0% 94.902%;
