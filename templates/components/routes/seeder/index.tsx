@@ -4,13 +4,13 @@ const Sprout = imp("Sprout@lucide-react")
 const Loader2 = imp("Loader2@lucide-react")
 const CheckCircle = imp("CheckCircle@lucide-react")
 const AlertCircle = imp("AlertCircle@lucide-react")
-const Database = imp("Database@lucide-react")
+const AlertTriangle = imp("AlertTriangle@lucide-react")
 const ChevronDown = imp("ChevronDown@lucide-react")
-const ChevronUp = imp("ChevronUp@lucide-react")
-const Play = imp("Play@lucide-react")
+const Minus = imp("Minus@lucide-react")
+const Plus = imp("Plus@lucide-react")
+const Table2 = imp("Table2@lucide-react")
 const cn = imp("cn@@/lib/utils")
 const Button = imp("Button@@/components/ui/button")
-const Input = imp("Input@@/components/ui/input")
 const Card = imp("Card@@/components/ui/card")
 const SeederHeader = imp("SeederHeader@@/components/routes/skeletons")
 const SeederBodySkeleton = imp("SeederBodySkeleton@@/components/routes/skeletons")
@@ -18,178 +18,156 @@ const SeederModelConfigButton = imp("SeederModelConfigButton@@/components/routes
 const AcarajeCalls_seeder = imp("AcarajeCalls_seeder=./[[api-calls]]")
 
 export const writeSeederIndexComponent = () => code`
+const MIN_COUNT = 1;
+const MAX_COUNT = 100;
+const clampCount = (n: number) => Math.min(MAX_COUNT, Math.max(MIN_COUNT, n));
+
+function CountStepper({ modelName, value, onChange }: { modelName: string; value: number; onChange: (value: number) => void }) {
+  const stepButton =
+    "flex h-[30px] w-[30px] items-center justify-center bg-muted text-foreground transition-colors hover:bg-accent disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/50";
+  return (
+    <div className="inline-flex items-center overflow-hidden rounded-lg border border-input">
+      <button type="button" className={stepButton} onClick={() => onChange(clampCount(value - 1))} disabled={value <= MIN_COUNT} aria-label={\`Seed fewer \${modelName} records\`}>
+        <${Minus} className="h-3.5 w-3.5" />
+      </button>
+      <input
+        type="number"
+        min={MIN_COUNT}
+        max={MAX_COUNT}
+        value={value}
+        onChange={(e) => onChange(clampCount(parseInt(e.target.value) || MIN_COUNT))}
+        aria-label={\`Number of \${modelName} records to seed\`}
+        className="h-[30px] w-[38px] border-0 bg-transparent text-center text-xs text-foreground [appearance:textfield] focus:outline-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+      />
+      <button type="button" className={stepButton} onClick={() => onChange(clampCount(value + 1))} disabled={value >= MAX_COUNT} aria-label={\`Seed more \${modelName} records\`}>
+        <${Plus} className="h-3.5 w-3.5" />
+      </button>
+    </div>
+  );
+}
+
 export function SeederContent() {
   const { models, schema, seederConfig, setSeederConfig, counts, states, seedingAll, loading, updateState, seedModel, seedAll } =
     ${AcarajeCalls_seeder}();
 
   const totalRecords = Object.values(counts).reduce((a, b) => a + b, 0);
 
+  if (loading) {
+    return (
+      <div className="space-y-5 p-6">
+        <${SeederHeader} />
+        <${SeederBodySkeleton} />
+      </div>
+    );
+  }
+
   return (
-    <div className="p-8 space-y-6 animate-in">
-      {loading ? (
-        <>
-          <div className="flex items-center justify-between gap-4">
-            <${SeederHeader} />
+    <div className="space-y-5 p-6 animate-in">
+      <${SeederHeader}
+        actions={
+          <${Button} size="lg" onClick={seedAll} disabled={seedingAll} className="h-10 px-5 text-xs">
+            {seedingAll ? <${Loader2} className="h-4 w-4 animate-spin" /> : <${Sprout} className="h-4 w-4" />}
+            Seed All Models
+          </${Button}>
+        }
+      />
+
+      <div className="flex flex-wrap gap-4">
+        <${Card} className="flex items-center gap-2.5 px-[22px] py-3.5">
+          <span className="text-xs text-muted-foreground">Total records</span>
+          <b className="text-[22px] font-bold">{totalRecords.toLocaleString()}</b>
+        </${Card}>
+        {models.length > 1 && (
+          <div className="flex min-w-[280px] flex-1 items-center gap-3 rounded-xl border border-warning/30 bg-warning/10 px-[18px] py-3.5 text-xs text-warning">
+            <${AlertTriangle} className="h-4 w-4 flex-shrink-0" />
+            <p>
+              Models are seeded in dependency order: {models.map((m) => m.name).join(" → ")}. Relational fields connect to existing
+              records, so seed referenced models first.
+            </p>
           </div>
-          <${SeederBodySkeleton} />
-        </>
-      ) : (
-        <>
-          <div className="flex items-center justify-between">
-            <${SeederHeader} />
-            <div className="flex items-center gap-3">
-              <div className="text-right">
-                <div className="text-2xl font-bold font-mono text-primary-foreground">{totalRecords.toLocaleString()}</div>
-                <div className="text-xs text-muted-foreground">total records</div>
+        )}
+      </div>
+
+      <div className="grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(min(340px,100%),1fr))]">
+        {models.map((model) => {
+          const state = states[model.name];
+          if (!state) return null;
+          const recordCount = counts[model.name] || 0;
+          const hasErrors = !!state.result && state.result.errors.length > 0;
+
+          return (
+            <${Card}
+              key={model.name}
+              className={${cn}(
+                "overflow-hidden transition-colors",
+                state.result && !hasErrors && "border-success/40",
+                (state.error || hasErrors) && "border-warning/40",
+              )}
+            >
+              <div className="flex flex-wrap items-center gap-3.5 p-[18px]">
+                <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-secondary text-foreground/90">
+                  <${Table2} className="h-4 w-4" />
+                </span>
+                <div className="min-w-[110px] flex-1">
+                  <h2 className="truncate text-sm font-semibold">{model.name}</h2>
+                  <p className="text-[11px] text-muted-foreground">
+                    {recordCount.toLocaleString()} {recordCount === 1 ? "record" : "records"} · {model.fieldCount} fields
+                  </p>
+                </div>
+
+                <CountStepper modelName={model.name} value={state.count} onChange={(count) => updateState(model.name, { count })} />
+
+                <${SeederModelConfigButton} modelName={model.name} schema={schema} config={seederConfig} onConfigChange={setSeederConfig} />
+
+                <${Button} size="sm" onClick={() => seedModel(model.name)} disabled={state.loading}>
+                  {state.loading && <${Loader2} className="h-3.5 w-3.5 animate-spin" />}
+                  Seed
+                </${Button}>
               </div>
-              <${Button}
-                variant="outline"
-                onClick={seedAll}
-                disabled={seedingAll}
-                className="bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20"
-              >
-                {seedingAll ? <${Loader2} className="w-4 h-4 animate-spin" /> : <${Sprout} className="w-4 h-4" />}
-                Seed All Models
-              </${Button}>
-            </div>
-          </div>
 
-          {/* Info banner */}
-          <div className="flex items-start gap-3 px-4 py-3 rounded border border-amber-500/20 bg-amber-500/5 text-amber-400/80 text-xs">
-            <${AlertCircle} className="w-4 h-4 flex-shrink-0 mt-0.5" />
-            <span>
-              Models are ordered by dependency — seed <strong>User</strong> and <strong>Category</strong> before models that reference
-              them. Relational fields will auto-connect to existing records.
-            </span>
-          </div>
-
-          {/* Model cards grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {models.map((model, idx) => {
-              const state = states[model.name];
-              if (!state) return null;
-              const recordCount = counts[model.name] || 0;
-
-              return (
-                <${Card}
-                  key={model.name}
+              {state.result && (
+                <div
                   className={${cn}(
-                    "overflow-hidden transition-all",
-                    state.result && state.result.errors.length === 0
-                      ? "border-emerald-500/30"
-                      : state.error
-                        ? "border-destructive/30"
-                        : "border-border/50",
+                    "flex items-center gap-2 border-t px-[18px] py-2.5 text-xs",
+                    hasErrors ? "border-warning/20 bg-warning/5 text-warning" : "border-success/20 bg-success/5 text-success",
                   )}
                 >
-                  <div className="flex items-center gap-3 px-4 py-3">
-                    <span className="flex-shrink-0 w-6 h-6 rounded-full bg-secondary/80 border border-border/50 flex items-center justify-center text-[10px] font-mono text-muted-foreground">
-                      {idx + 1}
-                    </span>
-
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-bold font-mono">{model.name}</span>
-                        <span className="text-[10px] font-mono text-muted-foreground/60">{model.fieldCount} fields</span>
-                      </div>
-                      <div className="flex items-center gap-1.5 mt-0.5">
-                        <${Database} className="w-3 h-3 text-muted-foreground/40" />
-                        <span className="text-xs font-mono text-muted-foreground">{recordCount.toLocaleString()} records</span>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-1">
-                      <${Button}
-                        variant="outline"
-                        size="icon-sm"
-                        onClick={() => updateState(model.name, { count: Math.max(1, state.count - 1) })}
-                        className="h-6 w-6"
-                      >
-                        <${ChevronDown} className="w-3 h-3" />
-                      </${Button}>
-                      <${Input}
-                        type="number"
-                        min={1}
-                        max={100}
-                        value={state.count}
-                        onChange={(e) => updateState(model.name, { count: parseInt(e.target.value) || 1 })}
-                        className="w-12 text-center text-xs font-mono h-8 py-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                      />
-                      <${Button}
-                        variant="outline"
-                        size="icon-sm"
-                        onClick={() => updateState(model.name, { count: Math.min(100, state.count + 1) })}
-                        className="h-6 w-6"
-                      >
-                        <${ChevronUp} className="w-3 h-3" />
-                      </${Button}>
-                    </div>
-
-                    <${SeederModelConfigButton}
-                      modelName={model.name}
-                      schema={schema}
-                      config={seederConfig}
-                      onConfigChange={setSeederConfig}
-                    />
-
-                    <${Button}
-                      variant="outline"
-                      size="sm"
-                      onClick={() => seedModel(model.name)}
-                      disabled={state.loading}
-                      className="bg-primary-foreground/10 border-primary-foreground/30 text-primary-foreground hover:bg-primary-foreground/20"
+                  <${CheckCircle} className="h-3.5 w-3.5 flex-shrink-0" />
+                  <span>Created {state.result.created} records</span>
+                  {hasErrors && (
+                    <button
+                      type="button"
+                      onClick={() => updateState(model.name, { expanded: !state.expanded })}
+                      aria-expanded={state.expanded}
+                      className="ml-auto flex items-center gap-1 rounded-md px-1.5 py-0.5 text-warning/80 transition-colors hover:text-warning focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-warning/50"
                     >
-                      {state.loading ? <${Loader2} className="w-3 h-3 animate-spin" /> : <${Play} className="w-3 h-3" />}
-                      Seed
-                    </${Button}>
-                  </div>
-
-                  {state.result && (
-                    <div
-                      className={${cn}(
-                        "px-4 py-2 border-t text-xs font-mono flex items-center gap-2",
-                        state.result.errors.length > 0
-                          ? "border-amber-500/20 bg-amber-500/5 text-amber-400"
-                          : "border-emerald-500/20 bg-emerald-500/5 text-emerald-400",
-                      )}
-                    >
-                      <${CheckCircle} className="w-3 h-3 flex-shrink-0" />
-                      <span>Created {state.result.created} records</span>
-                      {state.result.errors.length > 0 && (
-                        <${Button}
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => updateState(model.name, { expanded: !state.expanded })}
-                          className="ml-auto h-auto py-0 text-amber-400/70 hover:text-amber-400"
-                        >
-                          {state.result.errors.length} errors ▾
-                        </${Button}>
-                      )}
-                    </div>
+                      {state.result.errors.length} errors
+                      <${ChevronDown} className={${cn}("h-3 w-3 transition-transform", state.expanded && "rotate-180")} />
+                    </button>
                   )}
+                </div>
+              )}
 
-                  {state.expanded && state.result && state.result.errors.length > 0 && (
-                    <div className="px-4 pb-3 space-y-1">
-                      {state.result.errors.map((e, i) => (
-                        <p key={i} className="text-[10px] font-mono text-red-400/80 bg-red-400/5 rounded px-2 py-1">
-                          {e}
-                        </p>
-                      ))}
-                    </div>
-                  )}
+              {state.expanded && hasErrors && (
+                <ul className="space-y-1 px-[18px] pb-3">
+                  {state.result!.errors.map((e, i) => (
+                    <li key={i} className="rounded-md bg-destructive/10 px-2 py-1 font-mono text-[10px] text-red-400">
+                      {e}
+                    </li>
+                  ))}
+                </ul>
+              )}
 
-                  {state.error && (
-                    <div className="px-4 py-2 border-t border-destructive/20 bg-destructive/5 text-xs font-mono text-red-400 flex items-center gap-2">
-                      <${AlertCircle} className="w-3 h-3 flex-shrink-0" />
-                      {state.error}
-                    </div>
-                  )}
-                </${Card}>
-              );
-            })}
-          </div>
-        </>
-      )}
+              {state.error && (
+                <div className="flex items-center gap-2 border-t border-destructive/20 bg-destructive/5 px-[18px] py-2.5 text-xs text-red-400">
+                  <${AlertCircle} className="h-3.5 w-3.5 flex-shrink-0" />
+                  {state.error}
+                </div>
+              )}
+            </${Card}>
+          );
+        })}
+      </div>
     </div>
   );
 }

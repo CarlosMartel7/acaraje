@@ -1,20 +1,32 @@
 import { code, imp } from "ts-poet";
 
+const Link = imp("Link=next/link")
 const Tag = imp("Tag@lucide-react")
-const Hash = imp("Hash@lucide-react")
-const Key = imp("Key@lucide-react")
-const Link2 = imp("Link2@lucide-react")
 const cn = imp("cn@@/lib/utils")
 const getFieldTypeColor = imp("getFieldTypeColor@@/lib/utils")
+const acarajePath = imp("acarajePath@@/lib/acaraje-routes")
+const Button = imp("Button@@/components/ui/button")
 const Card = imp("Card@@/components/ui/card")
+const Table = imp("Table@@/components/ui/table")
+const TableBody = imp("TableBody@@/components/ui/table")
+const TableCell = imp("TableCell@@/components/ui/table")
+const TableHead = imp("TableHead@@/components/ui/table")
+const TableHeader = imp("TableHeader@@/components/ui/table")
+const TableRow = imp("TableRow@@/components/ui/table")
 
 export const writeSchemaModelViewer = () => code`
-function FieldBadge({ children, color }: { children: React.ReactNode; color?: string }) {
+/** Attributes already rendered from the parsed flags (isId / isUnique / hasDefault / isRelation). */
+const FLAG_ATTRIBUTES = /^(@id|@unique|@default|@relation|PRIMARY KEY|UNIQUE|FOREIGN KEY)\\b/;
+
+function AttrTag({ children, tone = "primary", title }: { children: React.ReactNode; tone?: "primary" | "info" | "muted"; title?: string }) {
   return (
     <span
+      title={title}
       className={${cn}(
-        "inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono border",
-        color || "text-muted-foreground border-border/50 bg-secondary/30",
+        "inline-block rounded-md px-2 py-[3px] font-mono text-[10px]",
+        tone === "primary" && "bg-primary/15 text-primary",
+        tone === "info" && "bg-info/15 text-info",
+        tone === "muted" && "bg-secondary text-muted-foreground",
       )}
     >
       {children}
@@ -22,137 +34,113 @@ function FieldBadge({ children, color }: { children: React.ReactNode; color?: st
   );
 }
 
-function FieldRow({ field, enumNames }: { field: Schema.Field; enumNames: Set<string> }) {
+function FieldAttributes({ field }: { field: Schema.Field }) {
   const relationAttr = field.attributes.find((a) => a.startsWith("@relation"));
+  const extra = field.attributes.filter((a) => !FLAG_ATTRIBUTES.test(a));
 
   return (
-    <div className="flex items-center gap-3 py-2.5 px-4 border-b border-border/30 hover:bg-accent/20 transition-colors group">
-      <div className="w-5 flex-shrink-0 flex items-center justify-center pt-0.5">
-        {field.isId ? (
-          <${Key} className="w-3 h-3 text-chart-1" />
-        ) : field.isRelation ? (
-          <${Link2} className="w-3 h-3 text-chart-5" />
-        ) : (
-          <${Hash} className="w-3 h-3 text-muted-foreground/30" />
-        )}
-      </div>
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-sm font-mono text-foreground">{field.name}</span>
-          {field.isRelation ? (
-            <div className="inline-flex flex-wrap items-center gap-x-2 gap-y-1 px-2 py-1.5 min-w-0 max-w-full">
-              <span className={${cn}("text-sm font-mono font-medium", ${getFieldTypeColor}(field.type, enumNames))}>
-                {field.type}
-                {field.isList && "[]"}
-                {!field.isRequired && "?"}
-              </span>
-              {field.relationFields && field.relationFields.length > 0 && (
-                <span className="text-[10px] font-mono text-muted-foreground/90 shrink-0">· via {field.relationFields.join(", ")}</span>
-              )}
-              {relationAttr && <code className="text-[10px] font-mono text-chart-5/95 leading-snug break-all">{relationAttr}</code>}
-            </div>
-          ) : (
-            <span className={${cn}("text-sm font-mono font-medium", ${getFieldTypeColor}(field.type, enumNames))}>
-              {field.type}
-              {field.isList && "[]"}
-              {!field.isRequired && "?"}
-            </span>
-          )}
-        </div>
-        {(field.isId ||
-          field.isUnique ||
-          field.hasDefault ||
-          (field.isRelation && field.attributes.some((a) => !a.startsWith("@relation")))) && (
-            <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-              {field.isId && <FieldBadge color="text-chart-1 border-chart-1/30 bg-chart-1/5">@id</FieldBadge>}
-              {field.isUnique && <FieldBadge color="text-chart-5 border-chart-5/30 bg-chart-5/5">@unique</FieldBadge>}
-              {field.hasDefault && (
-                <FieldBadge color="text-chart-4 border-chart-4/30 bg-chart-4/5">@default({field.defaultValue})</FieldBadge>
-              )}
-              {field.isRelation &&
-                field.attributes
-                  .filter((a) => !a.startsWith("@relation"))
-                  .map((a) => (
-                    <FieldBadge key={a} color="text-muted-foreground border-border/40 bg-secondary/20">
-                      {a}
-                    </FieldBadge>
-                  ))}
-            </div>
-          )}
-      </div>
+    <div className="flex flex-wrap items-center gap-1.5">
+      {field.isId && <AttrTag>@id</AttrTag>}
+      {field.isUnique && <AttrTag>@unique</AttrTag>}
+      {field.hasDefault && <AttrTag>@default({field.defaultValue})</AttrTag>}
+      {extra.map((a) => (
+        <AttrTag key={a}>{a}</AttrTag>
+      ))}
+      {field.isRelation && (
+        <AttrTag tone="info" title={relationAttr}>
+          relation
+        </AttrTag>
+      )}
+      {field.relationFields && field.relationFields.length > 0 && (
+        <span className="font-mono text-[10px] text-muted-foreground">via {field.relationFields.join(", ")}</span>
+      )}
     </div>
   );
 }
 
 export function SchemaModelViewer({
   model,
+  recordCount,
   modelsCount,
   enumNames,
 }: {
   model: Schema.Model | null;
+  recordCount: number | undefined;
   modelsCount: number;
   enumNames: Set<string>;
 }) {
-  if (model) {
+  if (!model) {
     return (
-      <div className="flex-1 overflow-y-auto">
-        <div className="p-6">
-          <div className="mb-6">
-            <div className="flex items-center gap-3 mb-2">
-              <h2 className="text-xl font-bold font-mono text-primary-foreground">{model.name}</h2>
-              {model.mapName && (
-                <span className="px-2 py-0.5 rounded text-xs font-mono border border-border/50 text-muted-foreground">
-                  {\`@@map("\${model.mapName}")\`}
-                </span>
-              )}
-            </div>
-            <div className="flex items-center gap-4 text-xs font-mono text-muted-foreground">
-              <span>{model.fields.length} fields</span>
-              <span>{model.fields.filter((f) => f.isRelation).length} relations</span>
-              <span>{model.indexes.length} indexes</span>
-            </div>
-          </div>
-
-          <${Card} className="overflow-hidden border-border/50">
-            <div className="px-4 py-2.5 border-b border-border/50 bg-secondary/30 flex items-center gap-2">
-              <${Hash} className="w-3.5 h-3.5 text-muted-foreground" />
-              <span className="text-xs font-mono font-medium text-muted-foreground uppercase tracking-wider">Fields</span>
-            </div>
-            {model.fields.map((field) => (
-              <FieldRow key={field.name} field={field} enumNames={enumNames} />
-            ))}
-          </${Card}>
-
-          {model.indexes.length > 0 && (
-            <${Card} className="mt-4 overflow-hidden border-border/50">
-              <div className="px-4 py-2.5 border-b border-border/50 bg-secondary/30 flex items-center gap-2">
-                <${Tag} className="w-3.5 h-3.5 text-muted-foreground" />
-                <span className="text-xs font-mono font-medium text-muted-foreground uppercase tracking-wider">Indexes & Constraints</span>
-              </div>
-              {model.indexes.map((idx, i) => (
-                <div
-                  key={i}
-                  className="px-4 py-2.5 border-b border-border/30 last:border-0 font-mono text-xs text-muted-foreground hover:bg-accent/20 transition-colors"
-                >
-                  {idx}
-                </div>
-              ))}
-            </${Card}>
-          )}
-        </div>
-      </div>
+      <${Card} className="flex flex-col items-center justify-center px-6 py-16 text-center">
+        <span className="mb-3.5 flex h-12 w-12 items-center justify-center rounded-xl bg-secondary text-muted-foreground">
+          <${Tag} className="h-5 w-5" />
+        </span>
+        <p className="text-sm font-semibold">Select a model to inspect its fields</p>
+        <p className="mt-1 text-xs text-muted-foreground">{modelsCount} models available</p>
+      </${Card}>
     );
   }
 
+  const relationCount = model.fields.filter((f) => f.isRelation).length;
+  const summary = [
+    \`\${model.fields.length} fields\`,
+    \`\${relationCount} relations\`,
+    recordCount !== undefined ? \`\${recordCount.toLocaleString()} records\` : null,
+    model.indexes.length > 0 ? \`\${model.indexes.length} indexes\` : null,
+  ].filter(Boolean);
+
   return (
-    <div className="flex-1 overflow-y-auto">
-      <div className="flex flex-col items-center justify-center h-full text-center p-8">
-        <div className="w-16 h-16 rounded-full bg-secondary/50 flex items-center justify-center mb-4">
-          <${Tag} className="w-7 h-7 text-muted-foreground/40" />
+    <div className="space-y-4">
+      <${Card} className="p-[18px]">
+        <div className="mb-1 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-2.5">
+            <h2 className="truncate text-base font-bold">{model.name}</h2>
+            {model.mapName && <AttrTag tone="muted">{\`@@map("\${model.mapName}")\`}</AttrTag>}
+          </div>
+          <${Button} asChild>
+            <${Link} href={${acarajePath}(\`/crud/\${model.name}\`)}>View records</${Link}>
+          </${Button}>
         </div>
-        <p className="text-muted-foreground text-sm">Select a model to inspect its fields</p>
-        <p className="text-muted-foreground/50 text-xs mt-1 font-mono">{modelsCount} models available</p>
-      </div>
+        <p className="mb-4 text-[11px] text-muted-foreground">{summary.join(" · ")}</p>
+
+        <${Table}>
+          <${TableHeader}>
+            <${TableRow}>
+              <${TableHead}>Field</${TableHead}>
+              <${TableHead}>Type</${TableHead}>
+              <${TableHead}>Attributes</${TableHead}>
+            </${TableRow}>
+          </${TableHeader}>
+          <${TableBody}>
+            {model.fields.map((field) => (
+              <${TableRow} key={field.name}>
+                <${TableCell} className="font-medium">{field.name}</${TableCell}>
+                <${TableCell} className={${cn}("font-mono", ${getFieldTypeColor}(field.type, enumNames))}>
+                  {field.type}
+                  {field.isList && "[]"}
+                  {!field.isRequired && "?"}
+                </${TableCell}>
+                <${TableCell} className="whitespace-normal">
+                  <FieldAttributes field={field} />
+                </${TableCell}>
+              </${TableRow}>
+            ))}
+          </${TableBody}>
+        </${Table}>
+      </${Card}>
+
+      {model.indexes.length > 0 && (
+        <${Card} className="p-[18px]">
+          <h3 className="mb-3 text-sm font-semibold">Indexes &amp; constraints</h3>
+          <ul className="divide-y divide-border">
+            {model.indexes.map((idx, i) => (
+              <li key={i} className="py-2.5 font-mono text-xs text-muted-foreground">
+                {idx}
+              </li>
+            ))}
+          </ul>
+        </${Card}>
+      )}
     </div>
   );
 }

@@ -242,13 +242,13 @@ export function DynamicForm({ modelName, fields, enums, initialData, onSubmit, o
                 onClick={() => f.handleChange(!f.state.value)}
                 className={${cn}(
                   "relative w-9 h-5 rounded-full p-0 transition-colors border",
-                  f.state.value ? "bg-primary-foreground/20 border-primary-foreground/50" : "bg-secondary border-border/50",
+                  f.state.value ? "bg-primary/20 border-primary/50" : "bg-secondary border-border/50",
                 )}
               >
                 <span
                   className={${cn}(
                     "absolute top-0.5 w-4 h-4 rounded-full transition-all",
-                    f.state.value ? "left-4 bg-primary-foreground" : "left-0.5 bg-muted-foreground/40",
+                    f.state.value ? "left-4 bg-primary" : "left-0.5 bg-muted-foreground/40",
                   )}
                 />
               </${Button}>
@@ -380,7 +380,7 @@ export function DynamicForm({ modelName, fields, enums, initialData, onSubmit, o
               type="submit"
               variant="outline"
               disabled={isLoading || isSubmitting}
-              className="bg-primary-foreground/10 border-primary-foreground/40 text-primary-foreground hover:bg-primary-foreground/20"
+              className="bg-primary/10 border-primary/40 text-primary hover:bg-primary/20"
             >
               {(isLoading || isSubmitting) && <${Loader2} className="w-3.5 h-3.5 animate-spin" />}
               {initialData ? "Save Changes" : "Create Record"}

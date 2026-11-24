@@ -5,6 +5,7 @@ const useSearchParams = imp("useSearchParams@next/navigation")
 const useRouter = imp("useRouter@next/navigation")
 const Search = imp("Search@lucide-react")
 const Input = imp("Input@@/components/ui/input")
+const Card = imp("Card@@/components/ui/card")
 const Tabs = imp("Tabs@@/components/ui/tabs")
 const TabsContent = imp("TabsContent@@/components/ui/tabs")
 const TabsList = imp("TabsList@@/components/ui/tabs")
@@ -28,7 +29,7 @@ export function SchemasContent() {
   const selectedModelName = searchParams.get("model");
   const tabParam = searchParams.get("tab");
 
-  const { data, filteredModels, filteredEnums, selectedModel, handleSelectModel } = ${AcarajeCalls_schemas}({
+  const { data, filteredModels, filteredEnums, selectedModel, recordCounts, handleSelectModel } = ${AcarajeCalls_schemas}({
     search,
     setActiveTab,
     tabParam: tabParam ?? "models",
@@ -39,64 +40,66 @@ export function SchemasContent() {
   const loading = !data;
 
   return (
-    <div className="flex h-full animate-in">
-      <div className="w-72 flex-shrink-0 border-r border-border/50 flex flex-col min-h-0">
-        <div className="p-4 border-b border-border/50 shrink-0">
-          <${SchemasHeader} />
-          <div className="relative">
-            <${Search} className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
-            <${Input}
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder={activeTab === "models" ? "Search models..." : "Search enums..."}
-              className="pl-9 text-xs font-mono h-8"
-            />
-          </div>
-        </div>
-        {loading ? (
-          <${SchemasSidebarBodySkeleton} />
-        ) : (
-          <${Tabs}
-            value={activeTab}
-            onValueChange={(v) => {
-              const tab = v as "models" | "enums";
-              setActiveTab(tab);
-              const q = new URLSearchParams();
-              q.set("tab", tab);
-              if (tab === "models" && selectedModelName) q.set("model", selectedModelName);
-              router.replace(\`\${${acarajePath}("/schemas")}?\${q.toString()}\`);
-            }}
-            className="flex-1 flex flex-col min-h-0"
-          >
-            <div className="px-4 pt-3 pb-2 shrink-0">
-              <${TabsList} className="w-full">
-                <${TabsTrigger} value="models" className="flex-1">
-                  Models ({data?.models.length ?? "—"})
-                </${TabsTrigger}>
-                <${TabsTrigger} value="enums" className="flex-1">
-                  Enums ({data?.enums.length ?? "—"})
-                </${TabsTrigger}>
+    <div className="space-y-5 p-6 animate-in">
+      <${SchemasHeader} />
+
+      <div className="grid items-start gap-4 lg:grid-cols-[minmax(240px,300px)_1fr]">
+        <${Card} className="p-4">
+          {loading ? (
+            <${SchemasSidebarBodySkeleton} />
+          ) : (
+            <${Tabs}
+              value={activeTab}
+              onValueChange={(v) => {
+                const tab = v as "models" | "enums";
+                setActiveTab(tab);
+                const q = new URLSearchParams();
+                q.set("tab", tab);
+                if (tab === "models" && selectedModelName) q.set("model", selectedModelName);
+                router.replace(\`\${${acarajePath}("/schemas")}?\${q.toString()}\`);
+              }}
+            >
+              <${TabsList}>
+                <${TabsTrigger} value="models">Models ({data.models.length})</${TabsTrigger}>
+                <${TabsTrigger} value="enums">Enums ({data.enums.length})</${TabsTrigger}>
               </${TabsList}>
-            </div>
-            <${TabsContent} value="models" className="flex-1 overflow-y-auto p-3 space-y-2 mt-0 min-h-0">
-              <${SchemaModelsTab} models={filteredModels} selectedModelName={selectedModelName} onSelectModel={handleSelectModel} />
-            </${TabsContent}>
-            <${TabsContent} value="enums" className="flex-1 overflow-y-auto p-3 space-y-2 mt-0 min-h-0">
-              <${SchemaEnumsTab} enums={filteredEnums} />
-            </${TabsContent}>
-          </${Tabs}>
+
+              <div className="relative mt-3.5">
+                <${Search} className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                <${Input}
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder={activeTab === "models" ? "Filter models…" : "Filter enums…"}
+                  aria-label={activeTab === "models" ? "Filter models" : "Filter enums"}
+                  className="h-[38px] pl-9 text-xs"
+                />
+              </div>
+
+              <${TabsContent} value="models" className="max-h-[calc(100vh-18rem)] overflow-y-auto">
+                <${SchemaModelsTab}
+                  models={filteredModels}
+                  selectedModelName={selectedModel?.name ?? null}
+                  onSelectModel={handleSelectModel}
+                />
+              </${TabsContent}>
+              <${TabsContent} value="enums" className="max-h-[calc(100vh-18rem)] overflow-y-auto">
+                <${SchemaEnumsTab} enums={filteredEnums} />
+              </${TabsContent}>
+            </${Tabs}>
+          )}
+        </${Card}>
+
+        {loading ? (
+          <${SchemasViewerSkeleton} />
+        ) : (
+          <${SchemaModelViewer}
+            model={selectedModel}
+            recordCount={selectedModel ? recordCounts[selectedModel.name] : undefined}
+            modelsCount={data.models.length}
+            enumNames={new Set(data.enums.map((e) => e.name))}
+          />
         )}
       </div>
-
-      {loading ? (
-        <${SchemasViewerSkeleton} />
-      ) : (
-        <${SchemaModelViewer}
-          model={selectedModel}
-          modelsCount={data?.models.length ?? 0}
-          enumNames={new Set(data?.enums.map((e) => e.name) ?? [])}
-        />
-      )}
     </div>
   );
 }

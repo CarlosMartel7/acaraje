@@ -8,6 +8,7 @@ import writeAcarajeRoutes from '../../templates/lib/acaraje-routes'
 
 import writeConnectionBadgeComponent from '../../templates/components/connection-badge'
 import writeSidebarComponent from '../../templates/components/sidebar'
+import writeTopbarComponent from '../../templates/components/topbar'
 
 import writeQueryProviderComponent from '../../templates/components/providers/query-provider'
 import writeTrpcQueryProviderComponent from '../../templates/trpc/providers/query-provider'
@@ -74,6 +75,7 @@ import writeTabsComponent from '../../templates/components/ui/tabs'
 const COMPONENT_FILES: Record<string, () => { toString(): string }> = {
   'connection-badge.tsx': writeConnectionBadgeComponent,
   'sidebar.tsx': writeSidebarComponent,
+  'topbar.tsx': writeTopbarComponent,
 
 
   'routes/crud/[[api-calls]].tsx': writeCrudOverviewApiCalls,
@@ -152,7 +154,7 @@ export function generateComponents(name: string, api: ApiLayer = "rest", baseDir
   }
 
   // Nearly every component above imports cn (and some import getFieldTypeColor/
-  // getRelationTypeColor) from "@/lib/utils", and sidebar.tsx/several route components import
+  // getRelationTypeColor) from "@/lib/utils", and sidebar.tsx/topbar.tsx/several route components import
   // acarajePath from "@/lib/acaraje-routes" — write both alongside the components that need them
   // rather than adding a whole separate step for two files.
   const libDir = path.join(baseDir, "lib")

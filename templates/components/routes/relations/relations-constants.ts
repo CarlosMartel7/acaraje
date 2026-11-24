@@ -1,8 +1,8 @@
-import { code, imp } from "ts-poet";
-
-const cn = imp("cn@@/lib/utils")
+import { code } from "ts-poet";
 
 export const writeRelationsConstants = () => code`
+export const RELATION_TYPES = ["one-to-many", "one-to-one", "many-to-one", "many-to-many"] as const;
+
 export const RELATION_LABELS = {
   "one-to-one": "1:1",
   "one-to-many": "1:N",
@@ -10,37 +10,13 @@ export const RELATION_LABELS = {
   "many-to-many": "N:M",
 } as const;
 
+/** Tinted tag per relation type: orange 1:N, blue 1:1, green N:1, yellow N:M. */
 export const RELATION_COLORS = {
-  "one-to-one": "border-violet-500/40 bg-violet-500/5 text-violet-400",
-  "one-to-many": "border-primary-foreground/40 bg-primary-foreground/5 text-primary-foreground",
-  "many-to-one": "border-emerald-500/40 bg-emerald-500/5 text-emerald-400",
-  "many-to-many": "border-amber-500/40 bg-amber-500/5 text-amber-400",
+  "one-to-one": "bg-info/15 text-info",
+  "one-to-many": "bg-primary/15 text-primary",
+  "many-to-one": "bg-success/15 text-success",
+  "many-to-many": "bg-warning/15 text-warning",
 } as const;
-
-export const RELATION_DOT = {
-  "one-to-one": "bg-violet-400",
-  "one-to-many": "bg-primary-foreground",
-  "many-to-one": "bg-emerald-400",
-  "many-to-many": "bg-amber-400",
-} as const;
-
-const RELATION_TYPE_TAB_BASE =
-  "rounded-full text-xs font-mono data-[state=active]:border data-[state=active]:border-current";
-
-const RELATION_TYPE_TAB_ACTIVE: Record<Relations.Relation["type"], string> = {
-  "one-to-one":
-    "data-[state=active]:border-violet-500/40 data-[state=active]:bg-violet-500/5 data-[state=active]:text-violet-400",
-  "one-to-many":
-    "data-[state=active]:border-primary-foreground/40 data-[state=active]:bg-primary-foreground/5 data-[state=active]:text-primary-foreground",
-  "many-to-one":
-    "data-[state=active]:border-emerald-500/40 data-[state=active]:bg-emerald-500/5 data-[state=active]:text-emerald-400",
-  "many-to-many":
-    "data-[state=active]:border-amber-500/40 data-[state=active]:bg-amber-500/5 data-[state=active]:text-amber-400",
-};
-
-export function relationTypeTabsTriggerClassName(type: Relations.Relation["type"]): string {
-  return ${cn}(RELATION_TYPE_TAB_BASE, RELATION_TYPE_TAB_ACTIVE[type]);
-}
 `;
 
 export default writeRelationsConstants;
