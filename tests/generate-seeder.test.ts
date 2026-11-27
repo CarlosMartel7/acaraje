@@ -27,6 +27,7 @@ const files = {
   fakerPresets: fs.readFileSync(libPath(outDir, "seeder", "faker-presets.ts"), "utf-8"),
   fieldGenerators: fs.readFileSync(libPath(outDir, "seeder", "field-generators.ts"), "utf-8"),
   generateFieldValue: fs.readFileSync(libPath(outDir, "seeder", "generate-field-value.ts"), "utf-8"),
+  seedModel: fs.readFileSync(libPath(outDir, "seeder", "seed-model.ts"), "utf-8"),
   seedRoute: fs.readFileSync(seedRoutePath(outDir), "utf-8"),
   seedConfigRoute: fs.readFileSync(seedRoutePath(outDir, "config"), "utf-8"),
 };
@@ -39,7 +40,7 @@ afterAll(() => {
 
 test("writes lib/parsed-schema.ts, every lib/seeder file, and both app/api/seed routes", () => {
   expect(fs.existsSync(libPath(outDir, "parsed-schema.ts"))).toBe(true);
-  for (const file of ["config.ts", "faker-presets.ts", "field-generators.ts", "generate-field-value.ts"]) {
+  for (const file of ["config.ts", "faker-presets.ts", "field-generators.ts", "generate-field-value.ts", "seed-model.ts"]) {
     expect(fs.existsSync(libPath(outDir, "seeder", file))).toBe(true);
   }
   expect(fs.existsSync(seedRoutePath(outDir))).toBe(true);
@@ -70,17 +71,33 @@ test("lib/seeder/field-generators.ts imports FAKER_PRESETS and exports the seeda
 test("lib/seeder/generate-field-value.ts imports faker and field-generators via ts-poet imp", () => {
   expect(files.generateFieldValue).toContain('import { faker } from "@faker-js/faker";');
   expect(files.generateFieldValue).toContain(
-    'import { isRuleCompatibleWithType } from "@/lib/seeder/field-generators";',
+    'import { isRuleCompatibleWithType, seederFieldType } from "@/lib/seeder/field-generators";',
   );
   expect(files.generateFieldValue).toContain("faker.internet.email()");
   expect(files.generateFieldValue).toContain("export function generateFieldValue(");
   expect(files.generateFieldValue).toContain("export function shouldSkipOptionalField(");
 });
 
-test("app/api/seed routes are baked against the generated parsed-schema and prisma client", () => {
+test("app/api/seed routes are baked against the generated parsed-schema and the shared seeding logic", () => {
   expect(files.seedRoute).toMatch(/import \{ parsedSchema \} from ['"]@\/lib\/parsed-schema['"];/);
-  expect(files.seedRoute).toMatch(/import \{ prisma \} from ['"]@\/lib\/prisma['"];/);
+  expect(files.seedRoute).toMatch(/import \{ seedCounts, seedModel \} from ['"]@\/lib\/seeder\/seed-model['"];/);
+  expect(files.seedRoute).not.toContain("@/lib/prisma");
   expect(files.seedConfigRoute).toMatch(/import \{ parsedSchema \} from ['"]@\/lib\/parsed-schema['"];/);
+});
+
+test("lib/seeder/seed-model.ts reaches the database only through the model store", () => {
+  expect(files.seedModel).toMatch(/import \{ countRecords, createRecord, sampleRecords \} from "@\/lib\/model-store";/);
+  expect(files.seedModel).not.toContain("@/lib/prisma");
+  expect(files.seedModel).not.toContain("@/lib/db");
+  expect(files.seedModel).toContain("export async function seedModel(");
+  expect(files.seedModel).toContain("export async function seedCounts(");
+});
+
+test("lib/seeder maps pure-SQL column types onto the seeder's scalar types", () => {
+  expect(files.fieldGenerators).toContain("export function seederFieldType(");
+  // Escaped as a real regex in the output, not a template-literal-mangled one.
+  expect(files.fieldGenerators).toContain('fieldType.replace(/\\(.*\\)/, "").trim().split(/\\s+/)');
+  expect(files.generateFieldValue).toContain("const fieldType = seederFieldType(rawFieldType);");
 });
 
 test("seed route exposes POST (seed a model) and GET (row counts)", () => {

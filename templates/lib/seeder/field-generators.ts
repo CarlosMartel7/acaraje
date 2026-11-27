@@ -39,13 +39,33 @@ export function isEnumField(field: Schema.Field, schema: Schema.SchemaData): boo
   return schema.enums.some((e) => e.name === field.type);
 }
 
+/** SQL column types (as pure-SQL schemas spell them) mapped to the Prisma scalar names the seeder
+ *  works in. Size/precision arguments and trailing words are ignored: VARCHAR(255) -> String,
+ *  DOUBLE PRECISION -> Float, TIMESTAMP WITH TIME ZONE -> DateTime. */
+const SQL_TO_SEEDER_TYPE: Record<string, string> = {
+  TEXT: "String", VARCHAR: "String", CHAR: "String", NVARCHAR: "String", NCHAR: "String", CLOB: "String", UUID: "String",
+  INT: "Int", INTEGER: "Int", SMALLINT: "Int", MEDIUMINT: "Int", TINYINT: "Int", SERIAL: "Int", SMALLSERIAL: "Int",
+  BIGINT: "BigInt", BIGSERIAL: "BigInt",
+  FLOAT: "Float", DOUBLE: "Float", REAL: "Float",
+  DECIMAL: "Decimal", NUMERIC: "Decimal", MONEY: "Decimal",
+  BOOLEAN: "Boolean", BOOL: "Boolean",
+  DATETIME: "DateTime", TIMESTAMP: "DateTime", TIMESTAMPTZ: "DateTime", DATE: "DateTime", TIME: "DateTime", TIMETZ: "DateTime",
+  JSON: "Json", JSONB: "Json",
+};
+
+/** The seeder type for a schema field type. Prisma scalar and enum names pass through unchanged. */
+export function seederFieldType(fieldType: string): string {
+  const base = fieldType.replace(/\\(.*\\)/, "").trim().split(/\\s+/)[0].toUpperCase();
+  return SQL_TO_SEEDER_TYPE[base] ?? fieldType;
+}
+
 /** Generator kinds valid for a field type. "override" (Ignore Typing) is always available. */
 function allowedKindsForType(fieldType: string, isEnum: boolean): Seeder.GeneratorKind[] {
   if (isEnum) {
     return ["default", "enum", "fixed", "skip", "override"];
   }
 
-  switch (fieldType) {
+  switch (seederFieldType(fieldType)) {
     case "Boolean":
       return ["default", "boolean", "fixed", "skip", "override"];
     case "String":
@@ -65,7 +85,7 @@ function allowedKindsForType(fieldType: string, isEnum: boolean): Seeder.Generat
   }
 }
 
-/** Generator kinds valid for a Prisma field type. */
+/** Generator kinds valid for a schema field (Prisma or pure-SQL type). */
 export function allowedGeneratorKinds(field: Schema.Field, schema: Schema.SchemaData): Seeder.GeneratorKind[] {
   return allowedKindsForType(field.type, isEnumField(field, schema));
 }
@@ -121,7 +141,8 @@ const STRING_FAKER_PATHS = new Set([
 
 const DATE_FAKER_PATHS = new Set(["date.past", "date.recent", "date.future"]);
 
-function fakerPresetsForType(fieldType: string) {
+function fakerPresetsForType(rawFieldType: string) {
+  const fieldType = seederFieldType(rawFieldType);
   if (fieldType === "DateTime") {
     return ${FAKER_PRESETS}.filter((p) => DATE_FAKER_PATHS.has(p.path));
   }
@@ -154,7 +175,7 @@ function emptyRuleForType(kind: Seeder.GeneratorKind, fieldType: string): Seeder
     case "enum":
       return { kind: "enum" };
     case "fixed":
-      return { kind: "fixed", value: fieldType === "Boolean" ? true : "" };
+      return { kind: "fixed", value: seederFieldType(fieldType) === "Boolean" ? true : "" };
     case "skip":
       return { kind: "skip" };
     case "override":
