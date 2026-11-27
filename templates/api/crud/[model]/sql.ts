@@ -1,12 +1,11 @@
 import { code, imp } from "ts-poet";
-import { listMetadataLiteral } from "../../../lib/crud/resolve-filters";
 
 // Ts-poet imports
 const NextRequest = imp("NextRequest@next/server");
 const NextResponse = imp("NextResponse@next/server");
 const parseFiltersParam = imp("parseFiltersParam@@/lib/crud/resolve-filters");
 const resolveListQuery = imp("resolveListQuery@@/lib/crud/resolve-filters");
-const listConfig = imp("listConfig@@/lib/crud/resolve-filters");
+const filterSchema = imp("filterSchema@@/lib/crud/filter-schema");
 const buildKyselyWhere = imp("buildKyselyWhere@@/lib/crud/kysely-filters");
 const applyKyselyOrder = imp("applyKyselyOrder@@/lib/crud/kysely-filters");
 const sanitizeInput = imp("sanitizeInput@@/lib/crud/resolve-filters");
@@ -15,14 +14,13 @@ const sanitizeInput = imp("sanitizeInput@@/lib/crud/resolve-filters");
 export type SqlDialect = "postgresql" | "mysql" | "sqlite";
 
 export function writeReadFoo(
-  schema: PrismaSchema.ParsedSchema,
   model: PrismaSchema.PrismaModel,
   db: string,
   table: string,
   dialect: SqlDialect,
 ) {
   const body = code`
-    const LIST = ${listConfig}(${listMetadataLiteral(schema, model)});
+    const MODEL = ${JSON.stringify(model.name)};
 
     export async function GET(req: ${NextRequest}) {
       const { searchParams } = new URL(req.url);
@@ -42,19 +40,26 @@ export function writeReadFoo(
             sortField: searchParams.get("sortField") || "",
             sortOrder: searchParams.get("sortOrder") || "",
           },
-          LIST,
+          ${filterSchema},
+          MODEL,
         );
         if (!query.ok) {
           return ${NextResponse}.json({ error: query.error }, { status: 400 });
         }
 
         const applyWhere = (eb: any) =>
-          ${buildKyselyWhere}(eb, { filters: query.filters, search, searchFields: LIST.searchFields, dialect: ${JSON.stringify(dialect)} });
+          ${buildKyselyWhere}(eb, {
+            table: ${JSON.stringify(table)},
+            filter: query.filter,
+            search,
+            searchFields: ${filterSchema}.models[MODEL].searchFields,
+            dialect: ${JSON.stringify(dialect)},
+          });
 
         const recordsQuery = ${applyKyselyOrder}(
           ${db}.selectFrom("${table}").selectAll().where(applyWhere),
           query.orderBy,
-          LIST.fieldKinds,
+          ${filterSchema}.models[MODEL].fieldKinds,
           ${JSON.stringify(dialect)},
         ).limit(pageSize).offset((page - 1) * pageSize);
 

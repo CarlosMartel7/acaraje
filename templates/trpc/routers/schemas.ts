@@ -13,6 +13,7 @@ export const schemasRouter = ${router}({
       return {
         models: ${parsedSchema}.models,
         enums: ${parsedSchema}.enums,
+        relations: ${parsedSchema}.relations,
         datasource: ${parsedSchema}.datasource,
         generator: ${parsedSchema}.generator,
       } as Schema.SchemaData;

@@ -1,23 +1,21 @@
 import { code, imp } from "ts-poet";
-import { listMetadataLiteral } from "../../../lib/crud/resolve-filters";
 
 // Ts-poet imports
 const NextRequest = imp("NextRequest@next/server");
 const NextResponse = imp("NextResponse@next/server");
 const parseFiltersParam = imp("parseFiltersParam@@/lib/crud/resolve-filters");
 const resolveListQuery = imp("resolveListQuery@@/lib/crud/resolve-filters");
-const listConfig = imp("listConfig@@/lib/crud/resolve-filters");
+const filterSchema = imp("filterSchema@@/lib/crud/filter-schema");
 const buildPrismaListArgs = imp("buildPrismaListArgs@@/lib/crud/prisma-filters");
 const sanitizeInput = imp("sanitizeInput@@/lib/crud/resolve-filters");
 
 export function writeReadFoo(
-  schema: PrismaSchema.ParsedSchema,
   model: PrismaSchema.PrismaModel,
   prisma: string,
   caseInsensitive: boolean,
 ) {
   const body = code`
-    const LIST = ${listConfig}(${listMetadataLiteral(schema, model)});
+    const MODEL = ${JSON.stringify(model.name)};
 
     export async function GET(req: ${NextRequest}) {
       const { searchParams } = new URL(req.url);
@@ -37,17 +35,18 @@ export function writeReadFoo(
             sortField: searchParams.get("sortField") || "",
             sortOrder: searchParams.get("sortOrder") || "",
           },
-          LIST,
+          ${filterSchema},
+          MODEL,
         );
         if (!query.ok) {
           return ${NextResponse}.json({ error: query.error }, { status: 400 });
         }
 
         const { where, orderBy } = ${buildPrismaListArgs}({
-          filters: query.filters,
+          filter: query.filter,
           orderBy: query.orderBy,
           search,
-          searchFields: LIST.searchFields,
+          searchFields: ${filterSchema}.models[MODEL].searchFields,
           caseInsensitive: ${caseInsensitive},
         });
 

@@ -7,6 +7,7 @@ const useQueryClient = imp("useQueryClient@@tanstack/react-query")
 const apiGet = imp("apiGet@@/lib/query/api")
 const apiMutate = imp("apiMutate@@/lib/query/api")
 const queryKeys = imp("queryKeys@@/lib/query/keys")
+const completeFilters = imp("completeFilters@@/lib/crud/resolve-filters")
 const CRUD_DELETE_ALL_SENTINEL = imp("CRUD_DELETE_ALL_SENTINEL@@/components/routes/crud/[model]/delete-modal")
 
 export const writeUseCrudHook = () => code`
@@ -14,13 +15,19 @@ export interface CrudListParams {
   page: number;
   pageSize: number;
   search: string;
-  filters?: Crud.FilterCondition[];
+  filters?: Crud.FilterGroup;
   sortField?: string;
   sortOrder?: Crud.SortOrder;
 }
 
+/** The filters a list request sends: the tree minus conditions still waiting for a value. */
+function filtersParamOf(filters: Crud.FilterGroup | undefined): string {
+  const complete = filters ? ${completeFilters}(filters) : null;
+  return complete ? JSON.stringify(complete) : "";
+}
+
 function crudListUrl(model: string, params: CrudListParams): string {
-  const filtersParam = params.filters?.length ? JSON.stringify(params.filters) : "";
+  const filtersParam = filtersParamOf(params.filters);
   const qs = new URLSearchParams({
     page: String(params.page),
     pageSize: String(params.pageSize),
@@ -35,7 +42,7 @@ function crudListUrl(model: string, params: CrudListParams): string {
 }
 
 export function useCrudList(model: string, params: CrudListParams) {
-  const filtersParam = params.filters?.length ? JSON.stringify(params.filters) : "";
+  const filtersParam = filtersParamOf(params.filters);
   return ${useQuery}({
     queryKey: ${queryKeys}.crud.list(model, { ...params, filters: filtersParam }),
     queryFn: () => ${apiGet}<Crud.PageData>(crudListUrl(model, params)),

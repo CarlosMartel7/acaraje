@@ -117,12 +117,12 @@ export default function CrudListContent() {
     setDeleteIds(idsToDelete);
   };
 
-  const buildAndPush = (overrides: { page?: number; filters?: Crud.FilterCondition[]; sortField?: string; sortOrder?: Crud.SortOrder }) => {
+  const buildAndPush = (overrides: { page?: number; filters?: Crud.FilterGroup; sortField?: string; sortOrder?: Crud.SortOrder }) => {
     const nextFilters = overrides.filters ?? filters;
     const nextSortField = overrides.sortField ?? sortField;
     const nextSortOrder = overrides.sortOrder ?? sortOrder;
     const sp = new URLSearchParams({ page: String(overrides.page ?? page), search: debouncedSearch });
-    if (nextFilters.length > 0) sp.set("filters", JSON.stringify(nextFilters));
+    if (nextFilters.children.length > 0) sp.set("filters", JSON.stringify(nextFilters));
     if (nextSortField) {
       sp.set("sortField", nextSortField);
       sp.set("sortOrder", nextSortOrder);
@@ -131,7 +131,7 @@ export default function CrudListContent() {
   };
 
   const goPage = (p: number) => buildAndPush({ page: p });
-  const handleFiltersChange = (next: Crud.FilterCondition[]) => buildAndPush({ filters: next, page: 1 });
+  const handleFiltersChange = (next: Crud.FilterGroup) => buildAndPush({ filters: next, page: 1 });
   const handleSortChange = (field: string, order: Crud.SortOrder) => buildAndPush({ sortField: field, sortOrder: order, page: 1 });
 
   const loading = data === null && !error;

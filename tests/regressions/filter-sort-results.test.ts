@@ -27,11 +27,18 @@ const SAMPLE_DBS = path.join(__dirname, "..", "sampleDBs");
 const prismaSchema = prismaParser(path.join(SAMPLE_DBS, "schema.prisma"));
 
 const tmpDirs: string[] = [];
+const schemaOf = new Map<string, PrismaSchema.ParsedSchema>();
 function generate(label: string, schema: PrismaSchema.ParsedSchema, orm: string, api: "rest" | "trpc") {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), `acaraje-filter-regressions-${label}-`));
   tmpDirs.push(dir);
   generateCRUD(schema, orm, api, dir);
+  schemaOf.set(dir, schema);
   return dir;
+}
+
+/** Loads a generated module; lib/parsed-schema.ts (written by generate-seeder) is the app's schema. */
+function load(appDir: string, file: string, stubs: Record<string, unknown> = {}) {
+  return loadGeneratedModule(appDir, file, { "@/lib/parsed-schema": { parsedSchema: schemaOf.get(appDir) }, ...stubs });
 }
 afterAll(() => {
   for (const dir of tmpDirs) fs.rmSync(dir, { recursive: true, force: true });
@@ -51,7 +58,7 @@ function recordingDelegate() {
 
 function prismaTrpcHandlers(appDir: string, model: string, delegateName: string) {
   const recorder = recordingDelegate();
-  const mod = loadGeneratedModule(appDir, `server/trpc/routers/crud/models/${model}.ts`, {
+  const mod = load(appDir, `server/trpc/routers/crud/models/${model}.ts`, {
     "@/lib/prisma": { prisma: { [delegateName]: recorder.delegate } },
     "@/server/trpc/init": trpcInitStub,
     "@trpc/server": { TRPCError: TRPCErrorStub },
@@ -66,7 +73,7 @@ describe("REST + Prisma list route", () => {
 
   function callList(query: Record<string, string>) {
     const recorder = recordingDelegate();
-    const route = loadGeneratedModule(appDir, "app/api/crud/User/route.ts", {
+    const route = load(appDir, "app/api/crud/User/route.ts", {
       "next/server": nextServerStub,
       "@/lib/prisma": { prisma: { user: recorder.delegate } },
     });
@@ -191,7 +198,7 @@ INSERT INTO "Item" ("name", "active", "status", "ownerId", "createdAt") VALUES
   const { db, close } = createSqliteKysely(SCHEMA_SQL + ROWS_SQL);
   afterAll(close);
 
-  const handlers = loadGeneratedModule(appDir, "server/trpc/routers/crud/models/Item.ts", {
+  const handlers = load(appDir, "server/trpc/routers/crud/models/Item.ts", {
     "@/lib/db": { db },
     "@/server/trpc/init": trpcInitStub,
     "@trpc/server": { TRPCError: TRPCErrorStub },
@@ -265,7 +272,7 @@ describe("pure-SQL list handler on PostgreSQL (compiled SQL)", () => {
       if (event.level === "query") queries.push({ sql: event.query.sql, parameters: event.query.parameters });
     },
   });
-  const handlers = loadGeneratedModule(appDir, "server/trpc/routers/crud/models/User.ts", {
+  const handlers = load(appDir, "server/trpc/routers/crud/models/User.ts", {
     "@/lib/db": { db },
     "@/server/trpc/init": trpcInitStub,
     "@trpc/server": { TRPCError: TRPCErrorStub },

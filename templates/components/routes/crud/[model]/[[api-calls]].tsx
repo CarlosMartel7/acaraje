@@ -6,6 +6,8 @@ const useMemo = imp("useMemo@react")
 const useState = imp("useState@react")
 const useCrudDelete = imp("useCrudDelete@@/query/hooks/use-crud")
 const useCrudList = imp("useCrudList@@/query/hooks/use-crud")
+const emptyFilterGroup = imp("emptyFilterGroup@@/lib/crud/resolve-filters")
+const toFilterGroup = imp("toFilterGroup@@/lib/crud/resolve-filters")
 
 export const writeCrudListApiCalls = () => code`
 export default function AcarajeCalls_crud() {
@@ -20,13 +22,13 @@ export default function AcarajeCalls_crud() {
   const [selectedIds, setSelectedIds] = ${useState}<Set<string>>(new Set());
 
   const filtersParam = searchParams.get("filters") || "";
-  const filters: Crud.FilterCondition[] = ${useMemo}(() => {
-    if (!filtersParam) return [];
+  // A filter tree; URLs from before filter groups hold a flat array, which becomes an AND group.
+  const filters: Crud.FilterGroup = ${useMemo}(() => {
+    if (!filtersParam) return ${emptyFilterGroup}();
     try {
-      const parsed = JSON.parse(filtersParam);
-      return Array.isArray(parsed) ? parsed : [];
+      return ${toFilterGroup}(JSON.parse(filtersParam));
     } catch {
-      return [];
+      return ${emptyFilterGroup}();
     }
   }, [filtersParam]);
   const sortField = searchParams.get("sortField") || "";

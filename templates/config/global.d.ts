@@ -142,9 +142,17 @@ declare namespace Schema {
     values: string[];
   }
 
+  interface Relation {
+    from: string;
+    fromField: string;
+    to: string;
+    type: "one-to-one" | "one-to-many" | "many-to-one" | "many-to-many";
+  }
+
   interface SchemaData {
     models: Model[];
     enums: EnumType[];
+    relations: Relation[];
     datasource: { provider: string; url: string } | null;
     generator: { provider: string } | null;
   }
@@ -468,12 +476,41 @@ declare namespace Crud {
 
   type FilterOperator = "contains" | "startsWith" | "endsWith" | "equals" | "not" | "gt" | "gte" | "lt" | "lte";
 
+  /** One comparison on a field of the model being filtered. */
   interface FilterCondition {
+    type?: "condition";
     field: string;
     operator: FilterOperator;
     /** Always a string on the wire; parsed server-side per the field's kind. */
     value: string;
   }
+
+  /** Children combined with AND ("and") or OR ("or"); 'not' negates the whole group. */
+  interface FilterGroup {
+    type: "group";
+    combinator: "and" | "or";
+    not?: boolean;
+    children: FilterNode[];
+  }
+
+  /**
+   * Conditions on related records. For a collection (to-many) relation: "some" = at least one
+   * related record matches, "every" = all of them do, "none" = none does. For a to-one relation,
+   * "some" = the related record matches and "none" = it doesn't (or there is none). Without
+   * 'where' (or with an empty one) it tests the relation itself: "some" = not empty / set,
+   * "none" = empty / not set.
+   */
+  interface RelationFilter {
+    type: "relation";
+    relation: string;
+    mode: "some" | "every" | "none";
+    where?: FilterGroup;
+  }
+
+  type FilterNode = FilterCondition | FilterGroup | RelationFilter;
+
+  /** What list endpoints accept: a filter tree, or (URLs from before groups existed) a flat list of AND-ed conditions. */
+  type FilterInput = FilterGroup | FilterCondition[];
 
   type SortOrder = "asc" | "desc";
 

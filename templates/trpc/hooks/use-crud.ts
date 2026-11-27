@@ -6,6 +6,7 @@ const useQuery = imp("useQuery@@tanstack/react-query")
 const useQueryClient = imp("useQueryClient@@tanstack/react-query")
 const useTRPC = imp("useTRPC@@/lib/trpc/client")
 const useTRPCClient = imp("useTRPCClient@@/lib/trpc/client")
+const completeFilters = imp("completeFilters@@/lib/crud/resolve-filters")
 const CRUD_DELETE_ALL_SENTINEL = imp("CRUD_DELETE_ALL_SENTINEL@@/components/routes/crud/[model]/delete-modal")
 
 // tRPC flavor of templates/query/hooks/use-crud.ts — same exports, same return shapes.
@@ -14,7 +15,7 @@ export interface CrudListParams {
   page: number;
   pageSize: number;
   search: string;
-  filters?: Crud.FilterCondition[];
+  filters?: Crud.FilterGroup;
   sortField?: string;
   sortOrder?: Crud.SortOrder;
 }
@@ -42,7 +43,8 @@ export function useCrudList(model: string, params: CrudListParams) {
       {
         model,
         ...params,
-        filters: params.filters?.length ? params.filters : undefined,
+        // Conditions still waiting for a value aren't sent.
+        filters: (params.filters && ${completeFilters}(params.filters)) || undefined,
         sortField: params.sortField || undefined,
         sortOrder: params.sortField ? (params.sortOrder ?? "desc") : undefined,
       },

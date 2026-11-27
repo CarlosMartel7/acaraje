@@ -11,6 +11,7 @@ export async function GET() {
     return ${NextResponse}.json({
       models: ${parsedSchema}.models,
       enums: ${parsedSchema}.enums,
+      relations: ${parsedSchema}.relations,
       datasource: ${parsedSchema}.datasource,
       generator: ${parsedSchema}.generator,
     });

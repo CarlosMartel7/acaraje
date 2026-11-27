@@ -88,11 +88,11 @@ describe("generateCRUD (trpc, prisma)", () => {
     expect(exists(outDir, "lib", "prisma.ts")).toBe(true);
   });
 
-  test("handlers use the model's lowerCamel prisma delegate and bake in its field metadata", () => {
+  test("handlers use the model's lowerCamel prisma delegate and the shared filter schema", () => {
     const user = read(crudDir, "models", "User.ts");
     expect(user).toContain("prisma.user.findMany(");
-    expect(user).toContain("const LIST = listConfig({");
-    expect(user).toContain('{ "name": "email", "type": "String", "isList": false, "isId": false, "isRelation": false }');
+    expect(user).toContain('const MODEL = "User";');
+    expect(user).toContain('import { filterSchema } from "@/lib/crud/filter-schema";');
     expect(user).toContain("export const handlers: CrudHandlers");
   });
 

@@ -1,13 +1,12 @@
 import { code, imp } from "ts-poet";
 import type { SqlDialect } from "../../../api/crud/[model]/sql";
-import { listMetadataLiteral } from "../../../lib/crud/resolve-filters";
 
 const TRPCError = imp("TRPCError@@trpc/server");
 const internalError = imp("internalError@@/server/trpc/init");
 const CrudHandlers = imp("t:CrudHandlers@@/server/trpc/routers/crud/types");
 const db = imp("db@@/lib/db");
 const resolveListQuery = imp("resolveListQuery@@/lib/crud/resolve-filters");
-const listConfig = imp("listConfig@@/lib/crud/resolve-filters");
+const filterSchema = imp("filterSchema@@/lib/crud/filter-schema");
 const buildKyselyWhere = imp("buildKyselyWhere@@/lib/crud/kysely-filters");
 const applyKyselyOrder = imp("applyKyselyOrder@@/lib/crud/kysely-filters");
 const sanitizeInput = imp("sanitizeInput@@/lib/crud/resolve-filters");
@@ -18,7 +17,6 @@ const LABEL_CANDIDATES = ["name", "title", "email", "code", "slug", "label", "st
 // Mirrors templates/api/crud/[model]/{sql,id/sql,options/sql}.ts — keep them in sync. Filtering
 // and sorting go through the same shared rules and Kysely adapter the REST sql routes use.
 export function writeKyselyCrudHandlers(
-  schema: PrismaSchema.ParsedSchema,
   model: PrismaSchema.PrismaModel,
   table: string,
   dialect: SqlDialect,
@@ -38,24 +36,30 @@ export function writeKyselyCrudHandlers(
   const optionsLabel = labelField ? `r.${labelField}` : "r.id";
 
   return code`
-const LIST = ${listConfig}(${listMetadataLiteral(schema, model)});
+const MODEL = ${JSON.stringify(model.name)};
 
 // Relation-picker page size, matching the REST options route.
 const OPTIONS_PAGE_SIZE = 20;
 
 export const handlers: ${CrudHandlers} = {
   async list({ page, pageSize, search, filters = [], sortField, sortOrder = "desc" }) {
-    const query = ${resolveListQuery}({ filters, sortField, sortOrder }, LIST);
+    const query = ${resolveListQuery}({ filters, sortField, sortOrder }, ${filterSchema}, MODEL);
     if (!query.ok) throw new ${TRPCError}({ code: "BAD_REQUEST", message: query.error });
 
     const applyWhere = (eb: any) =>
-      ${buildKyselyWhere}(eb, { filters: query.filters, search, searchFields: LIST.searchFields, dialect: ${JSON.stringify(dialect)} });
+      ${buildKyselyWhere}(eb, {
+        table: ${tableName},
+        filter: query.filter,
+        search,
+        searchFields: ${filterSchema}.models[MODEL].searchFields,
+        dialect: ${JSON.stringify(dialect)},
+      });
 
     try {
       const recordsQuery = ${applyKyselyOrder}(
         ${db}.selectFrom(${tableName} as any).selectAll().where(applyWhere),
         query.orderBy,
-        LIST.fieldKinds,
+        ${filterSchema}.models[MODEL].fieldKinds,
         ${JSON.stringify(dialect)},
       ).limit(pageSize).offset((page - 1) * pageSize);
 

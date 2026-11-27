@@ -36,11 +36,32 @@ function handlersFor(model: string): ${CrudHandlers} {
 
 const modelInput = ${z}.object({ model: ${z}.string() });
 
+// The filter tree's shape (Crud.FilterInput). Field names, operators per field kind, values and
+// relations are validated against the model by lib/crud/resolve-filters.ts in the handler.
 const filterCondition = ${z}.object({
+  type: ${z}.literal("condition").optional(),
   field: ${z}.string(),
   operator: ${z}.enum(["contains", "startsWith", "endsWith", "equals", "not", "gt", "gte", "lt", "lte"]),
   value: ${z}.string(),
 });
+
+const filterGroup: ${z}.ZodType<Crud.FilterGroup> = ${z}.lazy(() =>
+  ${z}.object({
+    type: ${z}.literal("group"),
+    combinator: ${z}.enum(["and", "or"]),
+    not: ${z}.boolean().optional(),
+    children: ${z}.array(${z}.union([filterCondition, filterGroup, relationFilter])),
+  }),
+);
+
+const relationFilter: ${z}.ZodType<Crud.RelationFilter> = ${z}.lazy(() =>
+  ${z}.object({
+    type: ${z}.literal("relation"),
+    relation: ${z}.string(),
+    mode: ${z}.enum(["some", "every", "none"]),
+    where: filterGroup.optional(),
+  }),
+);
 
 export const crudRouter = ${router}({
   list: ${protectedProcedure}
@@ -49,7 +70,7 @@ export const crudRouter = ${router}({
         page: ${z}.number().int().min(1).default(1),
         pageSize: ${z}.number().int().min(1).default(20),
         search: ${z}.string().default(""),
-        filters: ${z}.array(filterCondition).optional(),
+        filters: ${z}.union([filterGroup, ${z}.array(filterCondition)]).optional(),
         sortField: ${z}.string().optional(),
         sortOrder: ${z}.enum(["asc", "desc"]).optional(),
       }),

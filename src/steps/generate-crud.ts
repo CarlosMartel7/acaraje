@@ -10,6 +10,7 @@ import * as S_Opt from '../../templates/api/crud/[model]/options/sql'
 import writeLibCrudFilters from '../../templates/lib/crud/resolve-filters'
 import writePrismaFilters from '../../templates/lib/crud/prisma-filters'
 import writeKyselyFilters from '../../templates/lib/crud/kysely-filters'
+import writeFilterSchema from '../../templates/lib/crud/filter-schema'
 import writeBuildFormSchema from '../../templates/lib/crud/build-form-schema'
 import writePrisma from '../../templates/lib/prisma'
 import writeDbClient from '../../templates/lib/db'
@@ -40,6 +41,8 @@ export function generateCRUD(
   const libCrudDir = path.join(libDir, "crud")
   fs.mkdirSync(libCrudDir, { recursive: true })
   fs.writeFileSync(path.join(libCrudDir, "resolve-filters.ts"), writeLibCrudFilters().toString())
+  // Derived from lib/parsed-schema.ts, which generate-seeder writes alongside on init and update.
+  fs.writeFileSync(path.join(libCrudDir, "filter-schema.ts"), writeFilterSchema().toString())
   fs.writeFileSync(path.join(libCrudDir, "build-form-schema.ts"), writeBuildFormSchema().toString())
   // Also needed by the seed route ("@/lib/enum-values") — written here since generate-crud
   // always runs and always writes lib/ unconditionally, giving it one source of truth.
@@ -108,7 +111,7 @@ function generateTrpcCrud(schema: PrismaSchema.ParsedSchema, orm: string, baseDi
       orm === "prisma"
         // Prisma's `mode: "insensitive"` is supported on PostgreSQL/MongoDB but not in sqlite
         ? writePrismaCrudHandlers(schema, currModel, schema.datasource?.provider !== "sqlite")
-        : writeKyselyCrudHandlers(schema, currModel, currModel.name, sqlDialect(schema))
+        : writeKyselyCrudHandlers(currModel, currModel.name, sqlDialect(schema))
     fs.writeFileSync(path.join(modelsDir, `${currModel.name}.ts`), handlersCode.toString())
   }
 }
@@ -131,7 +134,7 @@ function generatePrismaRoutes(schema: PrismaSchema.ParsedSchema, currModel: Pris
 
     ${P.writeCreateFoo(prisma)}
 
-    ${P.writeReadFoo(schema, currModel, prisma, caseInsensitive)}
+    ${P.writeReadFoo(currModel, prisma, caseInsensitive)}
 
     ${P.writeDeleteFoo(prisma)}
   `
@@ -167,7 +170,7 @@ function generateKyselyRoutes(schema: PrismaSchema.ParsedSchema, currModel: Pris
 
     ${S.writeCreateFoo(db, table)}
 
-    ${S.writeReadFoo(schema, currModel, db, table, sqlDialect(schema))}
+    ${S.writeReadFoo(currModel, db, table, sqlDialect(schema))}
 
     ${S.writeDeleteFoo(db, table)}
   `

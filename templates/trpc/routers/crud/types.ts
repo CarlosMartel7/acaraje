@@ -7,7 +7,7 @@ export interface CrudListInput {
   page: number;
   pageSize: number;
   search: string;
-  filters?: Crud.FilterCondition[];
+  filters?: Crud.FilterInput;
   sortField?: string;
   sortOrder?: Crud.SortOrder;
 }

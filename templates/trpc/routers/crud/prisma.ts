@@ -1,11 +1,10 @@
 import { code, imp } from "ts-poet";
-import { listMetadataLiteral } from "../../../lib/crud/resolve-filters";
 
 const TRPCError = imp("TRPCError@@trpc/server");
 const internalError = imp("internalError@@/server/trpc/init");
 const CrudHandlers = imp("t:CrudHandlers@@/server/trpc/routers/crud/types");
 const prismaClient = imp("prisma@@/lib/prisma");
-const listConfig = imp("listConfig@@/lib/crud/resolve-filters");
+const filterSchema = imp("filterSchema@@/lib/crud/filter-schema");
 const resolveListQuery = imp("resolveListQuery@@/lib/crud/resolve-filters");
 const buildPrismaListArgs = imp("buildPrismaListArgs@@/lib/crud/prisma-filters");
 const sanitizeInput = imp("sanitizeInput@@/lib/crud/resolve-filters");
@@ -15,7 +14,7 @@ const LABEL_CANDIDATES = ["name", "title", "email", "code", "slug", "label", "st
 // Written to server/trpc/routers/crud/models/<Model>.ts for orm "prisma".
 // Mirrors templates/api/crud/[model]/{prisma,id/prisma,options/prisma}.ts — keep them in sync.
 // Filtering and sorting go through the shared rules (lib/crud/resolve-filters.ts) and the Prisma
-// adapter (lib/crud/prisma-filters.ts), using field metadata baked in at generation time.
+// adapter (lib/crud/prisma-filters.ts), with the model metadata from lib/crud/filter-schema.ts.
 export function writePrismaCrudHandlers(
   schema: PrismaSchema.ParsedSchema,
   model: PrismaSchema.PrismaModel,
@@ -32,21 +31,21 @@ export function writePrismaCrudHandlers(
   const optionsLabel = labelField ? `r.${labelField}` : "r.id";
 
   return code`
-const LIST = ${listConfig}(${listMetadataLiteral(schema, model)});
+const MODEL = ${JSON.stringify(model.name)};
 
 // Relation-picker page size, matching the REST options route.
 const OPTIONS_PAGE_SIZE = 20;
 
 export const handlers: ${CrudHandlers} = {
   async list({ page, pageSize, search, filters = [], sortField, sortOrder = "desc" }) {
-    const query = ${resolveListQuery}({ filters, sortField, sortOrder }, LIST);
+    const query = ${resolveListQuery}({ filters, sortField, sortOrder }, ${filterSchema}, MODEL);
     if (!query.ok) throw new ${TRPCError}({ code: "BAD_REQUEST", message: query.error });
 
     const { where, orderBy } = ${buildPrismaListArgs}({
-      filters: query.filters,
+      filter: query.filter,
       orderBy: query.orderBy,
       search,
-      searchFields: LIST.searchFields,
+      searchFields: ${filterSchema}.models[MODEL].searchFields,
       caseInsensitive: ${caseInsensitive},
     });
 
