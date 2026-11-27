@@ -76,7 +76,18 @@ your schemas in place run:
 npx acaraje init
 ```
 
-You'll be asked:
+The first question is whether to use your `acaraje-design.json` (see
+[the design file](#the-design-file-acaraje-designjson)):
+
+- **No** — a basic installation. You answer the prompts below.
+- **Yes** — the installation is driven by `acaraje-design.json` in the current folder. Only the
+  admin username and password are asked, since secrets never go in that file. If the file is
+  missing or invalid, init lists every problem and stops before generating anything.
+
+Either way, init writes the effective `acaraje-design.json` (your answers, or your file with
+defaults filled in) so the installation is recorded in one place.
+
+In a basic installation you'll be asked:
 
 | Prompt | What it controls | Default |
 | --- | --- | --- |

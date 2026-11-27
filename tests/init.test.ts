@@ -185,8 +185,9 @@ describe("prisma + trpc (via the --api flag)", () => {
   });
 
   test("skips the API layer prompt, since --api already answered it", () => {
-    // Second p.group() call is init's own buildPrompts(); its api field returns undefined (= skip).
-    const restOfPrompts = lastGroupMock.mock.calls[1][0] as Record<string, () => unknown>;
+    // Third p.group() call (after the install-mode and schema-source prompts) is init's own
+    // buildPrompts(); its api field returns undefined (= skip).
+    const restOfPrompts = lastGroupMock.mock.calls[2][0] as Record<string, () => unknown>;
     expect(restOfPrompts.api()).toBeUndefined();
   });
 
@@ -243,7 +244,7 @@ describe("pure-sql + trpc (via the prompt)", () => {
   });
 
   test("asks the API layer prompt when no --api flag was given", () => {
-    const restOfPrompts = lastGroupMock.mock.calls[1][0] as Record<string, () => unknown>;
+    const restOfPrompts = lastGroupMock.mock.calls[2][0] as Record<string, () => unknown>;
     expect(restOfPrompts.api()).toBe("prompted");
   });
 
