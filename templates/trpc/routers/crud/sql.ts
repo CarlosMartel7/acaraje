@@ -1,27 +1,30 @@
 import { code, imp } from "ts-poet";
-import { defaultSortLiteral, fieldKindsLiteral, searchFieldsLiteral } from "../../../api/crud/[model]/sql";
+import type { SqlDialect } from "../../../api/crud/[model]/sql";
+import { listMetadataLiteral } from "../../../lib/crud/resolve-filters";
 
 const TRPCError = imp("TRPCError@@trpc/server");
 const internalError = imp("internalError@@/server/trpc/init");
 const CrudHandlers = imp("t:CrudHandlers@@/server/trpc/routers/crud/types");
 const db = imp("db@@/lib/db");
 const resolveListQuery = imp("resolveListQuery@@/lib/crud/resolve-filters");
-const FieldKindMap = imp("t:FieldKindMap@@/lib/crud/resolve-filters");
-const ResolvedSort = imp("t:ResolvedSort@@/lib/crud/resolve-filters");
+const listConfig = imp("listConfig@@/lib/crud/resolve-filters");
 const buildKyselyWhere = imp("buildKyselyWhere@@/lib/crud/kysely-filters");
+const applyKyselyOrder = imp("applyKyselyOrder@@/lib/crud/kysely-filters");
 const sanitizeInput = imp("sanitizeInput@@/lib/crud/resolve-filters");
 
 const LABEL_CANDIDATES = ["name", "title", "email", "code", "slug", "label", "storeName"];
 
 // Written to server/trpc/routers/crud/models/<Model>.ts for orm "pure-sql".
-// Mirrors templates/api/crud/[model]/{sql,id/sql,options/sql}.ts — keep them in sync. Field
-// kinds come from the same generation-time inference the REST sql routes use.
+// Mirrors templates/api/crud/[model]/{sql,id/sql,options/sql}.ts — keep them in sync. Filtering
+// and sorting go through the same shared rules and Kysely adapter the REST sql routes use.
 export function writeKyselyCrudHandlers(
+  schema: PrismaSchema.ParsedSchema,
   model: PrismaSchema.PrismaModel,
   table: string,
-  caseInsensitive: boolean,
+  dialect: SqlDialect,
 ) {
-  const likeOp = JSON.stringify(caseInsensitive ? "ilike" : "like");
+  // Raw SQL's `ilike` is only understood by PostgreSQL — MySQL and SQLite fall back to `like`.
+  const likeOp = JSON.stringify(dialect === "postgresql" ? "ilike" : "like");
   const tableName = JSON.stringify(table);
 
   const labelField = model.fields.find((f) => LABEL_CANDIDATES.includes(f.name))?.name ?? null;
@@ -35,27 +38,26 @@ export function writeKyselyCrudHandlers(
   const optionsLabel = labelField ? `r.${labelField}` : "r.id";
 
   return code`
-const FIELD_KINDS: ${FieldKindMap} = ${fieldKindsLiteral(model)};
-const SEARCH_FIELDS: string[] = ${searchFieldsLiteral(model)};
-const DEFAULT_SORT: ${ResolvedSort} | null = ${defaultSortLiteral(model)};
+const LIST = ${listConfig}(${listMetadataLiteral(schema, model)});
 
 // Relation-picker page size, matching the REST options route.
 const OPTIONS_PAGE_SIZE = 20;
 
 export const handlers: ${CrudHandlers} = {
   async list({ page, pageSize, search, filters = [], sortField, sortOrder = "desc" }) {
-    const query = ${resolveListQuery}({ filters, sortField, sortOrder }, FIELD_KINDS, DEFAULT_SORT);
+    const query = ${resolveListQuery}({ filters, sortField, sortOrder }, LIST);
     if (!query.ok) throw new ${TRPCError}({ code: "BAD_REQUEST", message: query.error });
 
     const applyWhere = (eb: any) =>
-      ${buildKyselyWhere}(eb, { filters: query.filters, search, searchFields: SEARCH_FIELDS, caseInsensitive: ${caseInsensitive} });
+      ${buildKyselyWhere}(eb, { filters: query.filters, search, searchFields: LIST.searchFields, dialect: ${JSON.stringify(dialect)} });
 
     try {
-      let recordsQuery = ${db}.selectFrom(${tableName} as any).selectAll().where(applyWhere);
-      if (query.sort) {
-        recordsQuery = recordsQuery.orderBy(query.sort.field as any, query.sort.order);
-      }
-      recordsQuery = recordsQuery.limit(pageSize).offset((page - 1) * pageSize);
+      const recordsQuery = ${applyKyselyOrder}(
+        ${db}.selectFrom(${tableName} as any).selectAll().where(applyWhere),
+        query.orderBy,
+        LIST.fieldKinds,
+        ${JSON.stringify(dialect)},
+      ).limit(pageSize).offset((page - 1) * pageSize);
 
       const countQuery = ${db}
         .selectFrom(${tableName} as any)

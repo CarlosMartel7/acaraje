@@ -108,10 +108,15 @@ function generateTrpcCrud(schema: PrismaSchema.ParsedSchema, orm: string, baseDi
       orm === "prisma"
         // Prisma's `mode: "insensitive"` is supported on PostgreSQL/MongoDB but not in sqlite
         ? writePrismaCrudHandlers(schema, currModel, schema.datasource?.provider !== "sqlite")
-        // Raw SQL's `ilike` is only understood by PostgreSQL — MySQL and SQLite fall back to `like`.
-        : writeKyselyCrudHandlers(currModel, currModel.name, schema.datasource?.provider === "postgresql")
+        : writeKyselyCrudHandlers(schema, currModel, currModel.name, sqlDialect(schema))
     fs.writeFileSync(path.join(modelsDir, `${currModel.name}.ts`), handlersCode.toString())
   }
+}
+
+// The database a pure-SQL project targets, which the Kysely filter adapter needs for text
+// matching and SQLite's value storage. sql-parser.ts only ever sets one of these three providers.
+function sqlDialect(schema: PrismaSchema.ParsedSchema): S.SqlDialect {
+  return schema.datasource!.provider as S.SqlDialect
 }
 
 function generatePrismaRoutes(schema: PrismaSchema.ParsedSchema, currModel: PrismaSchema.PrismaModel) {
@@ -126,7 +131,7 @@ function generatePrismaRoutes(schema: PrismaSchema.ParsedSchema, currModel: Pris
 
     ${P.writeCreateFoo(prisma)}
 
-    ${P.writeReadFoo(currModel, prisma, caseInsensitive)}
+    ${P.writeReadFoo(schema, currModel, prisma, caseInsensitive)}
 
     ${P.writeDeleteFoo(prisma)}
   `
@@ -162,7 +167,7 @@ function generateKyselyRoutes(schema: PrismaSchema.ParsedSchema, currModel: Pris
 
     ${S.writeCreateFoo(db, table)}
 
-    ${S.writeReadFoo(currModel, db, table, caseInsensitive)}
+    ${S.writeReadFoo(schema, currModel, db, table, sqlDialect(schema))}
 
     ${S.writeDeleteFoo(db, table)}
   `

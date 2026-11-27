@@ -1,91 +1,28 @@
 import { code, imp } from "ts-poet";
+import { listMetadataLiteral } from "../../../lib/crud/resolve-filters";
 
 // Ts-poet imports
 const NextRequest = imp("NextRequest@next/server");
 const NextResponse = imp("NextResponse@next/server");
 const parseFiltersParam = imp("parseFiltersParam@@/lib/crud/resolve-filters");
 const resolveListQuery = imp("resolveListQuery@@/lib/crud/resolve-filters");
-const FieldKindMap = imp("t:FieldKindMap@@/lib/crud/resolve-filters");
-const ResolvedSort = imp("t:ResolvedSort@@/lib/crud/resolve-filters");
+const listConfig = imp("listConfig@@/lib/crud/resolve-filters");
 const buildKyselyWhere = imp("buildKyselyWhere@@/lib/crud/kysely-filters");
+const applyKyselyOrder = imp("applyKyselyOrder@@/lib/crud/kysely-filters");
 const sanitizeInput = imp("sanitizeInput@@/lib/crud/resolve-filters");
 
-// Prisma-schema-style scalar type names.
-const PRISMA_NUMBER_TYPES = new Set(["Int", "Float", "Decimal", "BigInt"]);
-
-// Raw-SQL-style scalar type names (as produced by sql-parser.ts across postgres/mysql/sqlite),
-// with any `(...)` size/precision argument already stripped and the name upper-cased.
-const SQL_STRING_TYPES = new Set(["TEXT", "VARCHAR", "CHAR", "NVARCHAR", "NCHAR", "CLOB", "UUID"]);
-const SQL_NUMBER_TYPES = new Set([
-  "INT", "INTEGER", "SMALLINT", "MEDIUMINT", "BIGINT", "TINYINT",
-  "SERIAL", "BIGSERIAL", "SMALLSERIAL",
-  "FLOAT", "DOUBLE", "REAL", "DECIMAL", "NUMERIC", "MONEY",
-]);
-const SQL_BOOLEAN_TYPES = new Set(["BOOLEAN", "BOOL"]);
-const SQL_DATETIME_TYPES = new Set(["DATETIME", "TIMESTAMP", "TIMESTAMPTZ", "DATE", "TIME", "TIMETZ"]);
-
-function baseSqlType(type: string): string {
-  return type.replace(/\(.*\)/, "").trim().toUpperCase();
-}
-
-// Kysely has no runtime schema/field metadata to introspect (unlike a Prisma delegate), so the
-// field -> kind map is resolved once here, at generation time, from the parsed model, and baked
-// into the route as a plain object literal. The model may come from either prisma-parser.ts
-// (Prisma type names) or sql-parser.ts (raw SQL type names), so both vocabularies are handled.
-export function inferFieldKind(field: PrismaSchema.PrismaField): "string" | "number" | "boolean" | "datetime" | "enum" {
-  // A `-- @enum A | B | C` / `// @enum ...` column is an enum regardless of its storage type
-  // (e.g. sqlite backs it with TEXT).
-  if (field.pseudoEnumValues && field.pseudoEnumValues.length > 0) return "enum";
-
-  if (field.type === "String") return "string";
-  if (field.type === "Boolean") return "boolean";
-  if (field.type === "DateTime") return "datetime";
-  if (PRISMA_NUMBER_TYPES.has(field.type)) return "number";
-
-  const base = baseSqlType(field.type);
-  if (SQL_STRING_TYPES.has(base)) return "string";
-  if (SQL_NUMBER_TYPES.has(base)) return "number";
-  if (SQL_BOOLEAN_TYPES.has(base)) return "boolean";
-  if (SQL_DATETIME_TYPES.has(base)) return "datetime";
-
-  // Anything left is a named Prisma enum, a Postgres `CREATE TYPE ... AS ENUM`, or MySQL's
-  // inline `ENUM(...)`.
-  return "enum";
-}
-
-export function scalarFields(model: PrismaSchema.PrismaModel) {
-  return model.fields.filter((f) => !f.isRelation && !f.isList);
-}
-
-export function fieldKindsLiteral(model: PrismaSchema.PrismaModel) {
-  const entries = scalarFields(model).map(
-    (f) => `${JSON.stringify(f.name)}: ${JSON.stringify(inferFieldKind(f))}`
-  );
-  return `{ ${entries.join(", ")} }`;
-}
-
-// Generation-time list-query metadata shared by the REST route and the tRPC handlers: the
-// model's searchable string columns, and the default order when no sort is requested.
-export function searchFieldsLiteral(model: PrismaSchema.PrismaModel) {
-  const names = scalarFields(model).filter((f) => inferFieldKind(f) === "string").map((f) => f.name);
-  return JSON.stringify(names);
-}
-
-export function defaultSortLiteral(model: PrismaSchema.PrismaModel) {
-  const hasCreatedAt = scalarFields(model).some((f) => f.name === "createdAt");
-  return hasCreatedAt ? `{ field: "createdAt", order: "desc" }` : "null";
-}
+/** The database a pure-SQL project targets, as the Kysely adapter (lib/crud/kysely-filters.ts) names it. */
+export type SqlDialect = "postgresql" | "mysql" | "sqlite";
 
 export function writeReadFoo(
+  schema: PrismaSchema.ParsedSchema,
   model: PrismaSchema.PrismaModel,
   db: string,
   table: string,
-  caseInsensitive: boolean,
+  dialect: SqlDialect,
 ) {
   const body = code`
-    const FIELD_KINDS: ${FieldKindMap} = ${fieldKindsLiteral(model)};
-    const SEARCH_FIELDS: string[] = ${searchFieldsLiteral(model)};
-    const DEFAULT_SORT: ${ResolvedSort} | null = ${defaultSortLiteral(model)};
+    const LIST = ${listConfig}(${listMetadataLiteral(schema, model)});
 
     export async function GET(req: ${NextRequest}) {
       const { searchParams } = new URL(req.url);
@@ -105,21 +42,21 @@ export function writeReadFoo(
             sortField: searchParams.get("sortField") || "",
             sortOrder: searchParams.get("sortOrder") || "",
           },
-          FIELD_KINDS,
-          DEFAULT_SORT,
+          LIST,
         );
         if (!query.ok) {
           return ${NextResponse}.json({ error: query.error }, { status: 400 });
         }
 
         const applyWhere = (eb: any) =>
-          ${buildKyselyWhere}(eb, { filters: query.filters, search, searchFields: SEARCH_FIELDS, caseInsensitive: ${caseInsensitive} });
+          ${buildKyselyWhere}(eb, { filters: query.filters, search, searchFields: LIST.searchFields, dialect: ${JSON.stringify(dialect)} });
 
-        let recordsQuery = ${db}.selectFrom("${table}").selectAll().where(applyWhere);
-        if (query.sort) {
-          recordsQuery = recordsQuery.orderBy(query.sort.field as any, query.sort.order);
-        }
-        recordsQuery = recordsQuery.limit(pageSize).offset((page - 1) * pageSize);
+        const recordsQuery = ${applyKyselyOrder}(
+          ${db}.selectFrom("${table}").selectAll().where(applyWhere),
+          query.orderBy,
+          LIST.fieldKinds,
+          ${JSON.stringify(dialect)},
+        ).limit(pageSize).offset((page - 1) * pageSize);
 
         const countQuery = ${db}
           .selectFrom("${table}")

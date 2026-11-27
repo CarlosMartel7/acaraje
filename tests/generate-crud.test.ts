@@ -116,7 +116,8 @@ test("falls back to the id when no field name matches a label candidate", () => 
 });
 
 test("applies Prisma's case-insensitive search mode for postgresql", () => {
-  expect(files.User.index).toContain('mode: "insensitive"');
+  // The list route hands this to lib/crud/prisma-filters.ts, which adds mode: "insensitive".
+  expect(files.User.index).toContain("caseInsensitive: true");
   expect(files.User.options).toContain('mode: "insensitive"');
 });
 
@@ -194,8 +195,9 @@ test("pure-sql: falls back to the id when no field name matches a label candidat
 });
 
 test("pure-sql: uses ilike for postgresql and plain like for sqlite", () => {
-  // The list route delegates string matching to lib/crud/kysely-filters.ts, which picks ilike/like.
-  expect(sqlFiles.User.index).toContain("caseInsensitive: true");
+  // The list route delegates string matching to lib/crud/kysely-filters.ts, which picks ilike/like
+  // from the dialect.
+  expect(sqlFiles.User.index).toContain('dialect: "postgresql"');
   expect(sqlFiles.User.options).toContain('"ilike"');
 
   const sqliteSchema = sqlParser(path.join(__dirname, "sampleDBs", "schema.sqlite.sql"), "Sqlite");
@@ -205,7 +207,7 @@ test("pure-sql: uses ilike for postgresql and plain like for sqlite", () => {
     generateCRUD(sqliteSchema, "pure-sql", "rest", sqliteOutDir);
     const index = fs.readFileSync(routePath(sqliteOutDir, "User"), "utf-8");
     const options = fs.readFileSync(routePath(sqliteOutDir, "User", "options"), "utf-8");
-    expect(index).toContain("caseInsensitive: false");
+    expect(index).toContain('dialect: "sqlite"');
     expect(options).not.toContain('"ilike"');
     expect(options).toContain('"like"');
   } finally {

@@ -91,7 +91,8 @@ describe("generateCRUD (trpc, prisma)", () => {
   test("handlers use the model's lowerCamel prisma delegate and bake in its field metadata", () => {
     const user = read(crudDir, "models", "User.ts");
     expect(user).toContain("prisma.user.findMany(");
-    expect(user).toContain('"email": { type: "String", isRelation: false, isList: false }');
+    expect(user).toContain("const LIST = listConfig({");
+    expect(user).toContain('{ "name": "email", "type": "String", "isList": false, "isId": false, "isRelation": false }');
     expect(user).toContain("export const handlers: CrudHandlers");
   });
 

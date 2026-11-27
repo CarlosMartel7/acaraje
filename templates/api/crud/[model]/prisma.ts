@@ -1,92 +1,55 @@
-import { code, imp, joinCode } from "ts-poet";
+import { code, imp } from "ts-poet";
+import { listMetadataLiteral } from "../../../lib/crud/resolve-filters";
 
 // Ts-poet imports
 const NextRequest = imp("NextRequest@next/server");
 const NextResponse = imp("NextResponse@next/server");
-const getFieldKind = imp("getFieldKind@@/lib/crud/resolve-filters");
-const isFilterableField = imp("isFilterableField@@/lib/crud/resolve-filters");
-const isOperatorValidForKind = imp("isOperatorValidForKind@@/lib/crud/resolve-filters");
-const parseFilterValue = imp("parseFilterValue@@/lib/crud/resolve-filters");
-const buildPrismaFilterCondition = imp("buildPrismaFilterCondition@@/lib/crud/prisma-filters");
+const parseFiltersParam = imp("parseFiltersParam@@/lib/crud/resolve-filters");
+const resolveListQuery = imp("resolveListQuery@@/lib/crud/resolve-filters");
+const listConfig = imp("listConfig@@/lib/crud/resolve-filters");
+const buildPrismaListArgs = imp("buildPrismaListArgs@@/lib/crud/prisma-filters");
 const sanitizeInput = imp("sanitizeInput@@/lib/crud/resolve-filters");
 
 export function writeReadFoo(
+  schema: PrismaSchema.ParsedSchema,
   model: PrismaSchema.PrismaModel,
   prisma: string,
   caseInsensitive: boolean,
 ) {
-  const stringFields = model.fields.filter(
-    (f) => f.type === "String" && !f.isRelation && !f.isList
-  );
-
-  const orClauses = stringFields.map(
-    (f) =>
-      code`{ ${f.name}: { contains: search${caseInsensitive ? code`, mode: "insensitive"` : ""
-        } } }`
-  );
-
-  const searchBlock =
-    stringFields.length > 0
-      ? code`
-        if (search) {
-          searchQuery.push({ OR: [${joinCode(orClauses, { on: ", " })}] });
-        }
-      `
-      : code`// No string fields on this model to search`;
-
   const body = code`
+    const LIST = ${listConfig}(${listMetadataLiteral(schema, model)});
+
     export async function GET(req: ${NextRequest}) {
       const { searchParams } = new URL(req.url);
       const page = parseInt(searchParams.get("page") || "1");
       const pageSize = parseInt(searchParams.get("pageSize") || "20");
       const search = searchParams.get("search") || "";
-      const sortField = searchParams.get("sortField") || "";
-      const sortOrder = searchParams.get("sortOrder") === "asc" ? "asc" : "desc";
-      const filtersParam = searchParams.get("filters") || "";
 
       try {
-        const searchQuery: any[] = [];
-
-        ${searchBlock}
-
-        if (filtersParam) {
-          let filters: Crud.FilterCondition[];
-          try {
-            const parsed = JSON.parse(filtersParam);
-            if (!Array.isArray(parsed)) throw new Error("filters must be an array");
-            filters = parsed;
-          } catch {
-            return ${NextResponse}.json({ error: "Invalid filters parameter: must be a JSON array" }, { status: 400 });
-          }
-
-          for (const f of filters) {
-            const field = ${prisma}.fields[f.field];
-            if (!field) continue;
-
-            const kind = ${getFieldKind}(field, enumNames)!;
-            if (!${isOperatorValidForKind}(kind, f.operator)) continue;
-
-            const parsedValue = ${parseFilterValue}(kind, f.value);
-            if (!parsedValue.ok) {
-              return ${NextResponse}.json({ error: parsedValue.error }, { status: 400 });
-            }
-
-            searchQuery.push(${buildPrismaFilterCondition}(f.field, kind, f.operator, parsedValue.value, ${caseInsensitive}));
-          }
+        const filtersParam = ${parseFiltersParam}(searchParams.get("filters") || "");
+        if (!filtersParam.ok) {
+          return ${NextResponse}.json({ error: filtersParam.error }, { status: 400 });
         }
 
-        let orderBy: Record<string, "asc" | "desc"> | undefined;
-        if (sortField) {
-          const field = ${prisma}.fields[sortField];
-          if (!field || !${isFilterableField}(field, enumNames)) {
-            return ${NextResponse}.json({ error: "Sort field is not sortable" }, { status: 400 });
-          }
-          orderBy = { [sortField]: sortOrder };
-        } else if (${prisma}.fields.createdAt) {
-          orderBy = { createdAt: "desc" };
+        const query = ${resolveListQuery}(
+          {
+            filters: filtersParam.filters,
+            sortField: searchParams.get("sortField") || "",
+            sortOrder: searchParams.get("sortOrder") || "",
+          },
+          LIST,
+        );
+        if (!query.ok) {
+          return ${NextResponse}.json({ error: query.error }, { status: 400 });
         }
 
-        const where = searchQuery.length > 0 ? { AND: searchQuery } : {};
+        const { where, orderBy } = ${buildPrismaListArgs}({
+          filters: query.filters,
+          orderBy: query.orderBy,
+          search,
+          searchFields: LIST.searchFields,
+          caseInsensitive: ${caseInsensitive},
+        });
 
         const [records, total] = await Promise.all([
           ${prisma}.findMany({

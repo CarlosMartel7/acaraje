@@ -1,7 +1,5 @@
 import { code, imp } from "ts-poet";
 
-const FieldKind = imp("t:FieldKind@@/lib/crud/resolve-filters");
-const FilterOperator = imp("t:FilterOperator@@/lib/crud/resolve-filters");
 const ResolvedFilter = imp("t:ResolvedFilter@@/lib/crud/resolve-filters");
 const ResolvedSort = imp("t:ResolvedSort@@/lib/crud/resolve-filters");
 
@@ -14,16 +12,11 @@ const writePrismaFilters = () => code`
  * PostgreSQL and MongoDB, but rejected by Prisma's SQLite connector, so callers pass 'false' there.
  */
 
-/** Builds the Prisma 'where' fragment for one field/operator/value. */
-export function buildPrismaFilterCondition(
-  fieldName: string,
-  kind: ${FieldKind},
-  operator: ${FilterOperator},
-  value: any,
-  caseInsensitive = true,
-): Record<string, any> {
-  if (kind === "string") return { [fieldName]: { [operator]: value, ...(caseInsensitive ? { mode: "insensitive" } : {}) } };
-  return { [fieldName]: { [operator]: value } };
+/** Builds the Prisma 'where' fragment for one resolved filter. Prisma escapes LIKE wildcards itself. */
+export function buildPrismaFilterCondition(filter: ${ResolvedFilter}, caseInsensitive = true): Record<string, any> {
+  if (filter.operator === "range") return { [filter.field]: { gte: filter.value.gte, lt: filter.value.lt } };
+  const mode = filter.kind === "string" && caseInsensitive ? { mode: "insensitive" } : {};
+  return { [filter.field]: { [filter.operator]: filter.value, ...mode } };
 }
 
 /** Matches 'term' as a substring of any of 'searchFields' (the model's string fields). */
@@ -36,7 +29,7 @@ export function buildPrismaSearch(searchFields: string[], term: string, caseInse
 
 export interface PrismaListQuery {
   filters: ${ResolvedFilter}[];
-  sort: ${ResolvedSort} | null;
+  orderBy: ${ResolvedSort}[];
   search: string;
   searchFields: string[];
   caseInsensitive: boolean;
@@ -45,7 +38,7 @@ export interface PrismaListQuery {
 /** The 'where' and 'orderBy' a list page passes to both 'findMany' and 'count'. */
 export function buildPrismaListArgs(query: PrismaListQuery): {
   where: Record<string, any>;
-  orderBy?: Record<string, "asc" | "desc">;
+  orderBy?: Record<string, "asc" | "desc">[];
 } {
   const conditions: Record<string, any>[] = [];
 
@@ -53,12 +46,12 @@ export function buildPrismaListArgs(query: PrismaListQuery): {
   if (search) conditions.push(search);
 
   for (const f of query.filters) {
-    conditions.push(buildPrismaFilterCondition(f.field, f.kind, f.operator, f.value, query.caseInsensitive));
+    conditions.push(buildPrismaFilterCondition(f, query.caseInsensitive));
   }
 
   return {
     where: conditions.length > 0 ? { AND: conditions } : {},
-    ...(query.sort ? { orderBy: { [query.sort.field]: query.sort.order } } : {}),
+    ...(query.orderBy.length > 0 ? { orderBy: query.orderBy.map((s) => ({ [s.field]: s.order })) } : {}),
   };
 }
 `;

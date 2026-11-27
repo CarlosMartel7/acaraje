@@ -1,12 +1,12 @@
 import { code, imp } from "ts-poet";
+import { listMetadataLiteral } from "../../../lib/crud/resolve-filters";
 
 const TRPCError = imp("TRPCError@@trpc/server");
 const internalError = imp("internalError@@/server/trpc/init");
 const CrudHandlers = imp("t:CrudHandlers@@/server/trpc/routers/crud/types");
 const prismaClient = imp("prisma@@/lib/prisma");
-const filterableFieldKinds = imp("filterableFieldKinds@@/lib/crud/resolve-filters");
+const listConfig = imp("listConfig@@/lib/crud/resolve-filters");
 const resolveListQuery = imp("resolveListQuery@@/lib/crud/resolve-filters");
-const ResolvedSort = imp("t:ResolvedSort@@/lib/crud/resolve-filters");
 const buildPrismaListArgs = imp("buildPrismaListArgs@@/lib/crud/prisma-filters");
 const sanitizeInput = imp("sanitizeInput@@/lib/crud/resolve-filters");
 
@@ -14,10 +14,8 @@ const LABEL_CANDIDATES = ["name", "title", "email", "code", "slug", "label", "st
 
 // Written to server/trpc/routers/crud/models/<Model>.ts for orm "prisma".
 // Mirrors templates/api/crud/[model]/{prisma,id/prisma,options/prisma}.ts — keep them in sync.
-//
-// One deliberate difference: the field metadata filters/sorting are checked against is baked in
-// here at generation time (FIELDS / ENUM_NAMES), the way the kysely flavor already does it,
-// instead of reading Prisma's runtime field refs.
+// Filtering and sorting go through the shared rules (lib/crud/resolve-filters.ts) and the Prisma
+// adapter (lib/crud/prisma-filters.ts), using field metadata baked in at generation time.
 export function writePrismaCrudHandlers(
   schema: PrismaSchema.ParsedSchema,
   model: PrismaSchema.PrismaModel,
@@ -26,16 +24,6 @@ export function writePrismaCrudHandlers(
   const modelVar = model.name.charAt(0).toLowerCase() + model.name.slice(1);
   const delegate = code`${prismaClient}.${modelVar}`;
 
-  const fieldsLiteral = `{ ${model.fields
-    .map((f) => `${JSON.stringify(f.name)}: { type: ${JSON.stringify(f.type)}, isRelation: ${f.isRelation}, isList: ${f.isList} }`)
-    .join(", ")} }`;
-  const enumNamesLiteral = JSON.stringify(schema.enums.map((e) => e.name));
-  const hasCreatedAt = model.fields.some((f) => f.name === "createdAt");
-
-  const searchFieldsLiteral = JSON.stringify(
-    model.fields.filter((f) => f.type === "String" && !f.isRelation && !f.isList).map((f) => f.name),
-  );
-  const defaultSortLiteral = hasCreatedAt ? `{ field: "createdAt", order: "desc" }` : "null";
   const mode = caseInsensitive ? `, mode: "insensitive"` : "";
 
   const labelField = model.fields.find((f) => LABEL_CANDIDATES.includes(f.name))?.name ?? null;
@@ -44,25 +32,21 @@ export function writePrismaCrudHandlers(
   const optionsLabel = labelField ? `r.${labelField}` : "r.id";
 
   return code`
-const FIELDS: Record<string, { type: string; isRelation: boolean; isList: boolean }> = ${fieldsLiteral};
-const ENUM_NAMES = new Set<string>(${enumNamesLiteral});
-const FIELD_KINDS = ${filterableFieldKinds}(FIELDS, ENUM_NAMES);
-const SEARCH_FIELDS: string[] = ${searchFieldsLiteral};
-const DEFAULT_SORT: ${ResolvedSort} | null = ${defaultSortLiteral};
+const LIST = ${listConfig}(${listMetadataLiteral(schema, model)});
 
 // Relation-picker page size, matching the REST options route.
 const OPTIONS_PAGE_SIZE = 20;
 
 export const handlers: ${CrudHandlers} = {
   async list({ page, pageSize, search, filters = [], sortField, sortOrder = "desc" }) {
-    const query = ${resolveListQuery}({ filters, sortField, sortOrder }, FIELD_KINDS, DEFAULT_SORT);
+    const query = ${resolveListQuery}({ filters, sortField, sortOrder }, LIST);
     if (!query.ok) throw new ${TRPCError}({ code: "BAD_REQUEST", message: query.error });
 
     const { where, orderBy } = ${buildPrismaListArgs}({
       filters: query.filters,
-      sort: query.sort,
+      orderBy: query.orderBy,
       search,
-      searchFields: SEARCH_FIELDS,
+      searchFields: LIST.searchFields,
       caseInsensitive: ${caseInsensitive},
     });
 

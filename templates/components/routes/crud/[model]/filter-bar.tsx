@@ -22,6 +22,9 @@ const getFieldKind = imp("getFieldKind@@/lib/crud/resolve-filters")
 const isFilterableField = imp("isFilterableField@@/lib/crud/resolve-filters")
 const defaultOperatorForKind = imp("defaultOperatorForKind@@/lib/crud/resolve-filters")
 const OPERATORS_BY_KIND = imp("OPERATORS_BY_KIND@@/lib/crud/resolve-filters")
+const enumValuesFor = imp("enumValuesFor@@/lib/crud/resolve-filters")
+const toFilterDateTime = imp("toFilterDateTime@@/lib/crud/resolve-filters")
+const fromFilterDateTime = imp("fromFilterDateTime@@/lib/crud/resolve-filters")
 const FieldKind = imp("t:FieldKind@@/lib/crud/resolve-filters")
 
 export const writeFilterBar = () => code`
@@ -39,7 +42,7 @@ interface FilterBarProps {
 
 function defaultValueForKind(kind: ${FieldKind}, field: Schema.Field, enums: Schema.EnumType[]): string {
   if (kind === "boolean") return "true";
-  if (kind === "enum") return enums.find((e) => e.name === field.type)?.values[0] ?? "";
+  if (kind === "enum") return ${enumValuesFor}(field, enums)[0] ?? "";
   return "";
 }
 
@@ -72,7 +75,7 @@ export function FilterBar({ model, filters, sortField, sortOrder, onFiltersChang
 
   const addFilter = () => {
     const field = filterableFields[0];
-    const kind = ${getFieldKind}(field.type, enumNames)!;
+    const kind = ${getFieldKind}(field, enumNames)!;
     pushFilters([
       ...localFilters,
       { field: field.name, operator: ${defaultOperatorForKind}(kind), value: defaultValueForKind(kind, field, enums) },
@@ -121,8 +124,8 @@ export function FilterBar({ model, filters, sortField, sortOrder, onFiltersChang
       <div className="flex flex-1 flex-wrap items-center gap-2">
         {localFilters.map((filter, index) => {
           const field = filterableFields.find((f) => f.name === filter.field);
-          const kind = field ? ${getFieldKind}(field.type, enumNames) : null;
-          const enumDef = kind === "enum" && field ? enums.find((e) => e.name === field.type) : undefined;
+          const kind = field ? ${getFieldKind}(field, enumNames) : null;
+          const enumValues = kind === "enum" && field ? ${enumValuesFor}(field, enums) : [];
 
           return (
             <div key={index} className="flex items-center gap-1 rounded-md border border-border/50 bg-card/40 p-1">
@@ -130,7 +133,7 @@ export function FilterBar({ model, filters, sortField, sortOrder, onFiltersChang
                 value={filter.field}
                 onValueChange={(v) => {
                   const newField = filterableFields.find((f) => f.name === v)!;
-                  const newKind = ${getFieldKind}(newField.type, enumNames)!;
+                  const newKind = ${getFieldKind}(newField, enumNames)!;
                   updateFilter(index, {
                     field: v,
                     operator: ${defaultOperatorForKind}(newKind),
@@ -177,13 +180,13 @@ export function FilterBar({ model, filters, sortField, sortOrder, onFiltersChang
                 </${Select}>
               )}
 
-              {kind === "enum" && enumDef && (
+              {kind === "enum" && enumValues.length > 0 && (
                 <${Select} value={filter.value} onValueChange={(v) => updateFilter(index, { value: v })}>
                   <${SelectTrigger} className="h-7 w-28 text-xs font-mono border-0 bg-transparent">
                     <${SelectValue} />
                   </${SelectTrigger}>
                   <${SelectContent}>
-                    {enumDef.values.map((v) => (
+                    {enumValues.map((v) => (
                       <${SelectItem} key={v} value={v}>
                         {v}
                       </${SelectItem}>
@@ -201,11 +204,12 @@ export function FilterBar({ model, filters, sortField, sortOrder, onFiltersChang
                 />
               )}
 
+              {/* Shown in local time, sent as a UTC instant so the server needn't know the timezone. */}
               {kind === "datetime" && (
                 <${Input}
                   type="datetime-local"
-                  value={filter.value}
-                  onChange={(e) => updateFilter(index, { value: e.target.value })}
+                  value={${fromFilterDateTime}(filter.value)}
+                  onChange={(e) => updateFilter(index, { value: ${toFilterDateTime}(e.target.value) })}
                   className="h-7 w-44 text-xs font-mono border-0 bg-transparent"
                 />
               )}
