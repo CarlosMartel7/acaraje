@@ -5,6 +5,8 @@ import path from "path";
 import { generateCRUD } from "../src/steps/generate-crud";
 import { prismaParser } from "../src/steps/prisma-parser";
 import { sqlParser } from "../src/steps/sql-parser";
+import { loadGeneratedModule, nextServerStub } from "./helpers/generated-module";
+import { createSqliteKysely } from "./helpers/sqlite-kysely";
 import { writeLog } from "./logger";
 
 const SCHEMA_PATH = path.join(__dirname, "sampleDBs", "schema.prisma");
@@ -280,4 +282,151 @@ test("also works from a sql-parser ParsedSchema and disables case-insensitive se
   } finally {
     fs.rmSync(sqlOutDir, { recursive: true, force: true });
   }
+});
+
+describe("filter engine wiring (REST)", () => {
+  const libCrud = (dir: string, file: string) => path.join(dir, "lib", "crud", file);
+  const group = (combinator: "and" | "or", children: unknown[], not = false) => ({ type: "group", combinator, not, children });
+  const condition = (field: string, operator: string, value: string) => ({ field, operator, value });
+  const relation = (name: string, mode: string, where?: unknown) => ({ type: "relation", relation: name, mode, ...(where ? { where } : {}) });
+
+  test("writes the shared rules and filter schema, plus only the adapter for the project's ORM", () => {
+    for (const dir of [outDir, sqlOutDirPostgres]) {
+      expect(fs.existsSync(libCrud(dir, "resolve-filters.ts"))).toBe(true);
+      expect(fs.existsSync(libCrud(dir, "filter-schema.ts"))).toBe(true);
+    }
+    expect(fs.existsSync(libCrud(outDir, "prisma-filters.ts"))).toBe(true);
+    expect(fs.existsSync(libCrud(outDir, "kysely-filters.ts"))).toBe(false);
+    expect(fs.existsSync(libCrud(sqlOutDirPostgres, "kysely-filters.ts"))).toBe(true);
+    expect(fs.existsSync(libCrud(sqlOutDirPostgres, "prisma-filters.ts"))).toBe(false);
+  });
+
+  test("the filter schema is derived from the generated parsed schema", () => {
+    const filterSchema = fs.readFileSync(libCrud(outDir, "filter-schema.ts"), "utf-8");
+    expect(filterSchema).toMatch(/import \{ parsedSchema \} from "@\/lib\/parsed-schema";/);
+    expect(filterSchema).toContain("export const filterSchema = buildFilterSchema(parsedSchema);");
+  });
+
+  test("every list route resolves filters and order through the shared rules and its ORM adapter", () => {
+    for (const name of modelNames) {
+      for (const [index, adapterCalls] of [
+        [files[name].index, ["buildPrismaListArgs("]],
+        [sqlFiles[name].index, ["buildKyselyWhere(", "applyKyselyOrder(", `table: "${name}"`]],
+      ] as const) {
+        expect(index).toContain(`const MODEL = "${name}";`);
+        expect(index).toContain('import { filterSchema } from "@/lib/crud/filter-schema";');
+        expect(index).toContain("resolveListQuery(");
+        expect(index).toContain("parseFiltersParam(");
+        for (const call of adapterCalls) expect(index).toContain(call);
+        // No filter or sort logic of its own.
+        for (const inline of ["getFieldKind", "enumNames", "isOperatorValidForKind", "FIELD_KINDS"]) {
+          expect(index).not.toContain(inline);
+        }
+      }
+    }
+  });
+
+  test("pure-sql list routes pass the project's dialect to the Kysely adapter", () => {
+    for (const [file, dialect] of [
+      ["schema.postgresql.sql", "PostgreSql"],
+      ["schema.mysql.sql", "Mysql"],
+      ["schema.sqlite.sql", "Sqlite"],
+    ] as const) {
+      const sqlSchema = sqlParser(path.join(__dirname, "sampleDBs", file), dialect);
+      const dir = fs.mkdtempSync(path.join(os.tmpdir(), "acaraje-generate-crud-dialect-"));
+      try {
+        generateCRUD(sqlSchema, "pure-sql", "rest", dir);
+        const first = sqlSchema.models[0].name;
+        expect(fs.readFileSync(routePath(dir, first), "utf-8")).toContain(`dialect: "${sqlSchema.datasource!.provider}"`);
+      } finally {
+        fs.rmSync(dir, { recursive: true, force: true });
+      }
+    }
+  });
+
+  test("the shared rules expose each schema style's relations to filter on", () => {
+    const rules = loadGeneratedModule(outDir, "lib/crud/resolve-filters.ts");
+
+    const prismaModels = rules.buildFilterSchema(schema).models;
+    expect(prismaModels.User.relations.products).toMatchObject({ target: "Product", many: true });
+    expect(prismaModels.Product.relations.seller).toMatchObject({ target: "User", many: false, required: true });
+    expect(prismaModels.Product.fieldKinds).toMatchObject({ sellerId: "string", status: "enum", createdAt: "datetime" });
+
+    const pgSchema = sqlParser(path.join(__dirname, "sampleDBs", "schema.postgresql.sql"), "PostgreSql");
+    const sqlModels = rules.buildFilterSchema(pgSchema).models;
+    expect(sqlModels.Product.relations.sellerId).toMatchObject({ target: "User", many: false, localColumn: "sellerId", targetColumn: "id" });
+    expect(sqlModels.User.relations["Product.sellerId"]).toMatchObject({ target: "Product", many: true, localColumn: "id", targetColumn: "sellerId" });
+  });
+
+  test("a Prisma list route compiles nested groups and relation filters", async () => {
+    const calls: any[] = [];
+    const route = loadGeneratedModule(outDir, "app/api/crud/User/route.ts", {
+      "next/server": nextServerStub,
+      "@/lib/parsed-schema": { parsedSchema: schema },
+      "@/lib/prisma": { prisma: { user: { findMany: async (args: any) => (calls.push(args), []), count: async () => 0 } } },
+    });
+    const get = (filters: unknown) =>
+      route.GET({ url: `http://localhost/api/crud/User?${new URLSearchParams({ filters: JSON.stringify(filters) })}` });
+
+    const tree = group("or", [
+      relation("products", "some", group("and", [condition("status", "equals", "PUBLISHED")])),
+      group("and", [condition("role", "equals", "ADMIN")], true),
+    ]);
+    expect((await get(tree)).status).toBe(200);
+    expect(calls[0].where).toEqual({
+      AND: [
+        {
+          OR: [
+            { products: { some: { AND: [{ status: { equals: "PUBLISHED" } }] } } },
+            { NOT: { AND: [{ role: { equals: "ADMIN" } }] } },
+          ],
+        },
+      ],
+    });
+
+    const unknown = await get(group("and", [relation("followers", "some")]));
+    expect(unknown.status).toBe(400);
+    expect(unknown.body.error).toMatch(/followers/);
+  });
+
+  test("a pure-sql list route answers nested groups and relation filters with the right rows", async () => {
+    const sqliteFile = path.join(__dirname, "sampleDBs", "schema.sqlite.sql");
+    const sqliteSchema = sqlParser(sqliteFile, "Sqlite");
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "acaraje-generate-crud-sqlite-rows-"));
+    const { db, close } = createSqliteKysely(
+      fs.readFileSync(sqliteFile, "utf-8") +
+        `
+INSERT INTO "User" ("email", "name", "role") VALUES ('ann@x.io', 'ann', 'SELLER'), ('bob@x.io', 'bob', 'SELLER'), ('cid@x.io', 'cid', 'BUYER');
+INSERT INTO "Category" ("name") VALUES ('home');
+INSERT INTO "Product" ("name", "price", "stock", "status", "sellerId", "categoryId") VALUES
+  ('lamp', 30, 1, 'PUBLISHED', 1, 1), ('rake', 20, 0, 'DRAFT', 2, 1);
+`,
+    );
+    try {
+      generateCRUD(sqliteSchema, "pure-sql", "rest", dir);
+      const list = async (model: string, filters: unknown) => {
+        const route = loadGeneratedModule(dir, `app/api/crud/${model}/route.ts`, {
+          "next/server": nextServerStub,
+          "@/lib/parsed-schema": { parsedSchema: sqliteSchema },
+          "@/lib/db": { db },
+        });
+        const query = new URLSearchParams({ filters: JSON.stringify(filters), sortField: "id", sortOrder: "asc" });
+        const res = await route.GET({ url: `http://localhost/api/crud/${model}?${query}` });
+        expect(res.status).toBe(200);
+        return res.body.records.map((r: any) => r.id);
+      };
+
+      const sellsPublished = relation("Product.sellerId", "some", group("and", [condition("status", "equals", "PUBLISHED")]));
+      expect(await list("User", group("and", [sellsPublished]))).toEqual([1]);
+      expect(await list("User", group("and", [relation("Product.sellerId", "none")]))).toEqual([3]);
+      expect(await list("User", group("or", [sellsPublished, condition("role", "equals", "BUYER")]))).toEqual([1, 3]);
+      expect(await list("Product", group("and", [relation("sellerId", "some", group("and", [condition("name", "equals", "bob")]))]))).toEqual([2]);
+      expect(await list("Product", group("and", [condition("name", "contains", "a")], true))).toEqual([]);
+      // URLs from before filter groups hold a flat array.
+      expect(await list("Product", [condition("stock", "gt", "0")])).toEqual([1]);
+    } finally {
+      close();
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
 });

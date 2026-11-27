@@ -5,18 +5,18 @@ import { transformSync } from "@swc/core";
 /**
  * Loads a file the generator wrote into `appDir` and runs it as CommonJS, so tests can call the
  * generated code instead of only matching its text. `@/...` imports resolve inside `appDir` (the
- * generated app's tsconfig alias); any module named in `stubs` is replaced by the given object
- * (e.g. "next/server", "@/lib/prisma"); everything else goes through Node's `require`.
+ * generated app's tsconfig alias) and relative imports next to the importing file; any module
+ * named in `stubs` is replaced by the given object (e.g. "next/server", "@/lib/prisma");
+ * everything else goes through Node's `require`.
  */
 export function loadGeneratedModule(appDir: string, file: string, stubs: Record<string, unknown> = {}): any {
   const cache = new Map<string, { exports: any }>();
 
-  const resolveAlias = (id: string) => {
-    const base = path.join(appDir, id.slice(2));
+  const resolveFile = (base: string, id: string) => {
     for (const candidate of [base, `${base}.ts`, `${base}.tsx`, path.join(base, "index.ts")]) {
       if (fs.existsSync(candidate) && fs.statSync(candidate).isFile()) return candidate;
     }
-    throw new Error(`Generated module not found: ${id} (looked under ${appDir})`);
+    throw new Error(`Generated module not found: ${id} (looked for ${base})`);
   };
 
   const load = (filePath: string): any => {
@@ -33,7 +33,8 @@ export function loadGeneratedModule(appDir: string, file: string, stubs: Record<
     cache.set(filePath, mod);
     const localRequire = (id: string) => {
       if (Object.prototype.hasOwnProperty.call(stubs, id)) return stubs[id];
-      if (id.startsWith("@/")) return load(resolveAlias(id));
+      if (id.startsWith("@/")) return load(resolveFile(path.join(appDir, id.slice(2)), id));
+      if (id.startsWith(".")) return load(resolveFile(path.resolve(path.dirname(filePath), id), id));
       return require(id);
     };
     new Function("require", "module", "exports", code)(localRequire, mod, mod.exports);

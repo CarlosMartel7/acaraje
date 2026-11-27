@@ -13,6 +13,8 @@ import { createFolderStructure } from "../src/steps/generate-folders";
 import { prismaParser } from "../src/steps/prisma-parser";
 import { sqlParser } from "../src/steps/sql-parser";
 import { ACARAJE_CONFIG_FILE, readAcarajeConfig, writeAcarajeConfig } from "../src/shared/api-layer";
+import { loadGeneratedModule, trpcInitStub, TRPCErrorStub } from "./helpers/generated-module";
+import { createSqliteKysely } from "./helpers/sqlite-kysely";
 import { writeLog } from "./logger";
 
 jest.mock("child_process", () => ({ execSync: jest.fn() }));
@@ -268,5 +270,127 @@ describe("acaraje update schema", () => {
     expect(exists(outDir, "server", "trpc", "routers", "seed.ts")).toBe(true);
     expect(exists(outDir, "app", "api", "crud")).toBe(false);
     expect(exists(outDir, "app", "api", "seed")).toBe(false);
+    // The handlers' filter metadata is rebuilt from the regenerated parsed schema.
+    expect(exists(outDir, "lib", "parsed-schema.ts")).toBe(true);
+    expect(exists(outDir, "lib", "crud", "filter-schema.ts")).toBe(true);
+  });
+});
+
+describe("filter engine wiring (tRPC)", () => {
+  const group = (combinator: "and" | "or", children: unknown[], not = false) => ({ type: "group", combinator, not, children });
+  const condition = (field: string, operator: string, value: string) => ({ field, operator, value });
+  const relation = (name: string, mode: string, where?: unknown) => ({ type: "relation", relation: name, mode, ...(where ? { where } : {}) });
+
+  /** "@/server/trpc/init" whose procedures keep their input schema, so the router's contract can be run. */
+  const procedureRecorder = {
+    router: (procedures: unknown) => procedures,
+    protectedProcedure: {
+      input: (schema: any) => ({
+        query: (handler: unknown) => ({ schema, handler }),
+        mutation: (handler: unknown) => ({ schema, handler }),
+      }),
+    },
+  };
+
+  test("the crud router's list input accepts filter trees and pre-group arrays, and rejects malformed ones", () => {
+    const outDir = tmp("filter-router");
+    generateCRUD(schema, "prisma", "trpc", outDir);
+    const { crudRouter } = loadGeneratedModule(outDir, "server/trpc/routers/crud/index.ts", {
+      "@/server/trpc/init": { ...trpcInitStub, ...procedureRecorder },
+      "@trpc/server": { TRPCError: TRPCErrorStub },
+      "@/lib/prisma": { prisma: {} },
+      "@/lib/parsed-schema": { parsedSchema: schema },
+    });
+    const accepts = (filters: unknown) => crudRouter.list.schema.safeParse({ model: "User", filters }).success;
+
+    expect(accepts(group("and", [condition("name", "contains", "a"), group("or", [], true), relation("products", "none")]))).toBe(true);
+    expect(accepts(group("and", [relation("products", "every", group("and", [relation("reviews", "some")]))]))).toBe(true);
+    expect(accepts([condition("name", "equals", "ann")])).toBe(true);
+    expect(accepts(undefined)).toBe(true);
+
+    expect(accepts(group("xor" as any, []))).toBe(false);
+    expect(accepts(group("and", [relation("products", "most")]))).toBe(false);
+    expect(accepts(group("and", [condition("name", "like", "a")]))).toBe(false);
+    expect(accepts(group("and", [{ field: "name", operator: "equals", value: 1 }]))).toBe(false);
+  });
+
+  test("list handlers resolve through the shared rules in both ORM flavors", () => {
+    const prismaDir = tmp("filter-handlers-prisma");
+    generateCRUD(schema, "prisma", "trpc", prismaDir);
+    const sqlDir = tmp("filter-handlers-sql");
+    generateCRUD(sqlParser(SQLITE_SCHEMA_PATH, "Sqlite"), "pure-sql", "trpc", sqlDir);
+
+    const prismaUser = read(prismaDir, "server", "trpc", "routers", "crud", "models", "User.ts");
+    const sqlUser = read(sqlDir, "server", "trpc", "routers", "crud", "models", "User.ts");
+    for (const handlers of [prismaUser, sqlUser]) {
+      expect(handlers).toContain("resolveListQuery({ filters, sortField, sortOrder }, filterSchema, MODEL)");
+      expect(handlers).toContain('code: "BAD_REQUEST", message: query.error');
+      expect(handlers).not.toContain("getFieldKind");
+    }
+    expect(prismaUser).toContain("buildPrismaListArgs(");
+    expect(sqlUser).toContain("buildKyselyWhere(");
+    expect(sqlUser).toContain('dialect: "sqlite"');
+    expect(read(prismaDir, "server", "trpc", "routers", "crud", "types.ts")).toContain("filters?: Crud.FilterInput;");
+  });
+
+  test("a pure-sql list handler answers relation filters with the right rows", async () => {
+    const sqliteSchema = sqlParser(SQLITE_SCHEMA_PATH, "Sqlite");
+    const outDir = tmp("filter-rows");
+    generateCRUD(sqliteSchema, "pure-sql", "trpc", outDir);
+    const { db, close } = createSqliteKysely(
+      read(SQLITE_SCHEMA_PATH) +
+        `
+INSERT INTO "User" ("email", "name", "role") VALUES ('ann@x.io', 'ann', 'SELLER'), ('bob@x.io', 'bob', 'SELLER'), ('cid@x.io', 'cid', 'BUYER');
+INSERT INTO "Category" ("name") VALUES ('home');
+INSERT INTO "Product" ("name", "price", "stock", "status", "sellerId", "categoryId") VALUES
+  ('lamp', 30, 1, 'PUBLISHED', 1, 1), ('rake', 20, 0, 'DRAFT', 2, 1);
+INSERT INTO "Review" ("productId", "authorId", "rating") VALUES (1, 3, 5);
+`,
+    );
+    try {
+      const handlers = loadGeneratedModule(outDir, "server/trpc/routers/crud/models/User.ts", {
+        "@/lib/db": { db },
+        "@/lib/parsed-schema": { parsedSchema: sqliteSchema },
+        "@/server/trpc/init": trpcInitStub,
+        "@trpc/server": { TRPCError: TRPCErrorStub },
+      }).handlers;
+      const ids = async (filters: unknown) =>
+        (await handlers.list({ page: 1, pageSize: 20, search: "", filters, sortField: "id", sortOrder: "asc" })).records.map((r: any) => r.id);
+
+      // Sellers whose products were all reviewed 5 stars: bob's rake has no review.
+      const everyProductReviewed = relation(
+        "Product.sellerId",
+        "every",
+        group("and", [relation("Review.productId", "some", group("and", [condition("rating", "gte", "5")]))]),
+      );
+      expect(await ids(group("and", [everyProductReviewed, relation("Product.sellerId", "some")]))).toEqual([1]);
+      // Authors of a review, through the other foreign key on Review.
+      expect(await ids(group("and", [relation("Review.authorId", "some")]))).toEqual([3]);
+      await expect(ids(group("and", [relation("Product.sellerId", "some", group("and", [condition("email", "equals", "x")]))]))).rejects.toMatchObject({
+        code: "BAD_REQUEST",
+      });
+    } finally {
+      close();
+    }
+  });
+
+  test("the list hooks send only complete filters, in both API layers", () => {
+    for (const api of ["rest", "trpc"] as const) {
+      const outDir = tmp(`filter-hooks-${api}`);
+      generateQuery(api, outDir);
+      const hook = read(outDir, "query", "hooks", "use-crud.ts");
+      expect(hook).toContain("filters?: Crud.FilterGroup;");
+      expect(hook).toContain("completeFilters(");
+    }
+  });
+
+  test("the schemas endpoint returns relations, which the filter bar reads, in both API layers", () => {
+    const trpcDir = tmp("filter-schemas-trpc");
+    generateRestOfApi("trpc", trpcDir);
+    expect(read(trpcDir, "server", "trpc", "routers", "schemas.ts")).toContain("relations: parsedSchema.relations");
+
+    const restDir = tmp("filter-schemas-rest");
+    generateRestOfApi("rest", restDir);
+    expect(read(restDir, "app", "api", "schemas", "route.ts")).toContain("relations: parsedSchema.relations");
   });
 });
