@@ -8,6 +8,7 @@ import { writeLog } from "./logger";
 const COMPONENT_PATHS = [
   "connection-badge.tsx",
   "sidebar.tsx",
+  "topbar.tsx",
 
   "providers/query-provider.tsx",
   "routes/dashboard/[[api-calls]].tsx",
@@ -58,7 +59,7 @@ function libPath(outDir: string, relative: string) {
 }
 
 const outDir = fs.mkdtempSync(path.join(os.tmpdir(), "acaraje-generate-components-"));
-generateComponents("Acaraje", outDir);
+generateComponents("Acaraje", "rest", outDir);
 
 const files = Object.fromEntries(
   COMPONENT_PATHS.map((relative) => [relative, fs.readFileSync(componentPath(outDir, relative), "utf-8")]),
@@ -86,6 +87,36 @@ test("connection-badge.tsx and sidebar.tsx render real content", () => {
   expect(files["sidebar.tsx"]).toMatch(/from "@\/lib\/acaraje-routes"/);
 });
 
+test("topbar.tsx renders the breadcrumb, refresh and sign-out controls", () => {
+  const topbar = files["topbar.tsx"];
+  expect(topbar.startsWith('"use client";')).toBe(true);
+  expect(topbar).toContain("export function Topbar(");
+  expect(topbar).toMatch(/from "@\/lib\/acaraje-routes"/);
+  expect(topbar).toContain('aria-label="Breadcrumb"');
+  expect(topbar).toContain("invalidateQueries()");
+  expect(topbar).toContain('fetch("/api/auth/logout", { method: "POST" })');
+});
+
+test("sidebar keeps the collapsible CRUD model list and Drive Upload/View sub-pages", () => {
+  const sidebar = files["sidebar.tsx"];
+  expect(sidebar).toContain("function NavGroup(");
+  expect(sidebar).toMatch(/acarajePath\(`\/crud\/\$\{model\}`\)/);
+  expect(sidebar).toContain('acarajePath("/drive/view")');
+  expect(sidebar).toContain("aria-expanded={open}");
+});
+
+test("sidebar shows live model/relation counts and an honest database status", () => {
+  const sidebar = files["sidebar.tsx"];
+  expect(sidebar).toMatch(/from "@\/query\/hooks\/use-relations"/);
+  expect(sidebar).toMatch(/from "@\/query\/hooks\/use-stats"/);
+  expect(sidebar).toContain("count={schemaData?.models?.length}");
+  expect(sidebar).toContain("count={relationsData?.relations?.length}");
+  expect(sidebar).toContain('"Database unreachable"');
+  // Sign-out moved to the top bar; the sidebar no longer takes the session user.
+  expect(sidebar).not.toContain("/api/auth/logout");
+  expect(sidebar).toContain("export function Sidebar()");
+});
+
 test("writes lib/utils.ts and lib/acaraje-routes.ts, which most components import", () => {
   expect(libUtils).toContain("export function cn(");
   expect(libUtils).toContain("export function getFieldTypeColor(");
@@ -98,7 +129,7 @@ test("acaraje-routes.ts's base path matches the sanitized panel name, not a hard
   // so a custom name broke every in-app link (they'd point at a route that was never generated).
   const customOutDir = fs.mkdtempSync(path.join(os.tmpdir(), "acaraje-generate-components-custom-"));
   try {
-    generateComponents("My Cool Panel!", customOutDir);
+    generateComponents("My Cool Panel!", "rest", customOutDir);
     const routes = fs.readFileSync(libPath(customOutDir, "acaraje-routes.ts"), "utf-8");
     expect(routes).toContain('export const ACARAJE_BASE = "/my-cool-panel" as const;');
   } finally {
@@ -157,6 +188,47 @@ test("dprint successfully formats every generated file (double-quoted imports, n
   }
 });
 
+test("primary-foreground is only ever text on a solid bg-primary fill, never an accent color", () => {
+  // Guards the token convention: the accent is --primary; --primary-foreground is the text color
+  // drawn on top of a solid primary fill. Using primary-foreground as an accent was the old,
+  // inverted scheme.
+  const sources = { ...files, "lib/utils.ts": libUtils };
+  for (const [relative, content] of Object.entries(sources)) {
+    for (const match of content.matchAll(/[\w:\[\]=-]*primary-foreground[\w/]*/g)) {
+      const className = match[0];
+      const line = content.slice(content.lastIndexOf("\n", match.index) + 1, content.indexOf("\n", match.index));
+      expect({ relative, className, ok: /text-primary-foreground$/.test(className) }).toEqual({ relative, className, ok: true });
+      expect({ relative, line, ok: /(^|[\s"'])(?:[\w\-[\]=.]+:)*bg-primary(?:\/[5-9]\d)?(?=[\s"'])/.test(line) }).toEqual({ relative, line, ok: true });
+    }
+  }
+});
+
+test("redesigned pages share PageHeader with the Direction F titles", () => {
+  const skeletons = files["routes/skeletons.tsx"];
+  expect(skeletons).toContain("export function PageHeader(");
+  for (const title of ["Schema Explorer", "Relations", "CRUD", "Seeder", "Drive"]) {
+    expect(skeletons).toContain(`title="${title}"`);
+  }
+});
+
+test("seeder banner lists the schema's real dependency order instead of hardcoded model names", () => {
+  const seeder = files["routes/seeder/index.tsx"];
+  expect(seeder).toContain('models.map((m) => m.name).join(" → ")');
+  expect(seeder).not.toMatch(/<strong>(User|Category)<\/strong>/);
+});
+
+test("schema viewer links each model to its CRUD table and shows its record count", () => {
+  const viewer = files["routes/schemas/viewer.tsx"];
+  expect(viewer).toContain("View records");
+  expect(viewer).toMatch(/acarajePath\(`\/crud\/\$\{model\.name\}`\)/);
+  expect(files["routes/schemas/[[api-calls]].tsx"]).toMatch(/from "@\/query\/hooks\/use-stats"/);
+});
+
+test("drive storage card reports the real backend status from the folder query", () => {
+  expect(files["routes/drive/select-drive.tsx"]).toContain('"UNREACHABLE"');
+  expect(files["routes/drive/index.tsx"]).toContain('status={foldersError ? "error" : "connected"}');
+});
+
 test("select-drive.tsx is a distinct component from target-folder.tsx", () => {
   expect(files["routes/drive/select-drive.tsx"]).not.toBe(files["routes/drive/target-folder.tsx"]);
   expect(files["routes/drive/select-drive.tsx"]).toContain("export function SelectDrive(");
@@ -171,7 +243,7 @@ test("drive/view/index.tsx imports its [[api-calls]] sibling with a resolvable p
 
 test("is idempotent — running twice doesn't throw and produces the same output", () => {
   const before = files["ui/button.tsx"];
-  expect(() => generateComponents("Acaraje", outDir)).not.toThrow();
+  expect(() => generateComponents("Acaraje", "rest", outDir)).not.toThrow();
   const after = fs.readFileSync(componentPath(outDir, "ui/button.tsx"), "utf-8");
   expect(after).toBe(before);
 });

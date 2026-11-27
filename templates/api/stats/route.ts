@@ -2,17 +2,11 @@ import { code, imp } from "ts-poet";
 
 const NextResponse = imp("NextResponse@next/server")
 const parsedSchema = imp("parsedSchema@@/lib/parsed-schema")
-const prisma = imp("prisma@@/lib/prisma")
+const countRecords = imp("countRecords@@/lib/model-store")
 
 const writeStatsRoute = () => {
 
   return code`
-/** Prisma Client exposes each model's delegate under its lowerCamel name (e.g. \`prisma.user\`
- *  for model \`User\`) regardless of the PascalCase model name used everywhere else. */
-function delegateKey(modelName: string): string {
-  return modelName.charAt(0).toLowerCase() + modelName.slice(1);
-}
-
 export async function GET() {
   try {
 
@@ -43,8 +37,7 @@ export async function GET() {
     const recordCounts: Record<string, number> = {};
     for (const model of ${parsedSchema}.models) {
       try {
-        const delegate = ${prisma}[delegateKey(model.name)];
-        recordCounts[model.name] = delegate ? await delegate.count() : 0;
+        recordCounts[model.name] = await ${countRecords}(model.name);
       } catch {
         recordCounts[model.name] = 0;
       }

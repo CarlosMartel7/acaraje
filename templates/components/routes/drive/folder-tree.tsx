@@ -67,9 +67,8 @@ function FolderTreeItem({
     <div className="select-none">
       <div
         className={${cn}(
-          "flex items-center gap-2 py-1.5 px-2 rounded-md cursor-pointer group",
-          "hover:bg-accent/50 transition-colors",
-          isSelected && "bg-primary/20 border border-primary-foreground/30",
+          "group flex cursor-pointer items-center gap-2 rounded-lg px-2 py-2 transition-colors",
+          isSelected ? "bg-accent shadow-[inset_3px_0_0_hsl(var(--primary))]" : "hover:bg-accent/60",
         )}
         style={{ paddingLeft: \`\${depth * 12 + 8}px\` }}
         onClick={() => !isRenaming && onSelect?.(folder)}
@@ -77,6 +76,8 @@ function FolderTreeItem({
         <button
           type="button"
           className="w-4 h-4 flex items-center justify-center flex-shrink-0 text-muted-foreground hover:text-foreground"
+          aria-label={hasChildren ? \`\${isExpanded ? "Collapse" : "Expand"} \${folder.name}\` : undefined}
+          tabIndex={hasChildren ? 0 : -1}
           onClick={(e) => {
             e.stopPropagation();
             if (hasChildren) toggleExpand(folder.id);
@@ -85,7 +86,7 @@ function FolderTreeItem({
           {hasChildren ? isExpanded ? <${ChevronDown} className="w-4 h-4" /> : <${ChevronRight} className="w-4 h-4" /> : <span className="w-4" />}
         </button>
         {isExpanded && hasChildren ? (
-          <${FolderOpen} className="w-4 h-4 text-primary-foreground/80 flex-shrink-0" />
+          <${FolderOpen} className="w-4 h-4 text-primary flex-shrink-0" />
         ) : (
           <${Folder} className="w-4 h-4 text-muted-foreground flex-shrink-0" />
         )}
@@ -101,12 +102,12 @@ function FolderTreeItem({
                 setRenameValue(folder.name);
               }
             }}
-            className="h-6 text-xs font-mono flex-1 min-w-0"
+            className="h-7 text-xs flex-1 min-w-0"
             autoFocus
             onClick={(e) => e.stopPropagation()}
           />
         ) : (
-          <span className={${cn}("text-sm font-mono truncate flex-1 min-w-0", isSelected ? "text-primary-foreground" : "text-foreground")}>
+          <span className={${cn}("text-[13px] truncate flex-1 min-w-0", isSelected ? "font-medium text-foreground" : "text-foreground/80")}>
             {folder.name}
           </span>
         )}
@@ -116,7 +117,8 @@ function FolderTreeItem({
               <${Button}
                 variant="ghost"
                 size="icon-sm"
-                className="h-6 w-6 opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-foreground flex-shrink-0"
+                className="h-6 w-6 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100 text-muted-foreground hover:text-foreground flex-shrink-0"
+                aria-label={\`Actions for \${folder.name}\`}
                 onClick={(e) => e.stopPropagation()}
               >
                 <${MoreHorizontal} className="w-3.5 h-3.5" />
@@ -124,14 +126,14 @@ function FolderTreeItem({
             </${DropdownMenu}.Trigger>
             <${DropdownMenu}.Portal>
               <${DropdownMenu}.Content
-                className="min-w-[160px] rounded-md border border-border/50 bg-card p-1 shadow-lg z-50"
+                className="z-50 min-w-[160px] rounded-lg border border-border bg-popover p-1 shadow-xl shadow-black/40"
                 align="end"
                 sideOffset={4}
                 onClick={(e) => e.stopPropagation()}
               >
                 {folder.webViewLink && (
                   <${DropdownMenu}.Item
-                    className="flex items-center gap-2 px-2 py-1.5 text-sm rounded cursor-pointer outline-none hover:bg-accent"
+                    className="flex items-center gap-2 rounded-md px-2 py-2 text-[13px] cursor-pointer outline-none hover:bg-accent focus:bg-accent"
                     onSelect={() => window.open(folder.webViewLink, "_blank", "noopener,noreferrer")}
                   >
                     <${ExternalLink} className="w-3.5 h-3.5" />
@@ -140,7 +142,7 @@ function FolderTreeItem({
                 )}
                 {onRename && (
                   <${DropdownMenu}.Item
-                    className="flex items-center gap-2 px-2 py-1.5 text-sm rounded cursor-pointer outline-none hover:bg-accent"
+                    className="flex items-center gap-2 rounded-md px-2 py-2 text-[13px] cursor-pointer outline-none hover:bg-accent focus:bg-accent"
                     onSelect={() => {
                       setIsRenaming(true);
                       setRenameValue(folder.name);
@@ -152,7 +154,7 @@ function FolderTreeItem({
                 )}
                 {onCreateFolder && (
                   <${DropdownMenu}.Item
-                    className="flex items-center gap-2 px-2 py-1.5 text-sm rounded cursor-pointer outline-none hover:bg-accent"
+                    className="flex items-center gap-2 rounded-md px-2 py-2 text-[13px] cursor-pointer outline-none hover:bg-accent focus:bg-accent"
                     onSelect={() => onCreateFolder(folder)}
                   >
                     <${FolderPlus} className="w-3.5 h-3.5" />
@@ -161,7 +163,7 @@ function FolderTreeItem({
                 )}
                 {onDelete && (
                   <${DropdownMenu}.Item
-                    className="flex items-center gap-2 px-2 py-1.5 text-sm rounded cursor-pointer outline-none text-destructive hover:bg-destructive/10"
+                    className="flex items-center gap-2 rounded-md px-2 py-2 text-[13px] cursor-pointer outline-none text-red-400 hover:bg-destructive/10 focus:bg-destructive/10"
                     onSelect={() => onDelete(folder)}
                   >
                     <${Trash2} className="w-3.5 h-3.5" />

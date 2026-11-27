@@ -27,6 +27,7 @@ const isSeedableField = imp("isSeedableField@@/lib/seeder/field-generators")
 const isValidFieldRule = imp("isValidFieldRule@@/lib/seeder/field-generators")
 const OVERRIDE_TYPE_OPTIONS = imp("OVERRIDE_TYPE_OPTIONS@@/lib/seeder/field-generators")
 const sanitizeFieldRule = imp("sanitizeFieldRule@@/lib/seeder/field-generators")
+const useSaveSeederConfig = imp("useSaveSeederConfig@@/query/hooks/use-seed")
 
 export const writeSeederConfigPanelComponent = () => code`
 function GeneratorKindSelect({
@@ -342,6 +343,7 @@ export function SeederConfigPanel({
   const [draft, setDraft] = ${useState}<Seeder.ConfigFile>(config);
   const [saving, setSaving] = ${useState}(false);
   const [error, setError] = ${useState}<string | null>(null);
+  const saveConfig = ${useSaveSeederConfig}();
 
   ${useEffect}(() => setMounted(true), []);
 
@@ -379,14 +381,7 @@ export function SeederConfigPanel({
     setSaving(true);
     setError(null);
     try {
-      const res = await fetch("/api/seed/config", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(draft),
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error ?? "Failed to save");
-      onSaved(json);
+      onSaved(await saveConfig.mutateAsync(draft));
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -401,7 +396,7 @@ export function SeederConfigPanel({
           <div className="flex items-center gap-2 min-w-0">
             <${Settings2} className="w-4 h-4 shrink-0" />
             <h2 className="text-sm font-bold truncate">
-              Generation rules — <span className="font-mono text-primary-foreground">{modelName}</span>
+              Generation rules — <span className="font-mono text-primary">{modelName}</span>
             </h2>
           </div>
           <${Button} variant="ghost" size="icon-sm" onClick={onClose}>
@@ -504,7 +499,7 @@ export function SeederModelConfigButton({
         title="Generation rules"
         className="h-8 w-8 shrink-0"
       >
-        <${Settings2} className={${cn}("w-3.5 h-3.5", ruleCount > 0 && "text-primary-foreground")} />
+        <${Settings2} className={${cn}("w-3.5 h-3.5", ruleCount > 0 && "text-primary")} />
       </${Button}>
       {open && (
         <SeederConfigPanel

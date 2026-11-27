@@ -48,37 +48,35 @@ export function LoginForm() {
   });
 
   return (
-    <div className="w-full max-w-sm space-y-8">
-      <div className="flex flex-col items-center gap-3 text-center">
-        <div className="flex items-center justify-center w-12 h-12 rounded-md bg-primary border border-primary-foreground glow-primary-foreground-sm">
-          <${Shrimp} className="w-6 h-6 text-primary-foreground" />
-        </div>
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground">Acaraje</h1>
-          <p className="mt-1 text-xs font-mono text-muted-foreground/60 tracking-widest uppercase">
-            Sign in to continue
-          </p>
-        </div>
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        form.handleSubmit();
+      }}
+      className="w-full max-w-[400px] rounded-xl border border-border bg-card px-[34px] py-9 shadow-2xl shadow-black/40"
+    >
+      <div className="mb-7 flex flex-col items-center gap-3 text-center">
+        <span className="flex h-[52px] w-[52px] items-center justify-center rounded-[14px] bg-primary text-primary-foreground">
+          <${Shrimp} className="h-7 w-7" />
+        </span>
+        <h1 className="text-2xl font-bold tracking-tight">Acaraje</h1>
+        <p className="text-[10px] font-medium tracking-[0.14em] text-muted-foreground">SIGN IN TO CONTINUE</p>
       </div>
 
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          form.handleSubmit();
-        }}
-        className="space-y-4"
-      >
+      <div className="space-y-[18px]">
         <form.Field name="username">
           {(field) => (
-            <div className="space-y-2">
-              <label htmlFor="username" className="text-xs font-mono text-muted-foreground uppercase tracking-wider">
+            <div>
+              <label htmlFor="username" className="mb-2 block text-xs font-medium text-foreground/75">
                 Username
               </label>
               <${Input}
                 id="username"
                 name="username"
                 autoComplete="username"
+                placeholder="admin"
+                className="h-11"
                 value={field.state.value}
                 onChange={(e) => field.handleChange(e.target.value)}
               />
@@ -88,8 +86,8 @@ export function LoginForm() {
 
         <form.Field name="password">
           {(field) => (
-            <div className="space-y-2">
-              <label htmlFor="password" className="text-xs font-mono text-muted-foreground uppercase tracking-wider">
+            <div>
+              <label htmlFor="password" className="mb-2 block text-xs font-medium text-foreground/75">
                 Password
               </label>
               <${Input}
@@ -97,28 +95,32 @@ export function LoginForm() {
                 name="password"
                 type="password"
                 autoComplete="current-password"
+                placeholder="••••••••"
+                className="h-11"
                 value={field.state.value}
                 onChange={(e) => field.handleChange(e.target.value)}
               />
             </div>
           )}
         </form.Field>
+      </div>
 
-        {error && (
-          <p className="text-sm text-red-400 border border-destructive/40 bg-destructive/10 rounded-md px-3 py-2">
-            {error}
-          </p>
+      {error && (
+        <p role="alert" className="mt-[18px] rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-red-400">
+          {error}
+        </p>
+      )}
+
+      <form.Subscribe selector={(state) => state.isSubmitting}>
+        {(isSubmitting) => (
+          <${Button} type="submit" size="lg" className="mt-[26px] w-full text-[13px]" disabled={isSubmitting}>
+            {isSubmitting ? "Signing in…" : "Sign in"}
+          </${Button}>
         )}
+      </form.Subscribe>
 
-        <form.Subscribe selector={(state) => state.isSubmitting}>
-          {(isSubmitting) => (
-            <${Button} type="submit" className="w-full" disabled={isSubmitting}>
-              {isSubmitting ? "Signing in…" : "Sign in"}
-            </${Button}>
-          )}
-        </form.Subscribe>
-      </form>
-    </div>
+      <p className="mt-[18px] text-center font-mono text-[11px] text-muted-foreground/80">prisma/schema.prisma</p>
+    </form>
   );
 }
 `.toString({ prefix: '"use client";' });

@@ -11,9 +11,20 @@ import writeLibCrudFilters from '../../templates/lib/crud/resolve-filters'
 import writeBuildFormSchema from '../../templates/lib/crud/build-form-schema'
 import writePrisma from '../../templates/lib/prisma'
 import writeDbClient from '../../templates/lib/db'
+import writeModelStore from '../../templates/lib/model-store'
 import writeEnumValues from '../../templates/lib/enum-values'
+import writeCrudTypes from '../../templates/trpc/routers/crud/types'
+import writeCrudRouter from '../../templates/trpc/routers/crud/index'
+import writePrismaCrudHandlers from '../../templates/trpc/routers/crud/prisma'
+import writeKyselyCrudHandlers from '../../templates/trpc/routers/crud/sql'
+import { ApiLayer } from '../shared/api-layer'
 
-export function generateCRUD(schema: PrismaSchema.ParsedSchema, orm: string, baseDir: string = process.cwd()): void {
+export function generateCRUD(
+  schema: PrismaSchema.ParsedSchema,
+  orm: string,
+  api: ApiLayer = "rest",
+  baseDir: string = process.cwd(),
+): void {
   if (orm !== "prisma" && orm !== "pure-sql") {
     throw new Error(`CRUD generation for orm "${orm}" is not implemented yet`);
   }
@@ -32,13 +43,23 @@ export function generateCRUD(schema: PrismaSchema.ParsedSchema, orm: string, bas
 
   // The prisma.ts and sql.ts route flavors each expect a different client singleton
   // ("@/lib/prisma" vs "@/lib/db") — only write the one that matches what was actually picked.
+  // lib/model-store.ts wraps that same client for the Stats and Seeder code (written by
+  // generate-rest-of-api and generate-seeder), which imports only "@/lib/model-store" and so
+  // never needs to know which client the project uses.
   if (orm === "prisma") {
     fs.writeFileSync(path.join(libDir, "prisma.ts"), writePrisma().toString())
+    fs.writeFileSync(path.join(libDir, "model-store.ts"), writeModelStore("prisma").toString())
   } else {
     // sql-parser.ts only ever sets datasource.provider to one of postgresql/mysql/sqlite
     // (it comes straight from the validated "prov" prompt), so this cast is safe.
     const dbProvider = schema.datasource!.provider as "postgresql" | "mysql" | "sqlite"
     fs.writeFileSync(path.join(libDir, "db.ts"), writeDbClient(dbProvider).toString())
+    fs.writeFileSync(path.join(libDir, "model-store.ts"), writeModelStore("pure-sql", dbProvider).toString())
+  }
+
+  if (api === "trpc") {
+    generateTrpcCrud(schema, orm, baseDir)
+    return
   }
 
   for (const currModel of schema.models) {
@@ -58,6 +79,32 @@ export function generateCRUD(schema: PrismaSchema.ParsedSchema, orm: string, bas
     fs.writeFileSync(path.join(modelDir, "route.ts"), indexCode.toString())
     fs.writeFileSync(path.join(idDir, "route.ts"), idCode.toString())
     fs.writeFileSync(path.join(optionsDir, "route.ts"), optionsCode.toString())
+  }
+}
+
+// One crud router (server/trpc/routers/crud/index.ts) dispatching on input.model to per-model
+// handler files under ./models/ — the tRPC counterpart of app/api/crud/<Model>/**. Stale model
+// files are cleared first so `acaraje update schema` drops handlers for removed models.
+function generateTrpcCrud(schema: PrismaSchema.ParsedSchema, orm: string, baseDir: string) {
+  const crudDir = path.join(baseDir, "server", "trpc", "routers", "crud")
+  const modelsDir = path.join(crudDir, "models")
+  fs.rmSync(modelsDir, { recursive: true, force: true })
+  fs.mkdirSync(modelsDir, { recursive: true })
+
+  fs.writeFileSync(path.join(crudDir, "types.ts"), writeCrudTypes().toString())
+  fs.writeFileSync(
+    path.join(crudDir, "index.ts"),
+    writeCrudRouter(schema.models.map((m) => m.name)).toString(),
+  )
+
+  for (const currModel of schema.models) {
+    const handlersCode =
+      orm === "prisma"
+        // Prisma's `mode: "insensitive"` is supported on PostgreSQL/MongoDB but not in sqlite
+        ? writePrismaCrudHandlers(schema, currModel, schema.datasource?.provider !== "sqlite")
+        // Raw SQL's `ilike` is only understood by PostgreSQL — MySQL and SQLite fall back to `like`.
+        : writeKyselyCrudHandlers(currModel, currModel.name, schema.datasource?.provider === "postgresql")
+    fs.writeFileSync(path.join(modelsDir, `${currModel.name}.ts`), handlersCode.toString())
   }
 }
 

@@ -1,11 +1,8 @@
 import { code, imp } from "ts-poet";
 
-const HardDrive = imp("HardDrive@lucide-react")
+const Database = imp("Database@lucide-react")
+const cn = imp("cn@@/lib/utils")
 const Card = imp("Card@@/components/ui/card")
-const CardContent = imp("CardContent@@/components/ui/card")
-const CardDescription = imp("CardDescription@@/components/ui/card")
-const CardHeader = imp("CardHeader@@/components/ui/card")
-const CardTitle = imp("CardTitle@@/components/ui/card")
 
 export const writeSelectDriveComponent = () => code`
 /** \`Drive.DriveType\` only ever has the one storage backend actually generated for this project
@@ -15,30 +12,34 @@ const DRIVE_LABELS: Record<Drive.DriveType, string> = {
   minio: "MinIO",
 };
 
+const STATUS = {
+  connected: { label: "CONNECTED", className: "bg-success/15 text-success" },
+  error: { label: "UNREACHABLE", className: "bg-destructive/15 text-red-400" },
+} as const;
+
 interface SelectDriveProps {
   value: Drive.DriveType;
   onChange: (value: Drive.DriveType) => void;
+  /** Whether the storage backend answered the folder listing request. */
+  status: keyof typeof STATUS;
 }
 
-export function SelectDrive({ value }: SelectDriveProps) {
+export function SelectDrive({ value, status }: SelectDriveProps) {
   return (
-    <${Card}>
-      <${CardHeader}>
-        <${CardTitle} className="text-base flex items-center gap-2">
-          <${HardDrive} className="w-4 h-4" />
-          Storage Backend
-        </${CardTitle}>
-        <${CardDescription}>Files are uploaded to the storage backend configured for this project</${CardDescription}>
-      </${CardHeader}>
-      <${CardContent}>
-        <div className="flex items-center gap-3 rounded-lg border border-border/50 bg-secondary/20 px-4 py-3">
-          <${HardDrive} className="w-5 h-5 text-primary-foreground/80 flex-shrink-0" />
-          <div>
-            <p className="text-sm font-medium text-primary-foreground">{DRIVE_LABELS[value]}</p>
-            <p className="text-xs text-muted-foreground">Active storage driver</p>
-          </div>
-        </div>
-      </${CardContent}>
+    <${Card} className="p-[18px]">
+      <div className="mb-3.5 flex items-center gap-3">
+        <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-secondary text-foreground/90">
+          <${Database} className="h-4 w-4" />
+        </span>
+        <h2 className="text-sm font-semibold">Storage backend</h2>
+      </div>
+      <div className="flex flex-wrap items-center gap-3">
+        <span className="text-lg font-bold">{DRIVE_LABELS[value]}</span>
+        <span className={${cn}("rounded-md px-2.5 py-1 text-[10px] font-semibold tracking-wide", STATUS[status].className)}>
+          ● {STATUS[status].label}
+        </span>
+      </div>
+      <p className="mt-2.5 text-xs text-muted-foreground">Files are uploaded to the storage backend configured for this project</p>
     </${Card}>
   );
 }

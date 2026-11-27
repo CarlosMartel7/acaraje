@@ -16,7 +16,7 @@ function routePath(outDir: string, model: string, ...segments: string[]) {
 }
 
 const outDir = fs.mkdtempSync(path.join(os.tmpdir(), "acaraje-generate-crud-"));
-generateCRUD(schema, "prisma", outDir);
+generateCRUD(schema, "prisma", "rest", outDir);
 
 const files = Object.fromEntries(
   schema.models.map((m) => [
@@ -30,7 +30,7 @@ const files = Object.fromEntries(
 ) as Record<string, { index: string; id: string; options: string }>;
 
 const sqlOutDirPostgres = fs.mkdtempSync(path.join(os.tmpdir(), "acaraje-generate-crud-pure-sql-"));
-generateCRUD(schema, "pure-sql", sqlOutDirPostgres);
+generateCRUD(schema, "pure-sql", "rest", sqlOutDirPostgres);
 
 const sqlFiles = Object.fromEntries(
   schema.models.map((m) => [
@@ -123,7 +123,7 @@ test("applies Prisma's case-insensitive search mode for postgresql", () => {
 test("rejects an unimplemented orm instead of silently doing nothing", () => {
   const emptyOutDir = fs.mkdtempSync(path.join(os.tmpdir(), "acaraje-generate-crud-typeorm-"));
   try {
-    expect(() => generateCRUD(schema, "typeorm", emptyOutDir)).toThrow(/typeorm/);
+    expect(() => generateCRUD(schema, "typeorm", "rest", emptyOutDir)).toThrow(/typeorm/);
     expect(fs.existsSync(path.join(emptyOutDir, "app"))).toBe(false);
   } finally {
     fs.rmSync(emptyOutDir, { recursive: true, force: true });
@@ -201,7 +201,7 @@ test("pure-sql: uses ilike for postgresql and plain like for sqlite", () => {
   const sqliteOutDir = fs.mkdtempSync(path.join(os.tmpdir(), "acaraje-generate-crud-pure-sql-sqlite-"));
 
   try {
-    generateCRUD(sqliteSchema, "pure-sql", sqliteOutDir);
+    generateCRUD(sqliteSchema, "pure-sql", "rest", sqliteOutDir);
     const index = fs.readFileSync(routePath(sqliteOutDir, "User"), "utf-8");
     expect(index).not.toContain('"ilike"');
     expect(index).toContain('"like"');
@@ -236,12 +236,12 @@ test("pure-sql: lib/db.ts picks the Kysely dialect matching each database provid
   const sqliteOutDir = fs.mkdtempSync(path.join(os.tmpdir(), "acaraje-generate-crud-db-sqlite-"));
 
   try {
-    generateCRUD(mysqlSchema, "pure-sql", mysqlOutDir);
+    generateCRUD(mysqlSchema, "pure-sql", "rest", mysqlOutDir);
     const mysqlDb = fs.readFileSync(path.join(mysqlOutDir, "lib", "db.ts"), "utf-8");
     expect(mysqlDb).toContain("MysqlDialect");
     expect(mysqlDb).toContain('from "mysql2"');
 
-    generateCRUD(sqliteSchema, "pure-sql", sqliteOutDir);
+    generateCRUD(sqliteSchema, "pure-sql", "rest", sqliteOutDir);
     const sqliteDb = fs.readFileSync(path.join(sqliteOutDir, "lib", "db.ts"), "utf-8");
     expect(sqliteDb).toContain("SqliteDialect");
     expect(sqliteDb).toContain('from "better-sqlite3"');
@@ -255,7 +255,7 @@ test("pure-sql: lib/db.ts picks the Kysely dialect matching each database provid
 
 test("is idempotent — running twice doesn't throw and produces the same output", () => {
   const before = files.User.index;
-  expect(() => generateCRUD(schema, "prisma", outDir)).not.toThrow();
+  expect(() => generateCRUD(schema, "prisma", "rest", outDir)).not.toThrow();
   const after = fs.readFileSync(routePath(outDir, "User"), "utf-8");
   expect(after).toBe(before);
 });
@@ -265,7 +265,7 @@ test("also works from a sql-parser ParsedSchema and disables case-insensitive se
   const sqlOutDir = fs.mkdtempSync(path.join(os.tmpdir(), "acaraje-generate-crud-sqlite-"));
 
   try {
-    generateCRUD(sqliteSchema, "prisma", sqlOutDir);
+    generateCRUD(sqliteSchema, "prisma", "rest", sqlOutDir);
 
     for (const model of sqliteSchema.models) {
       const index = fs.readFileSync(routePath(sqlOutDir, model.name), "utf-8");

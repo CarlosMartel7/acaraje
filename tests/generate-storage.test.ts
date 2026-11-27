@@ -18,7 +18,7 @@ const DRIVE_ROUTES = ["contents", "delete", "folders", "storage-config", "upload
 
 function generateAndRead(storage: "minio" | "gcs") {
   const outDir = fs.mkdtempSync(path.join(os.tmpdir(), `acaraje-generate-storage-${storage}-`));
-  generateStorage(storage, outDir);
+  generateStorage(storage, "rest", outDir);
 
   const lib = Object.fromEntries(
     LIB_FILES.map((file) => [file, fs.readFileSync(libPath(outDir, file), "utf-8")]),
@@ -131,7 +131,7 @@ test("dprint successfully formats every generated file (double-quoted imports, n
 
 test("is idempotent — running twice doesn't throw and produces the same output", () => {
   const before = minio.api.delete;
-  expect(() => generateStorage("minio", minio.outDir)).not.toThrow();
+  expect(() => generateStorage("minio", "rest", minio.outDir)).not.toThrow();
   const after = fs.readFileSync(drivePath(minio.outDir, "delete"), "utf-8");
   expect(after).toBe(before);
 });

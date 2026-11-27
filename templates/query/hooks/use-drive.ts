@@ -58,6 +58,19 @@ export function useDeleteDriveSelection(prefix: string) {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ${queryKeys}.drive.contents(prefix) }),
   });
 }
+
+/** Takes the FormData files-to-upload.tsx builds (file, folderId, displayName). Posted as-is
+ *  rather than through apiMutate, which JSON-encodes its body. */
+export function useDriveUpload() {
+  return ${useMutation}({
+    mutationFn: async (formData: FormData) => {
+      const res = await fetch("/api/drive/upload", { method: "POST", body: formData, credentials: "include" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || \`Upload failed: \${res.status}\`);
+      return data as { id: string; name: string; webViewLink?: string; mimeType: string; size: string };
+    },
+  });
+}
 `.toString({ prefix: '"use client";' });
 
 export default writeUseDriveHook;

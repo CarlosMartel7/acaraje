@@ -43,7 +43,7 @@ export default function DrivePageInner() {
   const [files, setFiles] = ${useState}<Drive.SelectedFile[]>([]);
   const [fetchedFolders, setFetchedFolders] = ${useState}<Drive.FolderNode[]>([]);
 
-  const { data: foldersData, isLoading: foldersLoading } = ${useDriveFolders}();
+  const { data: foldersData, isLoading: foldersLoading, isError: foldersError } = ${useDriveFolders}();
 
   ${useEffect}(() => {
     const id = searchParams.get("folderId");
@@ -55,15 +55,15 @@ export default function DrivePageInner() {
   }, [foldersData]);
 
   return (
-    <div className="p-8 space-y-6 animate-in">
+    <div className="space-y-5 p-6 animate-in">
       <${DriveUploadHeader} />
 
       {foldersLoading ? (
         <${DriveUploadBodySkeleton} />
       ) : (
         <>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <${SelectDrive} value={selectedDrive} onChange={setSelectedDrive} />
+          <div className="grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(min(300px,100%),1fr))]">
+            <${SelectDrive} value={selectedDrive} onChange={setSelectedDrive} status={foldersError ? "error" : "connected"} />
             <${TargetFolder}
               value={selectedFolder}
               onChange={setSelectedFolder}

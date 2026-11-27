@@ -1,20 +1,11 @@
 import { code, imp } from "ts-poet";
 
-const useEffect = imp("useEffect@react")
-const useState = imp("useState@react")
+const useSchemas = imp("useSchemas@@/query/hooks/use-schemas")
 
 export const writeConnectionBadgeComponent = () => code`
 export function ConnectionBadge() {
-  const [provider, setProvider] = ${useState}("postgresql");
-
-  ${useEffect}(() => {
-    fetch("/api/schemas")
-      .then((r) => r.json())
-      .then((d) => {
-        if (d.datasource?.provider) setProvider(d.datasource.provider);
-      })
-      .catch(() => { });
-  }, []);
+  const { data } = ${useSchemas}();
+  const provider = data?.datasource?.provider ?? "postgresql";
 
   return <span>CONNECTED · {provider}</span>;
 }

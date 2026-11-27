@@ -85,8 +85,25 @@ You'll be asked:
 | Database provider *(pure-sql only)* | `postgresql`, `mysql`, or `sqlite` | — |
 | Schema location | Folder holding `schema.prisma` / `schema.sql` | `/prisma` or `/database` |
 | Storage | `minio` or `gcs` | — |
+| API layer | `rest` (Next.js route handlers + TanStack Query) or `trpc` (tRPC + TanStack Query) — skipped when `--api` is passed | — |
 | Use Docker locally? | Whether to also write `docker-compose.yml` | — |
 | Username / Password | Admin login for the generated panel | `admin` / `password` |
+
+To pick the API layer up front instead of being asked, pass it as a flag:
+
+```bash
+npx acaraje init --api trpc
+```
+
+The choice is saved to `acaraje.config.json` in the generated project, so `acaraje update schema`
+later regenerates the same flavor. Either way the pages and components are identical — they only
+import hooks from `query/hooks/*`, and only what sits behind those hooks changes:
+
+- **`rest`** — one Next.js route handler per endpoint under `app/api/*`.
+- **`trpc`** — every data endpoint (CRUD, schemas, relations, stats, seeder, drive — file uploads
+  included) is a procedure under `server/trpc/routers/*`, served from a single
+  `app/api/trpc/[trpc]` route. Login/logout/session stay REST in both flavors. Add your own
+  routers next to the generated ones and register them in `server/trpc/root.ts`.
 
 Acaraje then generates the app in place, runs `npm install` for you and, in Prisma mode,
 `prisma generate`
@@ -108,9 +125,9 @@ The generated admin panel is a standalone app — none of this is a dependency o
 
 | Layer | Technology |
 | --- | --- |
-| Framework | Next.js 15 (App Router), React 19, TypeScript |
+| Framework | Next.js 16 (App Router), React 19, TypeScript |
 | Styling | Tailwind CSS, Radix UI primitives, `class-variance-authority`, `lucide-react` icons |
-| Data fetching | TanStack Query |
+| Data fetching | TanStack Query, over REST route handlers or tRPC (your choice at `init`) |
 | Tables & forms | TanStack Table, TanStack Form |
 | Validation | Zod |
 | ORM / DB access | Prisma **or** Kysely (raw SQL), depending on the ORM you chose |

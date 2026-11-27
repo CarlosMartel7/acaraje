@@ -4,7 +4,7 @@ const cn = imp("cn@@/lib/utils")
 
 export const writeSkeletonComponent = () => code`
 function Skeleton({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
-  return <div className={${cn}("animate-pulse rounded-md bg-muted/50", className)} {...props} />;
+  return <div className={${cn}("animate-pulse rounded-lg bg-secondary", className)} {...props} />;
 }
 
 export { Skeleton };

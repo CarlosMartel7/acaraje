@@ -12,7 +12,7 @@ function routePath(outDir: string, route: string) {
 }
 
 const outDir = fs.mkdtempSync(path.join(os.tmpdir(), "acaraje-generate-rest-of-api-"));
-generateRestOfApi(outDir);
+generateRestOfApi("rest", outDir);
 
 const files = Object.fromEntries(
   ROUTES.map((route) => [route, fs.readFileSync(routePath(outDir, route), "utf-8")]),
@@ -47,8 +47,9 @@ test("relations route returns the inferred relations list", () => {
   expect(files.relations).toContain("relations: parsedSchema.relations");
 });
 
-test("stats route imports prisma and aggregates field/relation/index counts", () => {
-  expect(files.stats).toMatch(/from "@\/lib\/prisma"/);
+test("stats route counts records through the database-agnostic model store and aggregates field/relation/index counts", () => {
+  expect(files.stats).toMatch(/import \{ countRecords \} from "@\/lib\/model-store";/);
+  expect(files.stats).not.toContain("@/lib/prisma");
   expect(files.stats).toContain("totalFields");
   expect(files.stats).toContain("totalRelations");
   expect(files.stats).toContain("totalIndexes");
@@ -75,7 +76,7 @@ test("dprint successfully formats every generated file (double-quoted imports, n
 
 test("is idempotent — running twice doesn't throw and produces the same output", () => {
   const before = files.stats;
-  expect(() => generateRestOfApi(outDir)).not.toThrow();
+  expect(() => generateRestOfApi("rest", outDir)).not.toThrow();
   const after = fs.readFileSync(routePath(outDir, "stats"), "utf-8");
   expect(after).toBe(before);
 });

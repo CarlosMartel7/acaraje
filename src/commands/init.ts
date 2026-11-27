@@ -3,7 +3,7 @@ import z from "zod";
 import path from "path";
 import { execSync } from "child_process";
 import { prismaParser } from "../steps/prisma-parser";
-import { sqlParser, SqlDatabaseType } from "../steps/sql-parser";
+import { sqlParser } from "../steps/sql-parser";
 import { createFolderStructure } from "../steps/generate-folders";
 import { generateCRUD } from "../steps/generate-crud";
 import { generateStorage } from "../steps/generate-storage";
@@ -14,40 +14,15 @@ import { generateComponents } from "../steps/generate-components";
 import { generateFrontEnd } from "../steps/generate-front-end";
 import { generateQuery } from "../steps/generate-query";
 import { generateConfigFiles } from "../steps/generate-config-files";
-import { DbProvider } from "../../templates/config/docker-compose.yml";
-
-// The "prov" prompt only offers lowercase option values, but sqlParser's SqlDatabaseType
-// literals are capitalized — map one onto the other instead of duplicating the prompt options.
-const SQL_DB_TYPES: Record<string, SqlDatabaseType> = {
-  postgresql: "PostgreSql",
-  mysql: "Mysql",
-  sqlite: "Sqlite",
-};
-
-// Skip validation entirely on empty/whitespace input — that case
-// falls back to the default value after the prompt resolves.
-const isBlank = (value: any) => value === undefined || value.trim() === "";
-
-const orDefault = (value: string, fallback: string): string =>
-  isBlank(value) ? fallback : value.trim();
-
-// pure-sql already resolves "prov" straight from the prompt (its options match DbProvider
-// exactly). In prisma mode there's no such prompt — the provider comes from whatever the user's
-// own schema.prisma datasource block declares, which is an untyped string, so it's validated here
-// rather than trusted blindly (a provider Prisma supports but this CLI doesn't, e.g. mongodb,
-// would otherwise silently produce a broken docker-compose.yml).
-function resolveDbProvider(
-  orm: "prisma" | "pure-sql",
-  prov: "postgresql" | "mysql" | "sqlite" | undefined,
-  schema: PrismaSchema.ParsedSchema,
-): DbProvider {
-  if (orm !== "prisma") return prov!;
-  const provider = schema.datasource?.provider;
-  if (provider === "postgresql" || provider === "mysql" || provider === "sqlite") return provider;
-  throw new Error(
-    `Unsupported datasource provider "${provider}" in schema.prisma — expected postgresql, mysql, or sqlite`,
-  );
-}
+import {
+  SQL_DB_TYPES,
+  isBlank,
+  orDefault,
+  resolveDbProvider,
+  buildSchemaSourcePrompts,
+  SchemaSourceAnswers,
+} from "../shared/schema-prompts";
+import { ApiLayer, writeAcarajeConfig } from "../shared/api-layer";
 
 function installNodeModules(baseDir: string = process.cwd()): void {
   execSync("npm install", { cwd: baseDir, stdio: "inherit" });
@@ -62,15 +37,11 @@ function pushPrismaDb(baseDir: string = process.cwd()): void {
 }
 
 // @clack/prompts' group() infers each field's type from its own callback, but a callback that
-// reads a sibling's `results.*` (prov reads results.orm, schemaPath reads results.prov) breaks
-// that inference and collapses to `unknown`/`{}`. Annotate the resolved shape explicitly instead
-// of fighting the inference.
-type PromptAnswers = {
-  name: string;
-  orm: "prisma" | "pure-sql";
-  prov?: "postgresql" | "mysql" | "sqlite";
-  schemaPath: string;
+// reads a sibling's `results.*` breaks that inference and collapses it to `unknown`/`{}`.
+// Annotate the resolved shape explicitly instead of fighting the inference.
+type RestOfPromptAnswers = {
   storage: "minio" | "gcs";
+  api?: ApiLayer;
   docker: boolean;
   username: string;
   password: string;
@@ -80,69 +51,12 @@ type PromptAnswers = {
 // interactive UI the instant it's called, and this module is imported unconditionally by
 // src/index.ts, so constructing it at module scope used to kick off a live prompt session even
 // for `--help` or an unrecognized command, before commander ever decided whether to run init.
-function buildPrompts() {
+// name/orm/prov/schemaPath are asked first via buildSchemaSourcePrompts() (shared with
+// `acaraje update schema`); this covers everything init needs beyond that. `apiPreset` is the
+// `--api` flag's value, if passed — the API layer prompt is skipped when it's set.
+function buildPrompts(apiPreset?: ApiLayer) {
   return p.group(
     {
-      name: () =>
-        p.text({
-          message: "Panel name",
-          placeholder: "Default: Acaraje",
-          defaultValue: "Acaraje",
-          validate: (value) => {
-            if (isBlank(value)) return;
-            const result = z
-              .string()
-              .trim()
-              .max(15, "Name cannot exceed 15 characters")
-              .safeParse(value);
-            if (!result.success) {
-              return result.error.issues[0]?.message;
-            }
-          },
-        }),
-
-      orm: () =>
-        p.select({
-          message: "Select your ORM",
-          options: [
-            { value: "prisma", label: "Prisma" },
-            { value: "pure-sql", label: "No ORM (SQL via Kysely)" },
-          ],
-        }),
-
-      prov: ({ results }) => {
-        if (results.orm !== "pure-sql") return;
-        return p.select({
-          message: "Which database provider are you using?",
-          options: [
-            { value: "postgresql", label: "PostgreSQL" },
-            { value: "mysql", label: "MySQL" },
-            { value: "sqlite", label: "SQLite" },
-          ],
-        });
-      },
-
-      schemaPath: ({ results }) => {
-        const schemaFile = results.prov ? "schema.sql" : "schema.prisma";
-        const defaultPath = results.prov ? "/database" : "/prisma";
-        return p.text({
-          message: `Where is your ${schemaFile} located?`,
-          placeholder: "Default: " + defaultPath,
-          defaultValue: defaultPath,
-          validate: (value) => {
-            if (isBlank(value)) return;
-            const result = z
-              .string()
-              .trim()
-              .startsWith("/", "Folder name should start with '/'")
-              .safeParse(value);
-            if (!result.success) {
-              return result.error.issues[0]?.message;
-            }
-          },
-        });
-      },
-
       storage: () =>
         p.select({
           message: "Select your storage",
@@ -151,6 +65,18 @@ function buildPrompts() {
             { value: "gcs", label: "Google Cloud Storage" },
           ],
         }),
+
+      // Returning undefined skips the prompt — `--api <layer>` was already passed.
+      api: () => {
+        if (apiPreset) return;
+        return p.select({
+          message: "Select your API layer",
+          options: [
+            { value: "rest", label: "TanStack Query + REST routes" },
+            { value: "trpc", label: "tRPC (on TanStack Query)" },
+          ],
+        });
+      },
 
       docker: () =>
         p.select({
@@ -204,11 +130,18 @@ function buildPrompts() {
   );
 }
 
-const C = async () => {
+export type InitOptions = {
+  api?: ApiLayer;
+};
+
+const C = async (opts: InitOptions = {}) => {
   p.intro("Create Acaraje Admin Panel");
 
-  let { name, orm, prov, schemaPath, storage, docker, username, password } =
-    (await buildPrompts()) as PromptAnswers;
+  let { name, orm, prov, schemaPath } =
+    (await buildSchemaSourcePrompts()) as SchemaSourceAnswers;
+  let { storage, api: promptedApi, docker, username, password } =
+    (await buildPrompts(opts.api)) as RestOfPromptAnswers;
+  const api: ApiLayer = opts.api ?? promptedApi ?? "rest";
 
   name = orDefault(name, "Acaraje");
   schemaPath = orDefault(schemaPath, prov ? "/database" : "/prisma");
@@ -226,17 +159,18 @@ const C = async () => {
   const schema = orm === "prisma"
     ? prismaParser(resolvedSchemaPath)
     : sqlParser(resolvedSchemaPath, SQL_DB_TYPES[prov!]);
-  createFolderStructure(name, schema)
+  createFolderStructure(name, schema, api)
 
-  generateCRUD(schema, orm)
-  generateStorage(storage)
-  generateSeeder(schema)
-  generateRestOfApi()
+  generateCRUD(schema, orm, api)
+  generateStorage(storage, api)
+  generateSeeder(schema, api)
+  generateRestOfApi(api)
   generateAuth()
-  generateComponents(name)
+  generateComponents(name, api)
   generateFrontEnd(name)
-  generateQuery()
-  generateConfigFiles(name, resolveDbProvider(orm, prov, schema), storage, docker, username, password)
+  generateQuery(api)
+  generateConfigFiles(name, resolveDbProvider(orm, prov, schema), storage, docker, username, password, api)
+  writeAcarajeConfig({ api })
 
   installNodeModules()
   if (orm === "prisma") {

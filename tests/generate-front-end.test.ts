@@ -3,6 +3,7 @@ import os from "os";
 import path from "path";
 
 import { generateFrontEnd } from "../src/steps/generate-front-end";
+import { writeButtonComponent } from "../templates/components/ui/button";
 import { writeLog } from "./logger";
 
 const ROOT_PATHS = ["layout.tsx", "page.tsx", "globals.css", "login/page.tsx"];
@@ -128,12 +129,80 @@ test("globals.css renders as real, unmangled CSS", () => {
   expect(css).not.toContain("import_ts_poet");
 });
 
+test("globals.css uses the Direction F palette: orange primary with white text on it", () => {
+  const css = root["globals.css"];
+  // --primary is the accent fill and --primary-foreground the text drawn on it (shadcn convention).
+  expect(css).toContain("--primary: 15.8 90% 43.5%;");
+  expect(css).toContain("--primary-foreground: 0 0% 100%;");
+  expect(css).toContain("--background: 0 0% 8.2353%;");
+  expect(css).toMatch(/--success: /);
+  expect(css).toMatch(/--warning: /);
+  expect(css).toMatch(/--info: /);
+  expect(css).not.toContain("glow-primary");
+  expect(css).not.toContain("scan-line");
+});
+
+test("default button text meets WCAG AA contrast on its primary fill, at rest and on hover", () => {
+  const css = root["globals.css"];
+  const button = writeButtonComponent();
+  const hsl = (name: string): [number, number, number] => {
+    const match = css.match(new RegExp(`--${name}: ([\\d.]+) ([\\d.]+)% ([\\d.]+)%;`));
+    if (!match) throw new Error(`--${name} not found in globals.css`);
+    const [h, s, l] = match.slice(1).map(Number);
+    const a = (s / 100) * Math.min(l / 100, 1 - l / 100);
+    const f = (n: number) => {
+      const k = (n + h / 30) % 12;
+      return l / 100 - a * Math.max(-1, Math.min(k - 3, 9 - k, 1));
+    };
+    return [f(0), f(8), f(4)];
+  };
+  const luminance = (rgb: number[]) => {
+    const [r, g, b] = rgb.map((c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  };
+  const contrast = (a: number[], b: number[]) => {
+    const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x);
+    return (hi + 0.05) / (lo + 0.05);
+  };
+
+  // The hover fill is translucent, so measure it composited over the page background.
+  const hoverMatch = button.match(/default: "bg-primary text-primary-foreground hover:bg-primary\/(\d+)"/);
+  expect(hoverMatch).not.toBeNull();
+  const alpha = Number(hoverMatch![1]) / 100;
+  const primary = hsl("primary");
+  const background = hsl("background");
+  const hoverFill = primary.map((c, i) => c * alpha + background[i] * (1 - alpha));
+  const text = hsl("primary-foreground");
+
+  expect(contrast(text, primary)).toBeGreaterThanOrEqual(4.5);
+  expect(contrast(text, hoverFill)).toBeGreaterThanOrEqual(4.5);
+});
+
+test("root layout loads Inter as the sans font and DM Mono as the mono font", () => {
+  const layout = root["layout.tsx"];
+  expect(layout).toMatch(/import \{[^}]*\bInter\b[^}]*\} from "next\/font\/google"/);
+  expect(layout).toMatch(/import \{[^}]*\bDM_Mono\b[^}]*\} from "next\/font\/google"/);
+  expect(layout).not.toContain("Geist");
+});
+
+test("app icon uses the orange brand tile", () => {
+  const icon = fs.readFileSync(rootPath(outDir, "icon.svg"), "utf-8");
+  expect(icon).toContain('fill="#FF5A1F"');
+});
+
 test("project pages import their matching route content and skeleton components", () => {
   expect(project["dashboard/page.tsx"]).toMatch(/from "@\/components\/routes\/dashboard"/);
   expect(project["dashboard/loading.tsx"]).toMatch(/from "@\/components\/routes\/skeletons"/);
   expect(project["crud/[model]/[id]/page.tsx"]).toMatch(/from "@\/components\/routes\/crud\/\[model\]\/edit"/);
   expect(project["layout.tsx"]).toMatch(/from "@\/components\/sidebar"/);
   expect(project["layout.tsx"]).toMatch(/from "@\/lib\/auth"/);
+});
+
+test("admin layout renders the sidebar and passes the session user to the top bar", () => {
+  const layout = project["layout.tsx"];
+  expect(layout).toMatch(/from "@\/components\/topbar"/);
+  expect(layout).toContain("<Sidebar />");
+  expect(layout).toContain("<Topbar username={session?.username} />");
 });
 
 test('only the pages rendered behind a Suspense boundary get "use client"', () => {

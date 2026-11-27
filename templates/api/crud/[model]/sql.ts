@@ -30,7 +30,7 @@ function baseSqlType(type: string): string {
 // field -> kind map is resolved once here, at generation time, from the parsed model, and baked
 // into the route as a plain object literal. The model may come from either prisma-parser.ts
 // (Prisma type names) or sql-parser.ts (raw SQL type names), so both vocabularies are handled.
-function inferFieldKind(field: PrismaSchema.PrismaField): "string" | "number" | "boolean" | "datetime" | "enum" {
+export function inferFieldKind(field: PrismaSchema.PrismaField): "string" | "number" | "boolean" | "datetime" | "enum" {
   // A `-- @enum A | B | C` / `// @enum ...` column is an enum regardless of its storage type
   // (e.g. sqlite backs it with TEXT).
   if (field.pseudoEnumValues && field.pseudoEnumValues.length > 0) return "enum";
@@ -51,11 +51,11 @@ function inferFieldKind(field: PrismaSchema.PrismaField): "string" | "number" | 
   return "enum";
 }
 
-function scalarFields(model: PrismaSchema.PrismaModel) {
+export function scalarFields(model: PrismaSchema.PrismaModel) {
   return model.fields.filter((f) => !f.isRelation && !f.isList);
 }
 
-function fieldKindsLiteral(model: PrismaSchema.PrismaModel) {
+export function fieldKindsLiteral(model: PrismaSchema.PrismaModel) {
   const entries = scalarFields(model).map(
     (f) => `${JSON.stringify(f.name)}: ${JSON.stringify(inferFieldKind(f))}`
   );

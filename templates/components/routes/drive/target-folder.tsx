@@ -4,10 +4,6 @@ const Dispatch = imp("t:Dispatch@react")
 const SetStateAction = imp("t:SetStateAction@react")
 const FolderOpen = imp("FolderOpen@lucide-react")
 const Card = imp("Card@@/components/ui/card")
-const CardContent = imp("CardContent@@/components/ui/card")
-const CardDescription = imp("CardDescription@@/components/ui/card")
-const CardHeader = imp("CardHeader@@/components/ui/card")
-const CardTitle = imp("CardTitle@@/components/ui/card")
 const FolderTree = imp("FolderTree@./folder-tree")
 const AcarajeCalls_drive = imp("AcarajeCalls_drive=./[[api-calls]]")
 
@@ -68,16 +64,17 @@ export function TargetFolder({ value, onChange, folders, setFolders }: TargetFol
   );
 
   return (
-    <${Card}>
-      <${CardHeader}>
-        <${CardTitle} className="text-base flex items-center gap-2">
-          <${FolderOpen} className="w-4 h-4" />
-          Target Folder
-        </${CardTitle}>
-        <${CardDescription}>Select a folder, or create, rename, and delete folders</${CardDescription}>
-      </${CardHeader}>
-      <${CardContent}>
-        <div className="rounded-lg border border-border/50 p-2 max-h-[320px] overflow-y-auto">
+    <${Card} className="p-[18px]">
+      <div className="mb-3.5 flex items-center gap-3">
+        <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-secondary text-foreground/90">
+          <${FolderOpen} className="h-4 w-4" />
+        </span>
+        <div className="min-w-0">
+          <h2 className="text-sm font-semibold">Target folder</h2>
+          <p className="text-[11px] text-muted-foreground">Select a folder, or create, rename and delete folders</p>
+        </div>
+      </div>
+      <div className="max-h-[320px] overflow-y-auto rounded-lg border border-border bg-background/40 p-1.5">
           <${FolderTree}
             folders={folders}
             selectedId={value?.folderId ?? null}
@@ -87,8 +84,7 @@ export function TargetFolder({ value, onChange, folders, setFolders }: TargetFol
             onCreateFolder={handleCreatefolder}
             defaultExpanded={new Set(["root", "1abc", "2def", "3ghi"])}
           />
-        </div>
-      </${CardContent}>
+      </div>
     </${Card}>
   );
 }
