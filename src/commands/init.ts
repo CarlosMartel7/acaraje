@@ -22,7 +22,7 @@ import {
   buildSchemaSourcePrompts,
   SchemaSourceAnswers,
 } from "../shared/schema-prompts";
-import { ApiLayer, apiLayerPrompt, writeAcarajeConfig } from "../shared/api-layer";
+import { ApiLayer, writeAcarajeConfig } from "../shared/api-layer";
 
 function installNodeModules(baseDir: string = process.cwd()): void {
   execSync("npm install", { cwd: baseDir, stdio: "inherit" });
@@ -66,7 +66,17 @@ function buildPrompts(apiPreset?: ApiLayer) {
           ],
         }),
 
-      api: apiLayerPrompt(apiPreset),
+      // Returning undefined skips the prompt — `--api <layer>` was already passed.
+      api: () => {
+        if (apiPreset) return;
+        return p.select({
+          message: "Select your API layer",
+          options: [
+            { value: "rest", label: "TanStack Query + REST routes" },
+            { value: "trpc", label: "tRPC (on TanStack Query)" },
+          ],
+        });
+      },
 
       docker: () =>
         p.select({

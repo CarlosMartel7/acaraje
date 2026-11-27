@@ -125,7 +125,7 @@ The generated admin panel is a standalone app — none of this is a dependency o
 
 | Layer | Technology |
 | --- | --- |
-| Framework | Next.js 15 (App Router), React 19, TypeScript |
+| Framework | Next.js 16 (App Router), React 19, TypeScript |
 | Styling | Tailwind CSS, Radix UI primitives, `class-variance-authority`, `lucide-react` icons |
 | Data fetching | TanStack Query, over REST route handlers or tRPC (your choice at `init`) |
 | Tables & forms | TanStack Table, TanStack Form |

@@ -9,7 +9,7 @@ import writeEnvExample from '../../templates/config/.env.example'
 import writePackageJson from '../../templates/config/package.json'
 import writeTsconfigJson from '../../templates/config/tsconfig.json'
 import writeTailwindConfig from '../../templates/config/tailwind.config.js'
-import writeMiddleware from '../../templates/config/middleware'
+import writeProxy from '../../templates/config/proxy'
 import writeNextConfig from '../../templates/config/next.config.js'
 import writePostcssConfig from '../../templates/config/postcss.config.js'
 import writeVitestConfig from '../../templates/config/vitest.config.mts'
@@ -19,7 +19,7 @@ import { ApiLayer } from '../shared/api-layer'
 
 // Relative output path (project root) -> the write function producing that file's content.
 // Every config file is project-agnostic except docker-compose.yml, package.json (its kysely
-// driver dependency), and middleware.ts (its protected-route base path), which are built
+// driver dependency), and proxy.ts (its protected-route base path), which are built
 // separately below since they depend on choices the user actually made.
 const STATIC_CONFIG_FILES: Record<string, () => { toString(): string }> = {
   '.env.example': writeEnvExample,
@@ -51,7 +51,7 @@ export function generateConfigFiles(
   fs.writeFileSync(path.join(baseDir, "package.json"), writePackageJson(dbProvider, api).toString())
 
   // The protected-route base path must match app/<projectName>/... — never hardcoded to "acaraje".
-  fs.writeFileSync(path.join(baseDir, "middleware.ts"), writeMiddleware(sanitizeProjectName(name)).toString())
+  fs.writeFileSync(path.join(baseDir, "proxy.ts"), writeProxy(sanitizeProjectName(name)).toString())
 
   const authSecret = crypto.randomBytes(32).toString("base64")
   fs.writeFileSync(

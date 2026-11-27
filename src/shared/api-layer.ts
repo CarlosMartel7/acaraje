@@ -1,4 +1,3 @@
-import * as p from "@clack/prompts";
 import fs from "fs";
 import path from "path";
 
@@ -34,16 +33,3 @@ export function readAcarajeConfig(baseDir: string = process.cwd()): AcarajeConfi
     return { api: "rest" };
   }
 }
-
-// A field for init's p.group(): returning undefined skips the prompt, which is what happens when
-// `--api <layer>` was already passed on the command line.
-export const apiLayerPrompt = (preset?: ApiLayer) => () => {
-  if (preset) return;
-  return p.select({
-    message: "Select your API layer",
-    options: [
-      { value: "rest", label: "TanStack Query + REST routes" },
-      { value: "trpc", label: "tRPC (on TanStack Query)" },
-    ],
-  });
-};

@@ -11,6 +11,7 @@ import writeLibCrudFilters from '../../templates/lib/crud/resolve-filters'
 import writeBuildFormSchema from '../../templates/lib/crud/build-form-schema'
 import writePrisma from '../../templates/lib/prisma'
 import writeDbClient from '../../templates/lib/db'
+import writeModelStore from '../../templates/lib/model-store'
 import writeEnumValues from '../../templates/lib/enum-values'
 import writeCrudTypes from '../../templates/trpc/routers/crud/types'
 import writeCrudRouter from '../../templates/trpc/routers/crud/index'
@@ -42,13 +43,18 @@ export function generateCRUD(
 
   // The prisma.ts and sql.ts route flavors each expect a different client singleton
   // ("@/lib/prisma" vs "@/lib/db") — only write the one that matches what was actually picked.
+  // lib/model-store.ts wraps that same client for the Stats and Seeder code (written by
+  // generate-rest-of-api and generate-seeder), which imports only "@/lib/model-store" and so
+  // never needs to know which client the project uses.
   if (orm === "prisma") {
     fs.writeFileSync(path.join(libDir, "prisma.ts"), writePrisma().toString())
+    fs.writeFileSync(path.join(libDir, "model-store.ts"), writeModelStore("prisma").toString())
   } else {
     // sql-parser.ts only ever sets datasource.provider to one of postgresql/mysql/sqlite
     // (it comes straight from the validated "prov" prompt), so this cast is safe.
     const dbProvider = schema.datasource!.provider as "postgresql" | "mysql" | "sqlite"
     fs.writeFileSync(path.join(libDir, "db.ts"), writeDbClient(dbProvider).toString())
+    fs.writeFileSync(path.join(libDir, "model-store.ts"), writeModelStore("pure-sql", dbProvider).toString())
   }
 
   if (api === "trpc") {

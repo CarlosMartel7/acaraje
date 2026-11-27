@@ -5,6 +5,7 @@ import writeSeederConfig from '../../templates/lib/seeder/config'
 import writeFakerPresets from '../../templates/lib/seeder/faker-presets'
 import writeFieldGenerators from '../../templates/lib/seeder/field-generators'
 import writeGenerateFieldValue from '../../templates/lib/seeder/generate-field-value'
+import writeSeedModel from '../../templates/lib/seeder/seed-model'
 import writeSeedRoute from '../../templates/api/seed/route'
 import writeSeedConfigRoute from '../../templates/api/seed/config/route'
 import writeSeedRouter from '../../templates/trpc/routers/seed'
@@ -25,6 +26,9 @@ export function generateSeeder(schema: PrismaSchema.ParsedSchema, api: ApiLayer 
     "faker-presets.ts": writeFakerPresets(),
     "field-generators.ts": writeFieldGenerators(),
     "generate-field-value.ts": writeGenerateFieldValue(),
+    // Shared by the REST seed route and the tRPC seed router; reaches the database through
+    // "@/lib/model-store", which generate-crud writes for the project's database mode.
+    "seed-model.ts": writeSeedModel(),
   }
   for (const [fileName, code] of Object.entries(seederLibFiles)) {
     fs.writeFileSync(path.join(seederLibDir, fileName), code.toString())
