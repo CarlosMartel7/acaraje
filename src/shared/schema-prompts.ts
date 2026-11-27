@@ -36,6 +36,34 @@ export function resolveDbProvider(
   );
 }
 
+export type InstallModeAnswers = {
+  useDesignFile: boolean;
+};
+
+// First question of `acaraje init`: a basic installation through the essential prompts, or one
+// driven by an acaraje-design.json the developer (or the setup skill) prepared beforehand. Built
+// lazily for the same reason as buildSchemaSourcePrompts() below.
+export function buildInstallModePrompt() {
+  return p.group(
+    {
+      useDesignFile: () =>
+        p.select({
+          message: "Do you want to use your acaraje-design.json for a more complete installation?",
+          options: [
+            { value: false, label: "No", hint: "basic installation, answer a few prompts" },
+            { value: true, label: "Yes", hint: "read acaraje-design.json from this folder" },
+          ],
+        }),
+    },
+    {
+      onCancel: () => {
+        p.cancel("Setup canceled");
+        process.exit(1);
+      },
+    }
+  );
+}
+
 // @clack/prompts' group() infers each field's type from its own callback, but a callback that
 // reads a sibling's `results.*` (prov reads results.orm, schemaPath reads results.prov) breaks
 // that inference and collapses to `unknown`/`{}`. Annotate the resolved shape explicitly instead

@@ -19,10 +19,20 @@ import {
   isBlank,
   orDefault,
   resolveDbProvider,
+  buildInstallModePrompt,
   buildSchemaSourcePrompts,
+  InstallModeAnswers,
   SchemaSourceAnswers,
 } from "../shared/schema-prompts";
 import { ApiLayer, writeAcarajeConfig } from "../shared/api-layer";
+import {
+  DESIGN_FILE,
+  DesignConfig,
+  DesignConfigInput,
+  readDesignConfig,
+  validateDesignConfig,
+  writeDesignConfig,
+} from "../shared/design-config";
 
 function installNodeModules(baseDir: string = process.cwd()): void {
   execSync("npm install", { cwd: baseDir, stdio: "inherit" });
@@ -39,10 +49,11 @@ function pushPrismaDb(baseDir: string = process.cwd()): void {
 // @clack/prompts' group() infers each field's type from its own callback, but a callback that
 // reads a sibling's `results.*` breaks that inference and collapses it to `unknown`/`{}`.
 // Annotate the resolved shape explicitly instead of fighting the inference.
+// storage/api/docker are undefined when skipped (design-driven installation, or `--api`).
 type RestOfPromptAnswers = {
-  storage: "minio" | "gcs";
+  storage?: "minio" | "gcs";
   api?: ApiLayer;
-  docker: boolean;
+  docker?: boolean;
   username: string;
   password: string;
 };
@@ -53,22 +64,27 @@ type RestOfPromptAnswers = {
 // for `--help` or an unrecognized command, before commander ever decided whether to run init.
 // name/orm/prov/schemaPath are asked first via buildSchemaSourcePrompts() (shared with
 // `acaraje update schema`); this covers everything init needs beyond that. `apiPreset` is the
-// `--api` flag's value, if passed — the API layer prompt is skipped when it's set.
-function buildPrompts(apiPreset?: ApiLayer) {
+// `--api` flag's value, if passed — the API layer prompt is skipped when it's set. With
+// `fromDesign`, acaraje-design.json already answered storage/api/docker, so only the admin
+// credentials (which never live in that file) are asked.
+function buildPrompts({ apiPreset, fromDesign = false }: { apiPreset?: ApiLayer; fromDesign?: boolean }) {
   return p.group(
     {
-      storage: () =>
-        p.select({
+      storage: () => {
+        if (fromDesign) return;
+        return p.select({
           message: "Select your storage",
           options: [
             { value: "minio", label: "MinIO (local/AWS-Integration)" },
             { value: "gcs", label: "Google Cloud Storage" },
           ],
-        }),
+        });
+      },
 
-      // Returning undefined skips the prompt — `--api <layer>` was already passed.
+      // Returning undefined skips the prompt — `--api <layer>` was already passed, or the design
+      // file answered it.
       api: () => {
-        if (apiPreset) return;
+        if (apiPreset || fromDesign) return;
         return p.select({
           message: "Select your API layer",
           options: [
@@ -78,15 +94,17 @@ function buildPrompts(apiPreset?: ApiLayer) {
         });
       },
 
-      docker: () =>
-        p.select({
+      docker: () => {
+        if (fromDesign) return;
+        return p.select({
           message:
             "Are you going to use Docker locally for your storage or database?",
           options: [
             { value: true, label: "Yes" },
             { value: false, label: "No" },
           ],
-        }),
+        });
+      },
 
       username: () =>
         p.text({
@@ -134,28 +152,80 @@ export type InitOptions = {
   api?: ApiLayer;
 };
 
+// The developer chose the design-driven installation, so a missing or invalid file is fatal:
+// report every problem at once and stop before anything is generated.
+function loadDesignOrExit(): DesignConfig {
+  const result = readDesignConfig();
+  if (result.ok) return result.config;
+  p.cancel(
+    `Cannot use ${DESIGN_FILE}:\n${result.issues.map((issue) => `  - ${issue}`).join("\n")}`
+  );
+  process.exit(1);
+}
+
+// Basic installation: turn the prompt answers into the same effective design a design-driven
+// installation produces, so both paths generate (and record) the panel the same way.
+async function askBasicDesign(apiPreset?: ApiLayer) {
+  const { name, orm, prov, schemaPath } =
+    (await buildSchemaSourcePrompts()) as SchemaSourceAnswers;
+  const answers = (await buildPrompts({ apiPreset })) as RestOfPromptAnswers;
+
+  const input: DesignConfigInput = {
+    PANEL: {
+      config: {
+        name: orDefault(name, "Acaraje"),
+        ...(answers.api ? { api: answers.api } : {}),
+        docker: answers.docker ?? false,
+      },
+    },
+    DATABASE: {
+      config:
+        orm === "prisma"
+          ? { orm, schemaPath: orDefault(schemaPath, "/prisma") }
+          : { orm, provider: prov!, schemaPath: orDefault(schemaPath, "/database") },
+    },
+    STORAGE: { enable: true, config: { provider: answers.storage ?? "minio" } },
+  };
+
+  // The prompts validate the same rules as the design schema, so this only fails on a bug.
+  const result = validateDesignConfig(input);
+  if (!result.ok) throw new Error(`Invalid installation answers:\n${result.issues.join("\n")}`);
+  return { design: result.config, answers };
+}
+
 const C = async (opts: InitOptions = {}) => {
   p.intro("Create Acaraje Admin Panel");
 
-  let { name, orm, prov, schemaPath } =
-    (await buildSchemaSourcePrompts()) as SchemaSourceAnswers;
-  let { storage, api: promptedApi, docker, username, password } =
-    (await buildPrompts(opts.api)) as RestOfPromptAnswers;
-  const api: ApiLayer = opts.api ?? promptedApi ?? "rest";
+  const { useDesignFile } = (await buildInstallModePrompt()) as InstallModeAnswers;
 
-  name = orDefault(name, "Acaraje");
-  schemaPath = orDefault(schemaPath, prov ? "/database" : "/prisma");
-  username = orDefault(username, "admin");
-  password = orDefault(password, "password");
+  let design: DesignConfig;
+  let answers: RestOfPromptAnswers;
+  if (useDesignFile === true) {
+    design = loadDesignOrExit();
+    answers = (await buildPrompts({ apiPreset: opts.api, fromDesign: true })) as RestOfPromptAnswers;
+  } else {
+    ({ design, answers } = await askBasicDesign(opts.api));
+  }
+
+  // A command-line flag beats the design file, which beats the default (see README).
+  if (opts.api) {
+    design = { ...design, PANEL: { config: { ...design.PANEL.config, api: opts.api } } };
+  }
+
+  const { name, api, docker } = design.PANEL.config;
+  const database = design.DATABASE.config;
+  const orm = database.orm;
+  const prov = database.orm === "pure-sql" ? database.provider : undefined;
+  const storage = design.STORAGE.config.provider;
+  const username = orDefault(answers.username, "admin");
+  const password = orDefault(answers.password, "password");
 
   // schemaPath is a project-relative folder (e.g. "/prisma"), not a file path — join it with
   // cwd and the expected filename before handing it to the parsers, which just read whatever
   // path they're given.
   const schemaFileName = prov ? "schema.sql" : "schema.prisma";
-  const resolvedSchemaPath = path.join(process.cwd(), schemaPath, schemaFileName);
+  const resolvedSchemaPath = path.join(process.cwd(), database.schemaPath, schemaFileName);
 
-  // The "prov" prompt only runs (and is only skipped) in lockstep with "orm" !== "prisma",
-  // so it's always answered by the time we reach the pure-sql branch here.
   const schema = orm === "prisma"
     ? prismaParser(resolvedSchemaPath)
     : sqlParser(resolvedSchemaPath, SQL_DB_TYPES[prov!]);
@@ -170,6 +240,9 @@ const C = async (opts: InitOptions = {}) => {
   generateFrontEnd(name)
   generateQuery(api)
   generateConfigFiles(name, resolveDbProvider(orm, prov, schema), storage, docker, username, password, api)
+  // Both installation modes record the effective design; acaraje.config.json stays for
+  // `acaraje update schema` and projects generated by earlier versions.
+  writeDesignConfig(design)
   writeAcarajeConfig({ api })
 
   installNodeModules()
