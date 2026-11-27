@@ -1,14 +1,13 @@
-import { code, imp, joinCode } from "ts-poet";
+import { code, imp } from "ts-poet";
 
 const TRPCError = imp("TRPCError@@trpc/server");
 const internalError = imp("internalError@@/server/trpc/init");
 const CrudHandlers = imp("t:CrudHandlers@@/server/trpc/routers/crud/types");
 const prismaClient = imp("prisma@@/lib/prisma");
-const getFieldKind = imp("getFieldKind@@/lib/crud/resolve-filters");
-const isFilterableField = imp("isFilterableField@@/lib/crud/resolve-filters");
-const isOperatorValidForKind = imp("isOperatorValidForKind@@/lib/crud/resolve-filters");
-const parseFilterValue = imp("parseFilterValue@@/lib/crud/resolve-filters");
-const buildPrismaFilterCondition = imp("buildPrismaFilterCondition@@/lib/crud/resolve-filters");
+const filterableFieldKinds = imp("filterableFieldKinds@@/lib/crud/resolve-filters");
+const resolveListQuery = imp("resolveListQuery@@/lib/crud/resolve-filters");
+const ResolvedSort = imp("t:ResolvedSort@@/lib/crud/resolve-filters");
+const buildPrismaListArgs = imp("buildPrismaListArgs@@/lib/crud/prisma-filters");
 const sanitizeInput = imp("sanitizeInput@@/lib/crud/resolve-filters");
 
 const LABEL_CANDIDATES = ["name", "title", "email", "code", "slug", "label", "storeName"];
@@ -33,18 +32,11 @@ export function writePrismaCrudHandlers(
   const enumNamesLiteral = JSON.stringify(schema.enums.map((e) => e.name));
   const hasCreatedAt = model.fields.some((f) => f.name === "createdAt");
 
-  const stringFields = model.fields.filter((f) => f.type === "String" && !f.isRelation && !f.isList);
+  const searchFieldsLiteral = JSON.stringify(
+    model.fields.filter((f) => f.type === "String" && !f.isRelation && !f.isList).map((f) => f.name),
+  );
+  const defaultSortLiteral = hasCreatedAt ? `{ field: "createdAt", order: "desc" }` : "null";
   const mode = caseInsensitive ? `, mode: "insensitive"` : "";
-  const searchBlock =
-    stringFields.length > 0
-      ? code`
-      if (search) {
-        searchQuery.push({ OR: [${joinCode(
-          stringFields.map((f) => code`{ ${f.name}: { contains: search${mode} } }`),
-          { on: ", " },
-        )}] });
-      }`
-      : code`// No string fields on this model to search`;
 
   const labelField = model.fields.find((f) => LABEL_CANDIDATES.includes(f.name))?.name ?? null;
   const optionsWhere = labelField ? `{ ${labelField}: { contains: search${mode} } }` : "undefined";
@@ -54,40 +46,25 @@ export function writePrismaCrudHandlers(
   return code`
 const FIELDS: Record<string, { type: string; isRelation: boolean; isList: boolean }> = ${fieldsLiteral};
 const ENUM_NAMES = new Set<string>(${enumNamesLiteral});
+const FIELD_KINDS = ${filterableFieldKinds}(FIELDS, ENUM_NAMES);
+const SEARCH_FIELDS: string[] = ${searchFieldsLiteral};
+const DEFAULT_SORT: ${ResolvedSort} | null = ${defaultSortLiteral};
 
 // Relation-picker page size, matching the REST options route.
 const OPTIONS_PAGE_SIZE = 20;
 
 export const handlers: ${CrudHandlers} = {
   async list({ page, pageSize, search, filters = [], sortField, sortOrder = "desc" }) {
-    const searchQuery: any[] = [];
-    ${searchBlock}
+    const query = ${resolveListQuery}({ filters, sortField, sortOrder }, FIELD_KINDS, DEFAULT_SORT);
+    if (!query.ok) throw new ${TRPCError}({ code: "BAD_REQUEST", message: query.error });
 
-    for (const f of filters) {
-      const field = FIELDS[f.field];
-      if (!field || !${isFilterableField}(field, ENUM_NAMES)) continue;
-
-      const kind = ${getFieldKind}(field.type, ENUM_NAMES)!;
-      if (!${isOperatorValidForKind}(kind, f.operator)) continue;
-
-      const parsedValue = ${parseFilterValue}(kind, f.value);
-      if (!parsedValue.ok) throw new ${TRPCError}({ code: "BAD_REQUEST", message: parsedValue.error });
-
-      searchQuery.push(${buildPrismaFilterCondition}(f.field, kind, f.operator, parsedValue.value, ${caseInsensitive}));
-    }
-
-    let orderBy: Record<string, "asc" | "desc"> | undefined;
-    if (sortField) {
-      const field = FIELDS[sortField];
-      if (!field || !${isFilterableField}(field, ENUM_NAMES)) {
-        throw new ${TRPCError}({ code: "BAD_REQUEST", message: "Sort field is not sortable" });
-      }
-      orderBy = { [sortField]: sortOrder };
-    }${hasCreatedAt ? code` else {
-      orderBy = { createdAt: "desc" };
-    }` : ""}
-
-    const where = searchQuery.length > 0 ? { AND: searchQuery } : {};
+    const { where, orderBy } = ${buildPrismaListArgs}({
+      filters: query.filters,
+      sort: query.sort,
+      search,
+      searchFields: SEARCH_FIELDS,
+      caseInsensitive: ${caseInsensitive},
+    });
 
     try {
       const [records, total] = await Promise.all([

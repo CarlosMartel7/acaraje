@@ -8,6 +8,8 @@ import * as S from '../../templates/api/crud/[model]/sql'
 import * as S_id from '../../templates/api/crud/[model]/id/sql'
 import * as S_Opt from '../../templates/api/crud/[model]/options/sql'
 import writeLibCrudFilters from '../../templates/lib/crud/resolve-filters'
+import writePrismaFilters from '../../templates/lib/crud/prisma-filters'
+import writeKyselyFilters from '../../templates/lib/crud/kysely-filters'
 import writeBuildFormSchema from '../../templates/lib/crud/build-form-schema'
 import writePrisma from '../../templates/lib/prisma'
 import writeDbClient from '../../templates/lib/db'
@@ -29,9 +31,11 @@ export function generateCRUD(
     throw new Error(`CRUD generation for orm "${orm}" is not implemented yet`);
   }
 
-  // Shared by both the prisma.ts and sql.ts route flavors (filtering/sorting, form validation) —
+  // Shared by both the prisma.ts and sql.ts route flavors (filter/sort rules, form validation) —
   // written once under lib/crud/, matching the "@/lib/crud/resolve-filters" and
-  // "@/lib/crud/build-form-schema" imports both the API routes and crud components use.
+  // "@/lib/crud/build-form-schema" imports both the API routes and crud components use. The ORM
+  // adapter that compiles those rules into a query (prisma-filters.ts / kysely-filters.ts) is
+  // written below, only for the client the project actually uses.
   const libDir = path.join(baseDir, "lib")
   const libCrudDir = path.join(libDir, "crud")
   fs.mkdirSync(libCrudDir, { recursive: true })
@@ -48,12 +52,14 @@ export function generateCRUD(
   // never needs to know which client the project uses.
   if (orm === "prisma") {
     fs.writeFileSync(path.join(libDir, "prisma.ts"), writePrisma().toString())
+    fs.writeFileSync(path.join(libCrudDir, "prisma-filters.ts"), writePrismaFilters().toString())
     fs.writeFileSync(path.join(libDir, "model-store.ts"), writeModelStore("prisma").toString())
   } else {
     // sql-parser.ts only ever sets datasource.provider to one of postgresql/mysql/sqlite
     // (it comes straight from the validated "prov" prompt), so this cast is safe.
     const dbProvider = schema.datasource!.provider as "postgresql" | "mysql" | "sqlite"
     fs.writeFileSync(path.join(libDir, "db.ts"), writeDbClient(dbProvider).toString())
+    fs.writeFileSync(path.join(libCrudDir, "kysely-filters.ts"), writeKyselyFilters().toString())
     fs.writeFileSync(path.join(libDir, "model-store.ts"), writeModelStore("pure-sql", dbProvider).toString())
   }
 

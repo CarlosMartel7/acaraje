@@ -7,7 +7,7 @@ const getFieldKind = imp("getFieldKind@@/lib/crud/resolve-filters");
 const isFilterableField = imp("isFilterableField@@/lib/crud/resolve-filters");
 const isOperatorValidForKind = imp("isOperatorValidForKind@@/lib/crud/resolve-filters");
 const parseFilterValue = imp("parseFilterValue@@/lib/crud/resolve-filters");
-const buildPrismaFilterCondition = imp("buildPrismaFilterCondition@@/lib/crud/resolve-filters");
+const buildPrismaFilterCondition = imp("buildPrismaFilterCondition@@/lib/crud/prisma-filters");
 const sanitizeInput = imp("sanitizeInput@@/lib/crud/resolve-filters");
 
 export function writeReadFoo(

@@ -3,8 +3,11 @@ import { code } from "ts-poet";
 const writeLibCrudFilters = () => code`
 
 /**
- * Classifies Prisma field types into filter/sort "kinds" and defines which operators are valid
- * for each. Pure, no Node imports — safe to import from both API routes and client components
+ * The shared filter/sort rules: classifies field types into filter/sort "kinds", defines which
+ * operators are valid for each, and resolves a list request into validated filters and a sort.
+ * Pure, no Node or ORM imports — safe to import from API routes, tRPC handlers and client
+ * components alike. Compiling the resolved query into a database query is the job of the ORM
+ * adapter next to this file (prisma-filters.ts or kysely-filters.ts).
  */
 
 export type FieldKind = "string" | "number" | "boolean" | "datetime" | "enum";
@@ -70,7 +73,7 @@ export function defaultOperatorForKind(kind: FieldKind): FilterOperator {
   return OPERATORS_BY_KIND[kind][0].value;
 }
 
-/** Parses a raw string filter value into what Prisma expects for 'kind'. */
+/** Parses a raw string filter value into the typed value the adapters compare against. */
 export function parseFilterValue(kind: FieldKind, raw: string): { ok: true; value: any } | { ok: false; error: string } {
   switch (kind) {
     case "string":
@@ -92,65 +95,85 @@ export function parseFilterValue(kind: FieldKind, raw: string): { ok: true; valu
   }
 }
 
-/**
- * Builds the Prisma 'where; fragment for one field/operator/value. 'caseInsensitive' (default
- * true) adds Prisma's 'mode: "insensitive"' for string operators — supported on PostgreSQL and
- * MongoDB, but rejected by Prisma's SQLite connector, so callers must pass 'false' there.
- */
-export function buildPrismaFilterCondition(
-  fieldName: string,
-  kind: FieldKind,
-  operator: FilterOperator,
-  value: any,
-  caseInsensitive = true,
-): Record<string, any> {
-  if (kind === "string") return { [fieldName]: { [operator]: value, ...(caseInsensitive ? { mode: "insensitive" } : {}) } };
-  return { [fieldName]: { [operator]: value } };
+/** Filterable/sortable field name -> kind, for one model. Anything absent can't be filtered or sorted on. */
+export type FieldKindMap = Record<string, FieldKind>;
+
+/** Builds a model's FieldKindMap from its field metadata, keeping only filterable fields. */
+export function filterableFieldKinds(fields: Record<string, FieldLike>, enumNames: Set<string> | string[]): FieldKindMap {
+  const kinds: FieldKindMap = {};
+  for (const [name, field] of Object.entries(fields)) {
+    if (isFilterableField(field, enumNames)) kinds[name] = getFieldKind(field.type, enumNames)!;
+  }
+  return kinds;
 }
 
+function kindOf(fieldKinds: FieldKindMap, name: string): FieldKind | undefined {
+  return Object.prototype.hasOwnProperty.call(fieldKinds, name) ? fieldKinds[name] : undefined;
+}
+
+/** One validated filter, with its value already parsed for the field's kind. */
+export interface ResolvedFilter {
+  field: string;
+  kind: FieldKind;
+  operator: FilterOperator;
+  value: any;
+}
+
+export interface ResolvedSort {
+  field: string;
+  order: Crud.SortOrder;
+}
+
+export interface ListQueryInput {
+  filters?: Crud.FilterCondition[];
+  sortField?: string;
+  sortOrder?: string;
+}
+
+export type ListQueryResolution =
+  | { ok: true; filters: ResolvedFilter[]; sort: ResolvedSort | null }
+  | { ok: false; error: string };
+
 /**
- * Builds a Kysely 'where' expression for one field/operator/value, for use inside a
- * '.where((eb) => ...)' callback. 'caseInsensitive' (default true) switches string comparisons
- * to 'ilike', which Postgres understands natively — MySQL and SQLite don't, so callers must pass
- * 'false' there. Untyped 'eb' keeps this file dependency-free for projects that don't use Kysely.
+ * Validates a list request against a model's filterable fields. Filters on unknown fields or with
+ * an operator the field's kind doesn't support are skipped; a value that doesn't parse for the
+ * field's kind, or a sort on a field that isn't sortable, fails the whole request. Without a sort
+ * field, 'defaultSort' applies.
  */
-export function buildKyselyFilterCondition(
-  eb: any,
-  fieldName: string,
-  kind: FieldKind,
-  operator: FilterOperator,
-  value: any,
-  caseInsensitive = true,
-) {
-  if (kind === "string") {
-    const likeOp = caseInsensitive ? "ilike" : "like";
-    switch (operator) {
-      case "contains":
-        return eb(fieldName, likeOp, "%" + value + "%");
-      case "startsWith":
-        return eb(fieldName, likeOp, value + "%");
-      case "endsWith":
-        return eb(fieldName, likeOp, "%" + value);
-      case "equals":
-        return eb(fieldName, caseInsensitive ? "ilike" : "=", value);
-      default:
-        return eb(fieldName, "=", value);
-    }
+export function resolveListQuery(
+  input: ListQueryInput,
+  fieldKinds: FieldKindMap,
+  defaultSort: ResolvedSort | null,
+): ListQueryResolution {
+  const filters: ResolvedFilter[] = [];
+  for (const f of input.filters ?? []) {
+    const kind = kindOf(fieldKinds, f.field);
+    if (!kind || !isOperatorValidForKind(kind, f.operator)) continue;
+
+    const parsedValue = parseFilterValue(kind, f.value);
+    if (!parsedValue.ok) return { ok: false, error: parsedValue.error };
+
+    filters.push({ field: f.field, kind, operator: f.operator, value: parsedValue.value });
   }
 
-  switch (operator) {
-    case "not":
-      return eb(fieldName, "!=", value);
-    case "gt":
-      return eb(fieldName, ">", value);
-    case "gte":
-      return eb(fieldName, ">=", value);
-    case "lt":
-      return eb(fieldName, "<", value);
-    case "lte":
-      return eb(fieldName, "<=", value);
-    default:
-      return eb(fieldName, "=", value);
+  let sort = defaultSort;
+  if (input.sortField) {
+    if (!kindOf(fieldKinds, input.sortField)) return { ok: false, error: "Sort field is not sortable" };
+    sort = { field: input.sortField, order: input.sortOrder === "asc" ? "asc" : "desc" };
+  }
+
+  return { ok: true, filters, sort };
+}
+
+/** Parses the REST 'filters' query parameter (a JSON array of conditions); '' means no filters. */
+export function parseFiltersParam(raw: string): { ok: true; filters: Crud.FilterCondition[] } | { ok: false; error: string } {
+  if (!raw) return { ok: true, filters: [] };
+  try {
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) throw new Error("filters must be an array");
+    return { ok: true, filters: parsed };
+  } catch {
+    return { ok: false, error: "Invalid filters parameter: must be a JSON array" };
   }
 }
 
@@ -163,4 +186,4 @@ export function sanitizeInput(data: Record<string, any>) {
   return out;
 }`
 
-export default writeLibCrudFilters 
+export default writeLibCrudFilters

@@ -194,7 +194,8 @@ test("pure-sql: falls back to the id when no field name matches a label candidat
 });
 
 test("pure-sql: uses ilike for postgresql and plain like for sqlite", () => {
-  expect(sqlFiles.User.index).toContain('"ilike"');
+  // The list route delegates string matching to lib/crud/kysely-filters.ts, which picks ilike/like.
+  expect(sqlFiles.User.index).toContain("caseInsensitive: true");
   expect(sqlFiles.User.options).toContain('"ilike"');
 
   const sqliteSchema = sqlParser(path.join(__dirname, "sampleDBs", "schema.sqlite.sql"), "Sqlite");
@@ -203,8 +204,10 @@ test("pure-sql: uses ilike for postgresql and plain like for sqlite", () => {
   try {
     generateCRUD(sqliteSchema, "pure-sql", "rest", sqliteOutDir);
     const index = fs.readFileSync(routePath(sqliteOutDir, "User"), "utf-8");
-    expect(index).not.toContain('"ilike"');
-    expect(index).toContain('"like"');
+    const options = fs.readFileSync(routePath(sqliteOutDir, "User", "options"), "utf-8");
+    expect(index).toContain("caseInsensitive: false");
+    expect(options).not.toContain('"ilike"');
+    expect(options).toContain('"like"');
   } finally {
     fs.rmSync(sqliteOutDir, { recursive: true, force: true });
   }
