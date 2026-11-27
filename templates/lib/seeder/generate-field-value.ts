@@ -2,6 +2,7 @@ import { code, imp } from "ts-poet";
 
 const faker = imp("faker@@faker-js/faker")
 const isRuleCompatibleWithType = imp("isRuleCompatibleWithType@@/lib/seeder/field-generators")
+const seederFieldType = imp("seederFieldType@@/lib/seeder/field-generators")
 
 export const writeGenerateFieldValue = () => code`
 const DEFAULT_OPTIONAL_NULL_CHANCE = 0.3;
@@ -160,9 +161,10 @@ export function generateFieldValue(
   config: Seeder.ConfigFile,
   modelName: string,
   fieldName: string,
-  fieldType: string,
+  rawFieldType: string,
   enumValues?: string[],
 ): unknown {
+  const fieldType = ${seederFieldType}(rawFieldType);
   const rawRule = config.models[modelName]?.[fieldName];
   const isEnum = Boolean(enumValues?.length);
   const rule =

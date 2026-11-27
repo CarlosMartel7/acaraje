@@ -4,7 +4,7 @@ const initTRPC = imp("initTRPC@@trpc/server")
 const TRPCError = imp("TRPCError@@trpc/server")
 const requireAuth = imp("requireAuth@@/lib/auth/require-auth")
 
-// tRPC counterpart of the per-route requireAuth checks: middleware.ts already 401s any
+// tRPC counterpart of the per-route requireAuth checks: proxy.ts already 401s any
 // unauthenticated /api/* request (/api/trpc included), and protectedProcedure re-checks the
 // session cookie per call so a procedure is never reachable without one.
 //

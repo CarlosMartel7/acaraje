@@ -47,8 +47,9 @@ test("relations route returns the inferred relations list", () => {
   expect(files.relations).toContain("relations: parsedSchema.relations");
 });
 
-test("stats route imports prisma and aggregates field/relation/index counts", () => {
-  expect(files.stats).toMatch(/from "@\/lib\/prisma"/);
+test("stats route counts records through the database-agnostic model store and aggregates field/relation/index counts", () => {
+  expect(files.stats).toMatch(/import \{ countRecords \} from "@\/lib\/model-store";/);
+  expect(files.stats).not.toContain("@/lib/prisma");
   expect(files.stats).toContain("totalFields");
   expect(files.stats).toContain("totalRelations");
   expect(files.stats).toContain("totalIndexes");

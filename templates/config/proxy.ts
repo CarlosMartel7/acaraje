@@ -6,8 +6,13 @@ const SESSION_COOKIE = imp("SESSION_COOKIE@@/lib/auth/session-token")
 const verifySessionToken = imp("verifySessionToken@@/lib/auth/session-token")
 const tryGetAuthSecret = imp("tryGetAuthSecret@@/lib/auth/config")
 
-/** @param projectName the sanitized project name — see `templates/lib/acaraje-routes.ts`. */
-export const writeMiddleware = (projectName: string) => code`
+/**
+ * The generated app's auth guard, run by Next.js before every matched request. Next 16 renamed
+ * Middleware to Proxy: the file is proxy.ts and the handler is exported as \`proxy\`.
+ *
+ * @param projectName the sanitized project name — see `templates/lib/acaraje-routes.ts`.
+ */
+export const writeProxy = (projectName: string) => code`
 const LOGIN_PATH = "/login";
 const ACARAJE_BASE = "/${projectName}";
 
@@ -28,7 +33,7 @@ function isProtectedApi(pathname: string): boolean {
   return pathname.startsWith("/api/") && !isAuthApi(pathname);
 }
 
-export async function middleware(request: ${NextRequest}) {
+export async function proxy(request: ${NextRequest}) {
   const { pathname } = request.nextUrl;
   const secret = ${tryGetAuthSecret}();
   const token = request.cookies.get(${SESSION_COOKIE})?.value;
@@ -67,4 +72,4 @@ export const config = {
 }
 `;
 
-export default writeMiddleware;
+export default writeProxy;
