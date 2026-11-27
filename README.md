@@ -147,7 +147,40 @@ so a typo can't be silently ignored.
 | `STORAGE` | `enable` | Must be `true`: every panel currently includes the file browser | `true` |
 | `STORAGE` | `config.provider` | `minio` or `gcs` | `minio` |
 
-A basic file only names the schema; everything else takes its default:
+#### Example `acaraje-design.json`
+
+A complete file for a Prisma project, in the form `acaraje init` writes it:
+
+```json
+{
+  "PANEL": {
+    "config": {
+      "name": "Backoffice",
+      "api": "trpc",
+      "docker": true
+    }
+  },
+  "DATABASE": {
+    "config": {
+      "orm": "prisma",
+      "schemaPath": "/prisma"
+    }
+  },
+  "STORAGE": {
+    "enable": true,
+    "config": {
+      "provider": "minio"
+    }
+  }
+}
+```
+
+It mounts the admin UI at `app/backoffice/...`, uses tRPC, writes a `docker-compose.yml`, reads
+`prisma/schema.prisma`, and stores files in MinIO. To use it, save it as `acaraje-design.json` in
+your project root, run `npx acaraje init`, answer **Yes** to the first question, and enter the admin
+username and password when asked.
+
+You only need to write what differs from the defaults. This file is enough for a Prisma project:
 
 ```json
 {
@@ -155,11 +188,10 @@ A basic file only names the schema; everything else takes its default:
 }
 ```
 
-An advanced file spells everything out:
+For pure SQL, `provider` is required, and the schema folder can be changed:
 
 ```json
 {
-  "PANEL": { "config": { "name": "Backoffice", "api": "trpc", "docker": true } },
   "DATABASE": {
     "config": { "orm": "pure-sql", "provider": "postgresql", "schemaPath": "/db" }
   },
